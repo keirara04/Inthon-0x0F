@@ -5,9 +5,10 @@
 ## Team
 | Name | Role |
 |------|------|
-| Keira (키미) | Lead / Full-stack |
-| [Name] | [Frontend / Design] |
-| [Name] | [Backend / Pitch] |
+| 키미  | Backend, deploy, merging |
+| 김상후 | AI feature development |
+| 전소현 | Frontend |
+| 김명성 | Testing, backend support |
 
 ## Tech Stack
 - **Frontend:** Next.js (TypeScript), Tailwind CSS
@@ -23,7 +24,7 @@
 ## Getting Started
 
 ### Prerequisites
-Node 20+, PHP 8.3+, Composer, MySQL 8
+Node 20.9+, PHP 8.3+, Composer, MySQL 8
 
 ### Database
 ```bash
