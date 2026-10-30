@@ -51,3 +51,16 @@ jobs:
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:8000' }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      # Tell Dokploy to pull the new image via its API. Only /api/application.deploy is
+      # exposed publicly (Cloudflare tunnel route). Skips quietly until secrets are set.
+      - name: Trigger Dokploy deploy
+        if: github.event_name != 'pull_request'
+        env:
+          API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ matrix.app == 'backend' && secrets.DOKPLOY_BACKEND_APP_ID || secrets.DOKPLOY_FRONTEND_APP_ID }}
+        run: |
+          if [ -z "$API_KEY" ] || [ -z "$APP_ID" ]; then echo "Dokploy secrets not set, skipping deploy"; exit 0; fi
+          curl -fsS -X POST https://inthon-deploy.hakeemiridza.com/api/application.deploy \
+            -H "x-api-key: $API_KEY" -H "Content-Type: application/json" \
+            -d "{\"applicationId\":\"$APP_ID\"}"

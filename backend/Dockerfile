@@ -15,3 +15,5 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev \
     && chown -R www-data:www-data storage bootstrap/cache
 EXPOSE 80
+# Run pending migrations on every start, then hand off to the image's normal FrankenPHP start
+CMD ["sh", "-c", "php artisan migrate --force && exec docker-php-entrypoint --config /etc/frankenphp/Caddyfile --adapter caddyfile"]
