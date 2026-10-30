@@ -1,0 +1,20 @@
+# Local MySQL for development. From backend/: docker compose --env-file .env -f ../compose.yaml up -d --wait
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: ${DB_DATABASE:-inthon}
+      MYSQL_USER: ${DB_USERNAME:-inthon}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in backend/.env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 3s
+      retries: 30
+
+volumes:
+  mysql-data:

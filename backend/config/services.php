@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'lablup' => [
+        'key' => env('LABLUP_API_KEY'),
+        'base_url' => env('LABLUP_BASE_URL', 'https://api.console.lablup.ai/anthropic'),
+        'model' => env('LABLUP_MODEL', 'DeepSeek-V4.1-Flash-B300'),
+    ],
+
 ];
