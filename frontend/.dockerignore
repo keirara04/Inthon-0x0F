@@ -1,0 +1,8 @@
+# Secrets: never bake .env files into the image
+.env*
+node_modules
+.next
+AGENTS.md
+CLAUDE.md
+Dockerfile
+.dockerignore
