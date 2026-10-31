@@ -185,7 +185,6 @@ export function GuidanceScreen() {
         <div className="text-[17px] leading-[1.45] font-medium" style={{ color: st.subWarn ? "#7A4800" : C.muted }}>
           {st.sub}
         </div>
-        {st.turn && <div className="self-start rounded-lg bg-haptic-tint px-2.5 py-[5px] text-[13px] font-bold text-haptic-ink">{st.turn}</div>}
         {compass.walkedM !== null && apiStep?.kind === "walk" && (
           // Not a live region: it changes every step and would talk over the instructions.
           <div className="text-[14px] font-semibold text-muted">
@@ -244,25 +243,12 @@ export function GuidanceScreen() {
         >
           <span>
             자세히
-            <span className="block text-[12px] font-medium text-muted">진동 패턴 · {st.floor} 지도 · 전체 경로</span>
+            <span className="block text-[12px] font-medium text-muted">현재 층 지도 · 전체 경로</span>
           </span>
           <span className="flex-none text-[13px] font-semibold text-muted">{s.routeOpen ? "접기" : "펼치기"}</span>
         </button>
         {s.routeOpen && (
           <div className="flex flex-col gap-3.5 px-4 pb-4">
-            <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px] text-muted">
-              {[
-                ["왼쪽", "짧게·짧게"],
-                ["오른쪽", "길게·길게"],
-                ["층 이동", "짧게 3번"],
-                ["도착", "길게 1 + 짧게 2"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex gap-1">
-                  <dt className="font-semibold text-ink">{k}</dt>
-                  <dd className="m-0">{v}</dd>
-                </div>
-              ))}
-            </dl>
           {/* Hand-drawn sketch only when the live floor map isn't available (demo / mock). */}
           {!s.route && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-app-bg px-3.5 py-3">

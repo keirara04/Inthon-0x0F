@@ -9,6 +9,7 @@ import { CaptureIntroScreen } from "./CaptureIntroScreen";
 import { CheckpointScanner } from "./CheckpointScanner";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { DemoPanel } from "./DemoPanel";
+import { DestFloorScreen } from "./DestFloorScreen";
 import { FloorMapScreen } from "./FloorMapScreen";
 import { ElevatorScreen } from "./ElevatorScreen";
 import { GraphEditorScreen } from "./GraphEditorScreen";
@@ -37,6 +38,7 @@ const SCREENS: Record<Screen, () => ReactNode> = {
   wrongFloor: WrongFloorScreen,
   mapResult: MapResultScreen,
   start: StartLocationScreen,
+  destFloor: DestFloorScreen,
   search: SearchScreen,
   preview: RoutePreviewScreen,
   mode: ModeScreen,

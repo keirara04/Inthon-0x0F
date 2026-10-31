@@ -85,7 +85,9 @@ const TIPS: [keyof typeof TIP_ICONS, string][] = [
 ];
 
 export function CaptureIntroScreen() {
-  const { actions } = useGilgyeol();
+  const { state: s, actions } = useGilgyeol();
+  const dest = s.captureFor === "dest";
+  const demo = () => (dest ? actions.loadDemoDestMap() : actions.go("mapResult", { mapDemo: true }));
   // The scanner finds the sign in the photo and frames it, like the live camera does.
   const album = useAlbumPick((file) => {
     actions.openScan("map");
@@ -93,14 +95,30 @@ export function CaptureIntroScreen() {
   });
   return (
     <div className="flex min-h-full flex-col gap-4 px-5 pt-1 pb-6">
-      <BackHeader label="시작 준비 · 2 / 3" onBack={actions.back} />
-      <Title>
-        층별 안내도를
-        <br />
-        비춰주세요
+      <BackHeader label={dest ? "새로운 층 안내도" : "안내도 촬영"} onBack={actions.back} />
+      <Title className="text-[22px] leading-[1.32] tracking-[-0.035em]">
+        {dest ? (
+          <>
+            새로운 층의 비상시 대피
+            <br />
+            안내도를 골라주세요
+          </>
+        ) : (
+          <>
+            현재 있는 층의 비상시
+            <br />
+            대피 안내도를 찍어주세요
+          </>
+        )}
       </Title>
-      <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽의 층별 안내도를 찍으면, AI가 복도와 호실을 읽어 지도로 만들어요.</p>
-      <BuildingPicker />
+      {dest ? (
+        <p className="m-0 text-[16px] leading-[1.55] text-muted">새로운 층의 안내도가 있어야 목적지 목록을 만들 수 있어요. 앨범에서 골라주세요.</p>
+      ) : (
+        <>
+          <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽에 층별 안내도가 있어요.</p>
+          <BuildingPicker />
+        </>
+      )}
       <ExampleShot />
       <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0" aria-label="촬영 팁">
         {TIPS.map(([icon, label]) => (
@@ -115,9 +133,22 @@ export function CaptureIntroScreen() {
       <p className="m-0 text-[13px] leading-normal text-muted">카메라는 안내도와 표지를 읽을 때만 써요. 사진은 저장하지 않고, 읽은 지도만 이 건물을 찾는 다음 사람을 위해 저장해요. 주변 사람이 찍히지 않게 안내도만 가까이 비춰주세요.</p>
       <div className="flex-1" />
       {album.input}
-      <PrimaryButton onClick={() => actions.openScan("map")}>카메라 켜기</PrimaryButton>
-      <SecondaryButton data-trial="capture-album" onClick={album.open}>앨범에서 선택</SecondaryButton>
-      <SecondaryButton dashed onClick={() => actions.go("mapResult", { mapDemo: true })}>
+      {s.trialOn ? (
+        <>
+          <PrimaryButton data-trial="capture-album" onClick={album.open}>
+            앨범에서 선택
+          </PrimaryButton>
+          <SecondaryButton onClick={() => actions.openScan("map")}>카메라로 찍기</SecondaryButton>
+        </>
+      ) : (
+        <>
+          <PrimaryButton onClick={() => actions.openScan("map")}>카메라 켜기</PrimaryButton>
+          <SecondaryButton data-trial="capture-album" onClick={album.open}>
+            앨범에서 선택
+          </SecondaryButton>
+        </>
+      )}
+      <SecondaryButton dashed onClick={demo}>
         데모 안내도 불러오기
       </SecondaryButton>
     </div>

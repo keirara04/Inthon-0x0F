@@ -4,18 +4,22 @@ import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { PrimaryButton, SecondaryButton } from "./ui";
 
 /**
- * Entry page for the guided 3-minute trial. `체험 시작` lands on the real capture screen; from
+ * Entry page for the guided 3-minute trial. `길찾기 시작` lands on the real capture screen; from
  * there TrialGuide dims the app and points at the real control for each step.
  */
 
 const STEPS = [
-  { title: "안내도 사진 선택", sub: "휴대폰에 저장된 우정정보관 안내도 사진을 앨범에서 골라요." },
+  { title: "체험 시작", sub: "하은의 405호 여정을 실제 앱 화면으로 따라가요." },
+  { title: "현재 층 안내도 선택", sub: "하은이 앨범에 저장해 둔 안내도 사진을 골라요." },
   { title: "안내도 확인", sub: "AI가 사진 속 복도와 호실을 읽은 지도를 확인해요." },
-  { title: "출발 위치 지정", sub: "안내도에서 지금 서 있는 1층 출입구를 골라요." },
-  { title: "405호 검색", sub: "4층 405호를 검색해 경로를 불러와요." },
-  { title: "경로 확인", sub: "1층 → 엘리베이터 → 4층 왼쪽 복도 경로를 확인해요." },
-  { title: "안내 방식 선택", sub: "진동·음성 안내를 골라 이동을 시작해요." },
-  { title: "이동 안내", sub: "방향 화면을 따라 엘리베이터로 4층에 올라가요." },
+  { title: "출발 위치 확인", sub: "지금 서 있는 곳이 맞는지 확인해요." },
+  { title: "층 이동 여부 선택", sub: "405호가 있는 층으로 가야 하는지 골라요." },
+  { title: "엘리베이터까지 경로", sub: "현재 층에서 엘리베이터까지의 경로를 확인해요." },
+  { title: "안내 방식 선택", sub: "진동·음성 안내를 골라 이동을 준비해요." },
+  { title: "엘리베이터 이동", sub: "안내를 따라 엘리베이터로 층을 이동해요." },
+  { title: "새 층 안내도 선택", sub: "도착한 층의 안내도를 앨범에서 골라요." },
+  { title: "목적지 선택", sub: "새 안내도에서 405호를 골라요." },
+  { title: "405호까지 안내", sub: "남은 경로를 따라 이동해요." },
   { title: "405호 도착", sub: "도착 화면에서 3분 체험이 끝나요." },
 ];
 
@@ -31,7 +35,7 @@ export function TrialScreen() {
         </div>
         <button
           type="button"
-          onClick={() => actions.go("landing")}
+          onClick={() => actions.endTrial(true)}
           className="h-11 flex-none rounded-[14px] border-[1.5px] border-edge bg-surface px-3.5 text-[14px] font-bold text-ink"
         >
           나가기
@@ -56,13 +60,13 @@ export function TrialScreen() {
           처음 온 우정정보관에서 저장해 둔 안내도 사진부터 405호 도착까지, 실제 안내 화면을 따라가요. 화면에 뜨는 안내에 따라 실제 버튼을 눌러 주세요.
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {["약 3분", "8단계", "로그인 없음"].map((t) => (
+          {["약 3분", "12단계", "로그인 없음"].map((t) => (
             <span key={t} className="rounded-lg bg-surface px-2.5 py-[5px] text-[13px] font-bold text-ink">
               {t}
             </span>
           ))}
         </div>
-        <PrimaryButton onClick={actions.startTrial}>3분 체험 시작</PrimaryButton>
+        <PrimaryButton data-trial="trial-start" onClick={actions.startTrial}>길찾기 시작</PrimaryButton>
         <SecondaryButton onClick={() => actions.go("welcome")}>체험 없이 사용하기</SecondaryButton>
       </div>
 

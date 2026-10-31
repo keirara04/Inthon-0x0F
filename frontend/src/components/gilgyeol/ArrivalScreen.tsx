@@ -6,7 +6,7 @@ import { routeSummary } from "@/lib/gilgyeol/routeSummary";
 import { EXITS_4F } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import { Mascot } from "./Mascot";
-import { Badge, GhostButton, PrimaryButton } from "./ui";
+import { GhostButton, PrimaryButton } from "./ui";
 
 function duration(from: number | null, to: number | null) {
   if (!from || !to) return "—";
@@ -43,9 +43,6 @@ export function ArrivalScreen() {
           도착했어요
         </h1>
         <div className="text-[18px] text-muted">우정정보관 · {to}</div>
-        <div className="flex flex-wrap gap-1.5">
-          <Badge tone="haptic">진동 · 길게 1회 + 짧게 2회</Badge>
-        </div>
       </div>
       <dl className="m-0 grid grid-cols-3 gap-2 rounded-[18px] bg-surface px-3 py-4 text-center">
         {stats.map((x) => (
@@ -75,7 +72,6 @@ export function ArrivalScreen() {
                 </li>
               ))}
             </ul>
-            <p className="m-0 text-[12px] leading-normal text-warn-ink">현장 확인 전 시연 데이터예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
           </div>
         )}
       </div>}

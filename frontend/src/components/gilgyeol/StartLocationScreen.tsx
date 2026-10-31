@@ -191,7 +191,7 @@ export function StartLocationScreen() {
             )}
           </div>
         )}
-        <SecondaryButton aria-expanded={s.landmarks} onClick={toggleList}>
+        <SecondaryButton data-trial="start-landmarks" aria-expanded={s.landmarks} onClick={toggleList}>
           다른 입구에 계신가요?
         </SecondaryButton>
         {s.landmarks && (
@@ -219,6 +219,7 @@ export function StartLocationScreen() {
                     </button>
                   );
                 })}
+              </div>
             ))}
           </div>
         )}

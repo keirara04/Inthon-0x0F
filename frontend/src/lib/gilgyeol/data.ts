@@ -33,13 +33,13 @@ export const BUILDING = "우정정보관";
 export const DEST_FLOOR = 4;
 
 export const PATTERNS: Record<HapticPattern, { name: string; label: string; p: number[] }> = {
-  dir: { name: "방향 맞추기", label: "가까울수록 펄스 간격이 짧아짐", p: [40, 600, 40, 300, 40, 120, 40, 120, 40] },
-  left: { name: "왼쪽 회전", label: "짧게–짧게", p: [80, 90, 80] },
-  right: { name: "오른쪽 회전", label: "길게–길게", p: [320, 140, 320] },
-  floor: { name: "층 이동", label: "짧게 3회", p: [90, 70, 90, 70, 90] },
-  confirm: { name: "체크포인트 확인", label: "짧게 1회", p: [60] },
-  arrive: { name: "도착", label: "길게 1회 + 짧게 2회", p: [520, 160, 90, 110, 90] },
-  off: { name: "이탈 경고", label: "아주 짧게 3회", p: [40, 50, 40, 50, 40] },
+  dir: { name: "방향 맞추기", label: "방향 안내", p: [40, 600, 40, 300, 40, 120, 40, 120, 40] },
+  left: { name: "왼쪽 회전", label: "왼쪽 회전 알림", p: [80, 90, 80] },
+  right: { name: "오른쪽 회전", label: "오른쪽 회전 알림", p: [320, 140, 320] },
+  floor: { name: "층 이동", label: "층 이동 알림", p: [90, 70, 90, 70, 90] },
+  confirm: { name: "체크포인트 확인", label: "확인 알림", p: [60] },
+  arrive: { name: "도착", label: "도착 알림", p: [520, 160, 90, 110, 90] },
+  off: { name: "이탈 경고", label: "이탈 경고 알림", p: [40, 50, 40, 50, 40] },
 };
 
 export const DIRECTION: Record<Exclude<DirectionState, "unstable">, { rot: number; period: number; msg: string; color: string }> = {
@@ -98,7 +98,7 @@ export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
       title: "왼쪽 복도로 가세요",
       sub: `${dest}에 도착하면 아래 버튼을 눌러주세요`,
       subWarn: false,
-      turn: "좌회전 · 진동 짧게–짧게",
+      turn: "좌회전",
       next: `${dest} 도착`,
       landmark: "호실 번호 표지",
       cta: `${dest}에 도착했어요`,
@@ -109,7 +109,7 @@ export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
       title: "뒤로 돌아 엘리베이터 홀 쪽으로 가세요",
       sub: "홀을 지나 왼쪽 복도로 직진합니다",
       subWarn: false,
-      turn: "방향 전환 · 뒤로 돌기",
+      turn: "뒤로 돌기",
       next: `${dest} 도착`,
       landmark: "호실 번호 표지",
       cta: `${dest}에 도착했어요`,

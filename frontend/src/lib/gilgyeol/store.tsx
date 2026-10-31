@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiRoute } from "@/types/api";
-import { ApiError, fetchRoute, fetchSavedMap, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
-import { BUILDING, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
+import { ApiError, fetchRoute, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
+import { BUILDING, DEST_FLOOR, DIRECTION, EXAMPLE_4F_GRAPH, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
 import { floorName, canUseFloorMap } from "./floorTransition";
@@ -45,6 +45,13 @@ export interface AppState {
   startAt: { id: string; label: string; floor: string; via: "scan" | "list" | "pin" } | null;
   locEdit: boolean;
   landmarks: boolean;
+  /** Which floor's evacuation map the capture screen is asking for. */
+  captureFor: "current" | "dest";
+  /** Floor the user is heading to (chosen before the elevator). */
+  destFloor: number;
+  /** AI draft of the destination floor's evacuation map — the destination list and final route come from it. */
+  destParsed: ParsedGraph | null;
+  destPhoto: { url: string; w: number; h: number } | null;
   // search
   query: string;
   cat: RoomCategory | null;
@@ -106,6 +113,10 @@ const INITIAL: AppState = {
   startAt: null,
   locEdit: false,
   landmarks: false,
+  captureFor: "current",
+  destFloor: DEST_FLOOR,
+  destParsed: null,
+  destPhoto: null,
   query: "",
   cat: null,
   floorPick: null,
@@ -149,8 +160,9 @@ const BACK: Partial<Record<Screen, Screen>> = {
   invalidMap: "captureIntro",
   mapResult: "captureIntro",
   start: "mapResult",
-  search: "start",
-  preview: "search",
+  destFloor: "start",
+  search: "captureIntro",
+  preview: "destFloor",
   mode: "preview",
   editor: "welcome",
   arrive: "welcome",
@@ -161,6 +173,20 @@ function startFromParsed(g: ParsedGraph): StartNodeId | null {
   const cur = g.nodes.find((n) => n.id === g.current_node_id);
   if (!cur) return null;
   return cur.type === "elevator_hall" ? "hall" : cur.type === "stairs" ? "stair" : cur.type === "entrance" ? "main" : "here";
+}
+
+/** Prepared destination-floor map used when a demo trip skips the second photo. */
+const DEMO_DEST_MAP: ParsedGraph = {
+  ...EXAMPLE_4F_GRAPH,
+  building: BUILDING,
+  floor: `${DEST_FLOOR}F`,
+  current_node_id: "here",
+  elevators: [],
+};
+
+/** Same-floor walk legs start at the destination-floor elevator hall (ref `elev-A` on the demo graph). */
+function destStartNode(destParsed: ParsedGraph | null, floor: number): string {
+  return destParsed?.nodes.find((n) => n.type === "elevator_hall")?.id ?? `${floorLabel(floor)}-elev-A`;
 }
 
 function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
@@ -336,7 +362,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       clearTimeout(timers.current.scan);
       const from = ref.current.screen;
       const denied = ref.current.camDenied;
-      if (target === "map" && ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      const dest = ref.current.captureFor === "dest";
+      if (target === "map") {
+        const old = dest ? ref.current.destPhoto : ref.current.parsedPhoto;
+        if (old) URL.revokeObjectURL(old.url);
+      }
       go("scan", {
         scanTarget: target,
         scanFrom: from === "scan" ? ref.current.scanFrom : from,
@@ -344,7 +374,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         outcome: "success",
         manual: false,
         dest: ensureDest(),
-        ...(target === "map" ? { parsed: null, parsedPhoto: null } : {}),
+        ...(target === "map" ? (dest ? { destParsed: null, destPhoto: null } : { parsed: null, parsedPhoto: null }) : {}),
       });
       if (!denied) say(scanMeta(target, destName()).guide);
     },
@@ -377,12 +407,21 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         const ctl = new AbortController();
         parseCtl.current = ctl;
         const timeout = setTimeout(() => ctl.abort(), 70_000); // backend gives the model 60 s
+        const destMap = ref.current.captureFor === "dest";
+        const floor = destMap ? ref.current.destFloor : 1;
         try {
           const place = ref.current.place;
-          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : 1, ctl.signal, place);
+          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : floor, ctl.signal, place);
           if (parseCtl.current !== ctl || ref.current.screen !== "scan") return;
           if (g.buildingId) update({ place: { ...place, id: g.buildingId, name: g.building } });
-          showParsed(g, "안내도를 읽었어요. 결과를 확인해 주세요");
+          if (destMap) {
+            const parsedFloor = Number(g.floor.replace(/\D/g, "")) || ref.current.destFloor;
+            say(`${floorName(g.floor)} 안내도를 읽었어요. 목적지를 골라 주세요`);
+            update({ destParsed: g, destFloor: parsedFloor, scanState: "success" });
+            go("search", { query: "", cat: null, floorPick: null });
+          } else {
+            showParsed(g, "안내도를 읽었어요. 결과를 확인해 주세요");
+          }
         } catch (e) {
           if (parseCtl.current !== ctl) return; // cancelled by the user
           if (ref.current.screen === "scan" && e instanceof ApiError && e.code === "NOT_FLOOR_PLAN") {
@@ -455,14 +494,16 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const readMapPhoto = useCallback(
     async (img: Blob) => {
       if (ref.current.screen !== "scan" || ref.current.scanTarget !== "map") openScan("map");
-      if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      const destMap = ref.current.captureFor === "dest";
+      const old = destMap ? ref.current.destPhoto : ref.current.parsedPhoto;
+      if (old) URL.revokeObjectURL(old.url);
       let photo: AppState["parsedPhoto"] = null;
       try {
         const bmp = await createImageBitmap(img);
         photo = { url: URL.createObjectURL(img), w: bmp.width, h: bmp.height };
         bmp.close();
       } catch {} // unreadable format: the parse call reports the error
-      update({ parsedPhoto: photo });
+      update(destMap ? { destPhoto: photo } : { parsedPhoto: photo });
       await runScan(img);
     },
     [openScan, update, runScan],
@@ -479,9 +520,12 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     else startGuide(s.step + 1);
   }, [navNext, arrive, startGuide]);
 
+  /** Getting off the elevator asks for that floor's map before the final destination is chosen. */
   const leaveElevator = useCallback(() => {
-    advance();
-  }, [advance]);
+    update({ captureFor: "dest", scanState: "aim", outcome: "success", manual: false, destParsed: null, destPhoto: null });
+    go("captureIntro");
+    say("새로운 층에 도착했어요. 앨범에서 이 층 안내도를 골라주세요");
+  }, [go, update, say]);
 
   const confirmMap = useCallback(() => {
     const s = ref.current;
@@ -501,13 +545,17 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const scanNext = useCallback(
     (manual: boolean) => {
       const t = ref.current.scanTarget;
-      if (t === "map") go("mapResult", { mapDemo: false });
-      else {
+      if (t === "map") {
+        if (ref.current.captureFor === "dest") {
+          if (!ref.current.destParsed) update({ destParsed: DEMO_DEST_MAP });
+          go("search", { query: "", cat: null, floorPick: null });
+        } else go("mapResult", { mapDemo: false });
+      } else {
         const destFloor = `${ref.current.dest?.floor ?? 4}층`;
         go("offroute", { offState: "confirm", offFloor: destFloor, offSign: manual ? "직접 선택" : `${destFloor} 동측 복도 표지` });
       }
     },
-    [go],
+    [go, update],
   );
 
   const beginTrip = useCallback(() => {
@@ -561,6 +609,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     update({ postureSensor: true });
   }, [update, toast]);
 
+  /**
+   * Destination chosen from the destination floor's map. The final route starts at that floor's
+   * elevator hall, so guidance continues from where the elevator left off.
+   */
   const pickDest = useCallback(
     async (room: Room) => {
       if (!room.routeReady) {
@@ -570,17 +622,63 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       if (ref.current.routeLoading) return;
       update({ routeLoading: true });
       try {
-        const route = await fetchRoute(ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        const from = ref.current.destParsed
+          ? destStartNode(ref.current.destParsed, ref.current.destFloor)
+          : ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"];
+        const route = await fetchRoute(from, room.id);
         navLoad(route);
-        update({ route, steps: route.steps.map(toRouteStep), routeLoading: false });
-        go("preview", { dest: room, step: 0, dir: "far" });
+        update({
+          route,
+          steps: route.steps.map(toRouteStep),
+          routeLoading: false,
+          dest: room,
+          query: "",
+          cat: null,
+          floorPick: null,
+          trip: { startedAt: Date.now(), arrivedAt: null, reroutes: 0 },
+          simDir: null,
+        });
+        // The first leg already asked for the guidance mode, so the final leg goes straight to guidance.
+        unlockAudio();
+        navStart();
       } catch (e) {
         update({ routeLoading: false });
         toast(e instanceof Error ? e.message : "경로를 찾을 수 없어요");
       }
     },
-    [go, toast, update, navLoad],
+    [toast, update, navLoad, navStart],
   );
+
+  /** "다른 층으로 이동" = yes: loads the current-floor walk route to the elevator. The new floor is read from the next map. */
+  const goDifferentFloor = useCallback(
+    async () => {
+      if (ref.current.routeLoading) return;
+      update({ routeLoading: true, destParsed: null, destPhoto: null });
+      try {
+        const from = ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"];
+        const route = await fetchRoute(from, `${floorLabel(ref.current.destFloor)}-elev-A`);
+        navLoad(route);
+        update({ route, steps: route.steps.map(toRouteStep), routeLoading: false, query: "", cat: null, floorPick: null });
+        go("preview");
+      } catch (e) {
+        update({ routeLoading: false });
+        toast(e instanceof Error ? e.message : "경로를 찾을 수 없어요");
+      }
+    },
+    [update, navLoad, go, toast],
+  );
+
+  /** "다른 층으로 이동" = no: pick the destination from the current-floor map instead. */
+  const stayOnFloor = useCallback(() => {
+    update({ destParsed: null, destPhoto: null, query: "", cat: null, floorPick: null });
+    go("search");
+  }, [go, update]);
+
+  /** Trial fallback when the destination-floor photo is unavailable. */
+  const loadDemoDestMap = useCallback(() => {
+    update({ destParsed: DEMO_DEST_MAP, destPhoto: null });
+    go("search", { query: "", cat: null, floorPick: null });
+  }, [go, update]);
 
   const stopGuidance = useCallback(() => {
     cancelSpeech();
@@ -590,12 +688,27 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const endGuide = useCallback(() => {
     stopGuidance();
     navLoad(null);
-    go("welcome", { step: 0, dir: "far", start: "here", startAt: null, route: null, steps: [], routeLoading: false, simDir: null, floorMapTarget: null });
+    go("welcome", {
+      step: 0,
+      dir: "far",
+      start: "here",
+      startAt: null,
+      route: null,
+      steps: [],
+      routeLoading: false,
+      simDir: null,
+      floorMapTarget: null,
+      captureFor: "current",
+      dest: null,
+      destParsed: null,
+      destPhoto: null,
+    });
   }, [go, stopGuidance, navLoad]);
 
   /** Guided trial start: skips the marketing intro and lands on the real capture screen with 하은's photo. */
   const startTrial = useCallback(() => {
     if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+    if (ref.current.destPhoto) URL.revokeObjectURL(ref.current.destPhoto.url);
     navLoad(null);
     update({
       screen: "captureIntro",
@@ -606,6 +719,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       start: null,
       locEdit: false,
       landmarks: false,
+      captureFor: "current",
+      destFloor: DEST_FLOOR,
+      destParsed: null,
+      destPhoto: null,
       query: "",
       cat: null,
       floorPick: null,
@@ -626,6 +743,15 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   }, [update, navLoad, scrollRef]);
 
   /**
+   * Opens the guided trial's entry page. The overlay starts here so the first thing it does is
+   * explain who 하은 is and point at the real "길찾기 시작" button.
+   */
+  const enterTrial = useCallback(() => {
+    update({ trialOn: true, captureFor: "current", destFloor: DEST_FLOOR, destParsed: null, destPhoto: null });
+    go("trial");
+  }, [go, update]);
+
+  /**
    * Ends the guided overlay. `toLanding` also clears the half-finished trip so the next
    * ordinary visit starts clean; otherwise the user keeps the real screen they reached.
    */
@@ -637,6 +763,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         return;
       }
       if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      if (ref.current.destPhoto) URL.revokeObjectURL(ref.current.destPhoto.url);
       navLoad(null);
       update({
         screen: "landing",
@@ -647,6 +774,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         start: "here",
         locEdit: false,
         landmarks: false,
+        captureFor: "current",
+        destFloor: DEST_FLOOR,
+        destParsed: null,
+        destPhoto: null,
         query: "",
         cat: null,
         floorPick: null,
@@ -681,6 +812,17 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     if (s.screen === "floorMap") return; // Keep guidance paused until a new plan is confirmed or the trip ends.
     if (s.screen === "offroute") {
       startGuide(s.step);
+      return;
+    }
+    // The destination-floor photo comes right after getting off the elevator.
+    if (s.screen === "search") {
+      // Yes route: back to the new floor's map. No route: back to the "different floor?" question.
+      go(s.destParsed ? "captureIntro" : "destFloor", s.destParsed ? { captureFor: "dest" } : {});
+      return;
+    }
+    if (s.screen === "captureIntro" && s.captureFor === "dest") {
+      update({ captureFor: "current" });
+      go("elevator");
       return;
     }
     if (s.screen === "guide" || s.screen === "elevator") stopGuidance();
@@ -840,6 +982,9 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       dismissOffroute,
       rerouteFromPin,
       pickDest,
+      goDifferentFloor,
+      stayOnFloor,
+      loadDemoDestMap,
       endGuide,
       setMode,
       replay,
@@ -851,9 +996,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
       startTrial,
+      enterTrial,
       endTrial,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, loadSavedMap, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture, startTrial, endTrial],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, loadSavedMap, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, goDifferentFloor, stayOnFloor, loadDemoDestMap, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture, startTrial, enterTrial, endTrial],
   );
 
   // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { SeekingCompass, useReveal } from "./landing-motion";
 import { Mascot } from "./Mascot";
-import { PrimaryButton, SecondaryButton } from "./ui";
+import { PrimaryButton } from "./ui";
 
 /** Animation delay for gl-* motion classes (see the Landing motion block in globals.css). */
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
@@ -16,7 +16,7 @@ const STEP_MS = 450; // route card: one stop every 450 ms
  * (welcome → building → …) so nothing on this page pretends to be a feature we do not have.
  */
 
-type Sec = "how" | "trial" | "faq";
+type Sec = "trial" | "faq";
 
 const ROUTE_STOPS = [
   { label: "1층 로비", kind: "출발 · 샘플 시작 지점", glyph: "1F", radius: "50%", bg: "#fff", bd: "#202421", fg: "#202421", chip: "" },
@@ -26,32 +26,26 @@ const ROUTE_STOPS = [
 ];
 
 const TRIAL_STEPS = [
-  "안내도 사진 선택",
+  "현재 층 안내도 선택",
   "AI 안내도 확인",
-  "출발 위치 지정",
-  "405호 검색",
-  "경로 확인",
+  "출발 위치 확인",
+  "층 이동 여부 선택",
+  "엘리베이터까지 안내",
   "안내 방식 선택",
-  "이동 안내",
+  "층 이동",
+  "새 층 안내도 선택",
+  "405호 선택",
   "405호 도착",
 ];
 
 const FAQS = [
   {
-    q: "체험에 로그인이 필요한가요?",
-    a: "아니요. 로그인 없이 우정정보관 데모 경로를 바로 체험할 수 있어요.",
-  },
-  {
     q: "안내도 사진과 카메라를 사용하나요?",
     a: "안내도 사진은 AI가 복도와 호실을 읽어 지도로 만드는 데 쓰고, 저장하지 않아요. 방향 안내는 나침반 센서를, 표지 확인은 카메라를 사용해요. 위치·마이크 권한은 요청하지 않아요.",
   },
   {
-    q: "어느 건물을 체험할 수 있나요?",
-    a: "지금은 우정정보관 1층부터 4층까지 샘플 데이터로 1층 로비에서 405호까지 가는 경로를 보여줘요.",
-  },
-  {
-    q: "비상 대피 안내에 쓸 수 있나요?",
-    a: "아니요. 어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.",
+    q: "어느 건물에서 사용할 수 있나요?",
+    a: "피난안내도가 있는 건물이면 사용할 수 있어요.",
   },
 ];
 
@@ -59,9 +53,8 @@ export function LandingScreen() {
   const { actions } = useGilgyeol();
   const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState(-1);
-  const secRefs = useRef<Record<Sec, HTMLElement | null>>({ how: null, trial: null, faq: null });
+  const secRefs = useRef<Record<Sec, HTMLElement | null>>({ trial: null, faq: null });
   const revealRoute = useReveal<HTMLDivElement>();
-  const revealHow = useReveal<HTMLDivElement>();
   const revealTrial = useReveal<HTMLDivElement>();
 
   const startTrial = () => actions.enterTrial();
@@ -123,8 +116,7 @@ export function LandingScreen() {
         >
           {(
             [
-              ["어떻게 안내하나요?", "how"],
-              ["하은의 3분", "trial"],
+              ["길찾기 체험", "trial"],
               ["자주 묻는 질문", "faq"],
             ] as [string, Sec][]
           ).map(([label, id]) => (
@@ -165,7 +157,6 @@ export function LandingScreen() {
         </p>
         <div ref={heroCta} style={d(340)} className="gl-rise flex flex-col gap-2">
           <PrimaryButton onClick={startTrial} className="gl-cta">3분 체험해보기 →</PrimaryButton>
-          <SecondaryButton onClick={() => jump("how")}>어떻게 안내하나요?</SecondaryButton>
         </div>
         <div ref={revealRoute} data-reveal className="flex flex-col rounded-[22px] bg-surface px-[18px] pt-[18px] pb-1.5">
           <div className="flex items-center justify-between pb-3.5">
@@ -199,63 +190,6 @@ export function LandingScreen() {
         </div>
       </section>
 
-      <section ref={(el) => { secRefs.current.how = el; }} data-sec="how" className="scroll-mt-[76px] px-5 pt-11 pb-2">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">어떻게 안내하나요?</h2>
-          <p className="m-0 text-[15px] leading-normal text-muted">읽고, 고르고, 따라가는 세 순간이에요.</p>
-        </div>
-        <div ref={revealHow} data-reveal className="mt-3.5 flex flex-col gap-2.5">
-          <div style={d(0)} className="gl-item flex flex-col gap-2.5 rounded-[18px] bg-surface p-5">
-            <span className="text-[12px] font-extrabold text-muted">01</span>
-            <div className="text-[19px] font-extrabold">안내도를 찍으면</div>
-            <div className="text-[15px] leading-normal text-[#3F433F]">AI가 복도와 호실을 읽어 지도로 만들어요.</div>
-            <div aria-hidden="true" className="relative h-14 overflow-hidden rounded-[14px] border border-edge bg-app-bg">
-              <svg viewBox="0 0 300 56" className="size-full">
-                <g stroke="#EAE7DF" strokeWidth="10" strokeLinecap="round">
-                  <line x1="18" y1="30" x2="282" y2="30" />
-                  <line x1="96" y1="30" x2="96" y2="54" />
-                  <line x1="212" y1="30" x2="212" y2="6" />
-                </g>
-                <rect x="60" y="19" width="22" height="22" rx="4" fill="#2864A0" />
-                <text x="71" y="34" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff">401</text>
-                <rect x="124" y="19" width="22" height="22" rx="4" fill="#BDB8AC" />
-                <text x="135" y="34" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff">403</text>
-                <rect x="226" y="19" width="26" height="22" rx="4" fill="#5B4AB8" />
-                <text x="239" y="34" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff">EV</text>
-                <circle cx="18" cy="30" r="5" fill="#7A1832" />
-              </svg>
-              {/* Typed one character at a time (Korean glyphs differ in width, so no clip-path reveal). */}
-              <span className="flex items-center">
-                {[..."405호"].map((ch, i) => (
-                  <span key={i} style={d(350 + i * 140)} className="gl-char">{ch}</span>
-                ))}
-                <span aria-hidden="true" className="gl-caret ml-0.5 h-5 w-[2px] bg-ink" />
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5">
-            <div style={d(120)} className="gl-item flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
-              <span className="text-[12px] font-extrabold text-muted">02</span>
-              <div aria-hidden="true" className="size-[34px] overflow-hidden rounded-lg bg-route text-[14px] font-extrabold text-white">
-                <div className="gl-floors flex flex-col">
-                  {[1, 2, 3, 4].map((f) => (
-                    <span key={f} className="flex h-[34px] flex-none items-center justify-center">{f}F</span>
-                  ))}
-                </div>
-              </div>
-              <div className="text-[17px] leading-[1.3] font-extrabold">탈 엘리베이터를 확인하고</div>
-              <div className="text-[14px] leading-normal text-[#3F433F]">목적 층에 서는 엘리베이터를 경로에 반영해요.</div>
-            </div>
-            <div style={d(240)} className="gl-item flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
-              <span className="text-[12px] font-extrabold text-muted">03</span>
-              <div aria-hidden="true" className="gl-ripple size-[34px] rounded-full border-[3px] border-haptic" />
-              <div className="text-[17px] leading-[1.3] font-extrabold">표지로 위치를 다시 확인하고</div>
-              <div className="text-[14px] leading-normal text-[#3F433F]">층 표지와 호실을 체크포인트로 확인해요.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section ref={(el) => { secRefs.current.trial = el; }} data-sec="trial" className="scroll-mt-[76px] px-5 pt-11 pb-2">
         <div className="flex flex-col items-center gap-2 text-center">
           <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">하은의 3분</h2>
@@ -272,13 +206,6 @@ export function LandingScreen() {
               <div className="text-[15px] leading-[1.35] font-bold">{t}</div>
             </div>
           ))}
-        </div>
-        <div className="mt-3.5 flex items-center justify-center gap-3.5 text-[13px] font-semibold text-muted">
-          <span>약 3분</span>
-          <span aria-hidden="true">·</span>
-          <span>로그인 없음</span>
-          <span aria-hidden="true">·</span>
-          <span>우정정보관 데모</span>
         </div>
       </section>
 
@@ -316,9 +243,6 @@ export function LandingScreen() {
             하은과 함께
             <br />
             405호까지 가볼까요?
-          </div>
-          <div className="text-[14px] leading-[1.55] text-[#C9CCC6]">
-            로그인 없이 시작해요. 우정정보관 안내도를 찍어 지도로 만들고, 405호까지 실제 안내 화면으로 이동해요.
           </div>
           <button
             type="button"

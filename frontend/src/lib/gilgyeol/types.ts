@@ -8,6 +8,7 @@ export type Screen =
   | "wrongFloor"
   | "mapResult"
   | "start"
+  | "destFloor"
   | "search"
   | "preview"
   | "mode"
