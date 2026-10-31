@@ -1,0 +1,20 @@
+{
+  "task": "checkpoint",
+  "run": "20261031-170335",
+  "n_images": 10,
+  "n_sign": 5,
+  "n_none": 5,
+  "model": "google/gemini-3.5-flash-lite 768px",
+  "json_valid": 1.0,
+  "read_rate": 0.8,
+  "matched_rate": 0.8,
+  "mismatch_detected": 0.8,
+  "false_match": 0,
+  "false_match_checks": 64,
+  "none_rate": 1.0,
+  "latency_s_mean": 2.241,
+  "latency_s_p50": 2.1900000000000004,
+  "latency_s_max": 2.81,
+  "cost_usd_total": 0.0052555,
+  "csv": "checkpoint_google_gemini-3.5-flash-lite_px768_20261031-170335.csv"
+}
