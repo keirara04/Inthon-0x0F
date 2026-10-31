@@ -75,7 +75,7 @@ export interface AppState {
 }
 
 const INITIAL: AppState = {
-  screen: "welcome",
+  screen: "landing",
   mapDemo: false,
   start: "here",
   locEdit: false,
@@ -543,7 +543,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     history.pushState({ gilgyeol: true }, "");
     const onPop = () => {
-      if (ref.current.screen === "welcome") {
+      // Landing and welcome are the entry screens: browser back leaves the app instead of looping.
+      if (ref.current.screen === "welcome" || ref.current.screen === "landing") {
         history.back();
         return;
       }
