@@ -1,6 +1,6 @@
 "use client";
 
-import { C, DIRECTION, routeSteps } from "@/lib/gilgyeol/data";
+import { C, DIRECTION } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { DirectionState } from "@/lib/gilgyeol/types";
 import { GhostButton, Notice, PrimaryButton, SegButton, DemoBox, StatusDot } from "./ui";
@@ -24,31 +24,27 @@ const DIR_BTNS: [DirectionState, string][] = [
 export function GuidanceScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
-  const st = routeSteps(d, s.elevUnverified)[s.step];
+  const steps = s.steps;
+  const st = steps[s.step];
+  if (!st) return null;
   const unstable = s.dir === "unstable";
   const dv = s.dir === "unstable" ? DIRECTION.far : DIRECTION[s.dir];
   const dirColor = unstable ? C.warning : dv.color;
-  const dirMsg = unstable ? `방향을 확인하기 어려워요. ${st.landmark}를 기준으로 이동해 주세요` : dv.msg;
+  const dirMsg = unstable ? `방향을 확인하기 어려워요. ${st.landmark || "표지판"}를 기준으로 이동해 주세요` : dv.msg;
   const locColor = unstable ? C.warning : C.success;
-  const locText = unstable ? "구간 추정 중" : s.step === 0 ? "출발 위치 확인됨" : "4층 도착";
+  const locText = unstable ? "구간 추정 중" : s.step === 0 ? "출발 위치 확인됨" : `${st.floor} 진행 중`;
 
   const mini =
     s.step === 0
       ? { route: "75,84 75,45", x: 75, y: unstable ? 62 : 74, destOp: 0 }
-      : s.step === 1
-        ? { route: "75,45 15,45 15,12", x: unstable ? 42 : 58, y: 45, destOp: 1 }
-        : { route: "112,45 75,45 15,45 15,12", x: unstable ? 100 : 108, y: 45, destOp: 1 };
+      : { route: "112,45 75,45 15,45 15,12", x: unstable ? 100 : 108, y: 45, destOp: 1 };
 
-  const prog = s.step === 0 ? 1 : 4;
-  const routeLabels = [
-    "1층 출발 위치",
-    "정면 엘리베이터 홀",
-    `중앙 엘리베이터 A · ${s.elevUnverified ? "정차 층 확인 중" : "4층 정차 확인"}`,
-    "4층 도착",
-    s.step === 2 ? "왼쪽 복도 (재탐색)" : "왼쪽 복도",
-    `${d} 도착`,
-  ];
-  const curFloor = s.step === 0 ? 1 : 4;
+  const prog = s.step;
+  const routeLabels = steps.map((x) => `${x.floor} · ${x.title}`);
+  const curFloor = parseInt(st.floor, 10) || 1;
+
+  const next = steps[s.step + 1];
+  const ctaLabel = !next ? `${d} 도착` : next.kind === "stairs" ? "계단에 왔어요" : next.kind === "elevator" ? "엘리베이터 홀에 왔어요" : "다음 안내";
 
   return (
     <div className="flex flex-col gap-3.5 px-5 pt-1.5 pb-6">
@@ -241,7 +237,7 @@ export function GuidanceScreen() {
         )}
       </DemoBox>
 
-      <PrimaryButton onClick={() => (s.step === 0 ? actions.toElevator() : actions.arrive())}>{st.cta}</PrimaryButton>
+      <PrimaryButton onClick={actions.advance}>{ctaLabel}</PrimaryButton>
 
       <div className="overflow-hidden rounded-2xl bg-surface">
         <button

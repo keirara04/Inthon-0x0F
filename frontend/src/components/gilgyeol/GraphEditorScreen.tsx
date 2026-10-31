@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { API_MODE, parseEvacMap, saveFloorGraph } from "@/lib/gilgyeol/api";
-import { BUILDING, C, EDITOR_H, EDITOR_W, FLOOR_STATUS, NODE_TYPES, SAMPLE_AI_GRAPH, parseServedFloors } from "@/lib/gilgyeol/data";
+import { C, EDITOR_H, EDITOR_W, FLOOR_STATUS, NODE_TYPES, SAMPLE_AI_GRAPH, parseServedFloors } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { GraphEdge, GraphError, GraphNode, NodeType } from "@/lib/gilgyeol/types";
 import { BackHeader, Badge } from "./ui";
@@ -103,7 +103,7 @@ export function GraphEditorScreen() {
     setPhase("loading");
     setParseError(null);
     try {
-      const g = await parseEvacMap(img?.file ?? null, BUILDING, floor);
+      const g = await parseEvacMap(img?.file ?? null, floor);
       setNodes(g.nodes);
       setEdges(g.edges);
       setHist([]);
@@ -122,8 +122,8 @@ export function GraphEditorScreen() {
     setSaving(true);
     setSaveError(null);
     try {
-      // Draft saves never overwrite a verified floor (the API answers 409); verified saves are confirmed below.
-      await saveFloorGraph({ building: BUILDING, floor, graph: { nodes, edges }, status, replace: status === "verified" });
+      // Draft saves never silently overwrite a verified floor: the adapter asks before retrying with replace:true.
+      await saveFloorGraph(floor, { nodes, edges }, status);
       setSaved(status);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "저장하지 못했어요");

@@ -10,6 +10,7 @@ import type {
   RouteStep,
   ScanTarget,
   StartNode,
+  StartNodeId,
 } from "./types";
 
 export const C = {
@@ -65,6 +66,14 @@ export const START_NODES: StartNode[] = [
   { id: "hall", label: "엘리베이터 홀", x: 167, y: 112 },
   { id: "main", label: "정문 출입구", x: 167, y: 216 },
 ];
+
+/** Start choices on the demo 1F map -> verified graph node ids used by POST /api/route. */
+export const START_NODE_IDS: Record<StartNodeId, string> = {
+  here: "1F-lobby",
+  stair: "1F-stairs-W",
+  hall: "1F-elev-A",
+  main: "1F-lobby",
+};
 
 export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
   return [
@@ -143,11 +152,6 @@ export const NODE_TYPES: Record<NodeType, { short: string; desc: string; def: st
 
 export const EDITOR_W = 340;
 export const EDITOR_H = 230;
-
-/** 4 => "4F", -1 => "B1" — the backend's floor label format. */
-export function floorLabel(floor: number): string {
-  return floor < 0 ? `B${Math.abs(floor)}` : `${floor}F`;
-}
 
 /**
  * Normalizes the editor's free-text stop list into backend floor labels.

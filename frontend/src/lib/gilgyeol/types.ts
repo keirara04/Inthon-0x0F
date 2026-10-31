@@ -21,7 +21,7 @@ export type ScanTarget = "map" | "sign";
 export type ScanOutcome = "success" | "mismatch" | "fail";
 export type ScanState = "aim" | "analyzing" | ScanOutcome | "denied";
 export type OffrouteState = "alert" | "floor" | "confirm";
-export type GuideStep = 0 | 1 | 2;
+export type GuideStep = number;
 export type HapticPattern = "dir" | "left" | "right" | "floor" | "confirm" | "arrive" | "off";
 
 export type RoomCategory = "강의실" | "행정실" | "엘리베이터" | "계단" | "기타";
@@ -55,6 +55,14 @@ export interface RouteStep {
   landmark: string;
   cta: string;
   offDemo: boolean;
+  /** Set from the API step so screens can branch on walk / elevator / stairs. */
+  kind?: "walk" | "elevator" | "stairs";
+  elevator?: string | null;
+  toFloor?: string;
+  headingDeg?: number | null;
+  lengthM?: number;
+  checkpoint?: { kind: string; text: string } | null;
+  toNode?: string;
 }
 
 export type GraphStatus = "empty" | "draft" | "verified";

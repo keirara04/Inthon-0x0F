@@ -3,7 +3,7 @@
 // Live responses are converted to the UI types here, so screens don't care which mode is on.
 import type { ApiCheckpointResult, ApiGraph, ApiNodeType, ApiRoute, ApiSearchResult, ApiStep } from "@/types/api";
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
-import type { FloorGraph, GraphEdge, GraphNode, Room, RoomCategory, RouteStep } from "./types";
+import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
 
 export const API_MODE: "live" | "mock" = process.env.NEXT_PUBLIC_GILGYEOL_API === "live" ? "live" : "mock";
 
@@ -185,7 +185,14 @@ export function toRouteStep(step: ApiStep): RouteStep {
     next: step.kind === "walk" ? "다음 지점 도착" : `${floor} 도착`,
     landmark: check ? LANDMARK_LABEL[check.kind] : "",
     cta: check ? "표지 확인하기" : "여기 도착했어요",
-    offDemo: false,
+    offDemo: step.kind === "walk",
+    kind: step.kind,
+    elevator: step.kind === "walk" ? null : step.elevator,
+    toFloor: step.kind === "walk" ? undefined : step.to_floor,
+    headingDeg: step.kind === "walk" ? step.heading_deg : null,
+    lengthM: step.kind === "walk" ? step.length_m : undefined,
+    checkpoint: step.checkpoint,
+    toNode: step.to,
   };
 }
 

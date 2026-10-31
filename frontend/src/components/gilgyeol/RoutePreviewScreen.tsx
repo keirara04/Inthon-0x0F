@@ -40,13 +40,18 @@ export function RoutePreviewScreen() {
   const startNode = START_NODES.find((n) => n.id === s.start);
   const [view, setView] = useState<"floors" | "3d">("floors");
 
-  const steps: { t: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = [
-    { t: `1층 ${startNode?.label ?? "출발 위치"}에서 출발` },
-    { t: "정면 엘리베이터 홀로 이동" },
-    { t: "중앙 엘리베이터 A로 4층 이동", badge: s.elevUnverified ? "정차 층 확인 중 · 층 버튼 확인" : "4층 정차 확인", tone: s.elevUnverified ? "warn" : "ok" },
-    { t: "4층에서 내리기" },
-    { t: `왼쪽 복도 → ${d}` },
-  ];
+  const routeSteps: { t: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = s.steps.map((st) => ({
+    t: `${st.floor} · ${st.title}`,
+    badge:
+      st.kind && st.kind !== "walk"
+        ? (st.elevator ?? (st.kind === "stairs" ? "계단" : "층 이동"))
+        : st.checkpoint
+          ? "표지 확인"
+          : undefined,
+    tone: st.kind && st.kind !== "walk" ? (s.elevUnverified ? "warn" : "ok") : st.checkpoint ? "cp" : undefined,
+  }));
+  const departFloor = s.steps[0]?.floor ?? "1층";
+  const arriveFloor = s.steps[s.steps.length - 1]?.floor ?? "4층";
   const badgeCls = { warn: "bg-warn-tint text-warn-ink", cp: "bg-haptic-tint text-haptic-ink", ok: "bg-ok-tint text-ok-ink" };
 
   return (
@@ -56,7 +61,7 @@ export function RoutePreviewScreen() {
         <div className="flex flex-col gap-[3px]">
           <div className="text-[12px] font-semibold text-muted">출발</div>
           <div className="text-[16px] font-bold">{startNode?.label ?? "—"}</div>
-          <div className="text-[13px] text-muted">1층</div>
+          <div className="text-[13px] text-muted">{departFloor}</div>
         </div>
         <svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true">
           <line x1="1" y1="6" x2="19" y2="6" stroke={C.route} strokeWidth="2.2" />
@@ -65,7 +70,7 @@ export function RoutePreviewScreen() {
         <div className="flex flex-col gap-[3px] text-right">
           <div className="text-[12px] font-semibold text-muted">도착</div>
           <div className="text-[16px] font-bold text-brand">{d}</div>
-          <div className="text-[13px] text-muted">4층</div>
+          <div className="text-[13px] text-muted">{arriveFloor}</div>
         </div>
       </div>
       <div className="flex items-center justify-between">
@@ -117,12 +122,12 @@ export function RoutePreviewScreen() {
       </div>
       <div className="rounded-[18px] bg-surface px-[18px] py-1.5">
       <h2 id="gg-steps-title" className="m-0 border-b border-divider pt-3 pb-2.5 text-[17px] font-bold">
-        {d}까지 {steps.length}단계
+        {d}까지 {routeSteps.length}단계
       </h2>
       <ol className="m-0 flex list-none flex-col p-0" aria-labelledby="gg-steps-title">
-        {steps.map((p, i) => (
+        {routeSteps.map((p, i) => (
           <li key={p.t} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
-            <div className="flex size-7 flex-none items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: i === steps.length - 1 ? C.brand : C.route }}>
+            <div className="flex size-7 flex-none items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: i === routeSteps.length - 1 ? C.brand : C.route }}>
               {i + 1}
             </div>
             <div className="flex flex-col gap-1 pt-[3px]">
@@ -133,7 +138,9 @@ export function RoutePreviewScreen() {
         ))}
       </ol>
       </div>
-      <p className="m-0 text-[13px] leading-normal text-muted">예상 시간과 거리는 아직 측정하지 않아 층 이동 단계로 보여드려요.</p>
+      <p className="m-0 text-[13px] leading-normal text-muted">
+        {s.route ? `총 ${s.route.total_m}m · ` : ""}예상 시간은 아직 측정하지 않았어요.
+      </p>
       <PrimaryButton tall onClick={() => actions.go("mode")}>
         안내 방식 선택
       </PrimaryButton>

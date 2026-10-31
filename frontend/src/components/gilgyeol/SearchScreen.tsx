@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { searchPlaces } from "@/lib/gilgyeol/api";
-import { CATEGORIES, DEST_FLOOR, FLOORS } from "@/lib/gilgyeol/data";
+import { CATEGORIES, FLOORS } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { Room } from "@/lib/gilgyeol/types";
 import { cx } from "./ui";
@@ -85,7 +85,7 @@ export function SearchScreen() {
       {load.status === "ok" && results.length > 0 && (
         <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[18px] bg-surface p-0" aria-label="검색 결과">
           {results.map((r) => {
-            const ready = r.floor === DEST_FLOOR && r.routeReady;
+            const ready = r.routeReady;
             return (
               <li key={r.id}>
                 <button

@@ -96,7 +96,7 @@ export function OffRouteScreen() {
             {s.offFloor === "4층" ? `4층 서측 복도에서 ${d}까지 경로를 다시 계산했어요.` : `목적지는 4층이에요. ${s.offFloor}에서 엘리베이터로 4층에 가는 경로로 안내할게요.`}
           </p>
           <div className="flex-1" />
-          <PrimaryButton onClick={() => (s.offFloor === "4층" ? actions.startGuide(2) : actions.toElevator())}>새 경로로 안내 시작</PrimaryButton>
+          <PrimaryButton onClick={() => (s.offFloor === "4층" ? actions.startGuide(s.step) : actions.toElevator())}>새 경로로 안내 시작</PrimaryButton>
         </>
       )}
     </div>

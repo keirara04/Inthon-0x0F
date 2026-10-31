@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, routeSteps, scanMeta } from "./data";
+import type { ApiRoute } from "@/types/api";
+import { fetchRoute, toRouteStep } from "./api";
+import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
 import type {
   DirectionState,
@@ -11,6 +13,7 @@ import type {
   OffrouteState,
   Room,
   RoomCategory,
+  RouteStep,
   ScanOutcome,
   ScanState,
   ScanTarget,
@@ -38,6 +41,10 @@ export interface AppState {
   dir: DirectionState;
   step: GuideStep;
   routeOpen: boolean;
+  // route from POST /api/route
+  route: ApiRoute | null;
+  steps: RouteStep[];
+  routeLoading: boolean;
   // checkpoint scan
   scanTarget: ScanTarget;
   scanFrom: Screen;
@@ -80,6 +87,9 @@ const INITIAL: AppState = {
   dir: "far",
   step: 0,
   routeOpen: false,
+  route: null,
+  steps: [],
+  routeLoading: false,
   scanTarget: "map",
   scanFrom: "elevator",
   scanState: "aim",
@@ -168,33 +178,34 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const startGuide = useCallback(
     (step: GuideStep) => {
-      const dest = ensureDest();
-      go("guide", { step, dir: "far", routeOpen: false, dest });
-      const st = routeSteps(dest.name, ref.current.elevUnverified)[step];
-      if (step === 1) cue("left");
+      const st = ref.current.steps[step];
+      if (!st) return;
+      go("guide", { step, dir: "far", routeOpen: false });
+      if (st.turn.startsWith("좌회전")) cue("left");
+      else if (st.turn.startsWith("우회전")) cue("right");
       say(`${st.title}. ${st.sub}`);
     },
-    [go, ensureDest, cue, say],
+    [go, cue, say],
   );
 
   const setDir = useCallback(
     (dir: DirectionState) => {
       update({ dir });
-      const st = routeSteps(destName(), ref.current.elevUnverified)[ref.current.step];
-      say(dir === "unstable" ? `방향을 확인하기 어려워요. ${st.landmark}를 기준으로 이동해 주세요` : DIRECTION[dir].msg);
+      const st = ref.current.steps[ref.current.step];
+      say(dir === "unstable" ? `방향을 확인하기 어려워요. ${st?.landmark || "표지판"}를 기준으로 이동해 주세요` : DIRECTION[dir].msg);
     },
-    [update, destName, say],
+    [update, say],
   );
 
   const toElevator = useCallback(() => {
-    go("elevator", { dest: ensureDest() });
+    const s = ref.current;
+    const idx = s.steps.findIndex((st, i) => i >= s.step && st.kind !== "walk");
+    if (idx < 0) return;
+    const st = s.steps[idx];
+    go("elevator", { step: idx });
     cue("floor");
-    say(
-      ref.current.elevUnverified
-        ? "4층으로 이동하세요. 이 엘리베이터의 정차 층은 확인 중이에요. 엘리베이터 안 층 버튼을 확인해 주세요"
-        : "4층으로 이동하세요. 중앙 엘리베이터 A는 4층에 정차합니다",
-    );
-  }, [go, ensureDest, cue, say]);
+    say(st.title);
+  }, [go, cue, say]);
 
   const openScan = useCallback(
     (target: ScanTarget) => {
@@ -235,10 +246,34 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     () => {
       go("arrive", { trip: { ...ref.current.trip, arrivedAt: Date.now() } });
       cue("arrive");
-      say(`우정정보관 ${destName()}에 도착했어요`);
+      say(`우정정보관 ${ref.current.route?.arrived.label ?? destName()}에 도착했어요`);
     },
     [go, cue, say, destName],
   );
+
+  /** Walk-step CTA: next walk step, the elevator/stairs screen, or arrival. */
+  const advance = useCallback(() => {
+    const s = ref.current;
+    const next = s.steps[s.step + 1];
+    if (!next) {
+      arrive();
+      return;
+    }
+    if (next.kind === "walk") {
+      startGuide(s.step + 1);
+      return;
+    }
+    go("elevator", { step: s.step + 1 });
+    cue("floor");
+    say(next.title);
+  }, [arrive, cue, go, say, startGuide]);
+
+  const leaveElevator = useCallback(() => {
+    const s = ref.current;
+    const next = s.step + 1;
+    if (next < s.steps.length) startGuide(next);
+    else arrive();
+  }, [arrive, startGuide]);
 
   const toOffroute = useCallback(() => {
     go("offroute", { offState: "alert", trip: { ...ref.current.trip, reroutes: ref.current.trip.reroutes + 1 } });
@@ -304,14 +339,23 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   }, [update, toast]);
 
   const pickDest = useCallback(
-    (room: Room) => {
-      if (room.floor !== DEST_FLOOR || !room.routeReady) {
-        toast("시연 경로는 4층 호실만 준비돼 있어요");
+    async (room: Room) => {
+      if (!room.routeReady) {
+        toast("이 장소까지의 검수된 경로가 아직 없어요");
         return;
       }
-      go("preview", { dest: room });
+      if (ref.current.routeLoading) return;
+      update({ routeLoading: true });
+      try {
+        const route = await fetchRoute(START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        update({ route, steps: route.steps.map(toRouteStep), routeLoading: false });
+        go("preview", { dest: room, step: 0, dir: "far" });
+      } catch (e) {
+        update({ routeLoading: false });
+        toast(e instanceof Error ? e.message : "경로를 찾을 수 없어요");
+      }
     },
-    [go, toast],
+    [go, toast, update],
   );
 
   const stopGuidance = useCallback(() => {
@@ -321,7 +365,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const endGuide = useCallback(() => {
     stopGuidance();
-    go("welcome", { step: 0, dir: "far", start: "here" });
+    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false });
   }, [go, stopGuidance]);
 
   const back = useCallback(() => {
@@ -332,16 +376,22 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       return;
     }
     if (s.screen === "offroute") {
-      go("guide", { step: 1 });
+      startGuide(s.step);
       return;
     }
     if (s.screen === "guide" || s.screen === "elevator") stopGuidance();
     if (s.screen === "guide") {
-      go(s.step === 0 ? "mode" : "elevator");
+      if (s.step === 0) {
+        go("mode");
+        return;
+      }
+      const prev = s.steps[s.step - 1];
+      if (prev && prev.kind !== "walk") go("elevator", { step: s.step - 1 });
+      else startGuide(s.step - 1);
       return;
     }
     if (s.screen === "elevator") {
-      startGuide(0);
+      startGuide(Math.max(0, s.step - 1));
       return;
     }
     go(BACK[s.screen] ?? "welcome");
@@ -360,13 +410,18 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     const s = ref.current;
     if (s.screen === "arrive") {
       cue("arrive");
-      say(`우정정보관 ${destName()}에 도착했어요`);
-    } else if (s.screen === "elevator") toElevator();
-    else {
-      const st = routeSteps(destName(), s.elevUnverified)[s.step];
-      say(`${st.title}. ${st.sub}`);
+      say(`우정정보관 ${s.route?.arrived.label ?? destName()}에 도착했어요`);
+    } else if (s.screen === "elevator") {
+      const st = s.steps[s.step];
+      if (st) {
+        cue("floor");
+        say(st.title);
+      }
+    } else {
+      const st = s.steps[s.step];
+      if (st) say(`${st.title}. ${st.sub}`);
     }
-  }, [cue, say, destName, toElevator]);
+  }, [cue, say, destName]);
 
   const testVibe = useCallback(() => {
     const ok = canVibe() && vibrate([90, 70, 90]);
@@ -447,6 +502,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       startGuide,
       setDir,
       toElevator,
+      advance,
+      leaveElevator,
       openScan,
       runScan,
       cancelScan,
@@ -465,7 +522,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   return { state, actions };
