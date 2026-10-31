@@ -85,7 +85,11 @@ const TIPS: [keyof typeof TIP_ICONS, string][] = [
 
 export function CaptureIntroScreen() {
   const { actions } = useGilgyeol();
-  const album = useAlbumPick((file) => actions.readMapPhoto(file));
+  // The scanner finds the sign in the photo and frames it, like the live camera does.
+  const album = useAlbumPick((file) => {
+    actions.openScan("map");
+    actions.update({ pendingPhoto: file });
+  });
   return (
     <div className="flex min-h-full flex-col gap-4 px-5 pt-1 pb-6">
       <BackHeader label="시작 준비 · 2 / 3" onBack={actions.back} />

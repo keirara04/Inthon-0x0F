@@ -1,39 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { C, DEMO_1F_GRAPH, START_NODES } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { StartNodeId } from "@/lib/gilgyeol/types";
-import { BLANK_FLOOR, FLOOR1, IsoPlane, PLANE_H, PLANE_W, RotateButtons, pct, useIsoRotation } from "./IsoFloor";
-import { MapBox, MapSketch, graphFrame, parsedSpot } from "./MapSketch";
+import { Floor3DLazy } from "./Floor3DLazy";
+import { MapBox, MapSketch, graphFrame, parsedSpot, startNode as nodeFor } from "./MapSketch";
 import { BackHeader, Badge, PrimaryButton, SecondaryButton, Title } from "./ui";
 
-/** Start nodes positioned on the 3D floor plane. */
-const NODE_3D: Record<StartNodeId, { x: number; y: number }> = {
-  here: { x: 35, y: 148 },
-  stair: { x: 35, y: 46 },
-  hall: { x: 132, y: 87 },
-  main: { x: 132, y: 186 },
-};
+const START_IDS = new Set<StartNodeId>(START_NODES.map((n) => n.id));
 
 export function StartLocationScreen() {
   const { state: s, actions } = useGilgyeol();
   const startNode = START_NODES.find((n) => n.id === s.start);
   const [view, setView] = useState<"2d" | "3d">("3d");
-  const iso = useIsoRotation();
   // With a photographed map, pins sit on the AI's nodes (choices it didn't find are left to the list below);
   // otherwise the 1F demo floor is drawn the same way and the 3D view keeps its block layout.
   const g = s.mapDemo ? null : s.parsed;
   const shown = g ?? DEMO_1F_GRAPH;
   const photo = g ? s.parsedPhoto : null;
   const frame2 = graphFrame(shown, photo);
-  const frame3 = graphFrame(shown);
   const spots = START_NODES.flatMap((n) => {
-    const p2 = parsedSpot(shown, frame2, n.id);
-    const p3 = parsedSpot(shown, frame3, n.id);
-    if (!p2 || !p3) return [];
-    return [{ n, f2: p2, f3: g ? { x: p3.fx * PLANE_W, y: p3.fy * PLANE_H } : NODE_3D[n.id] }];
+    const f2 = parsedSpot(shown, frame2, n.id);
+    return f2 ? [{ n, f2 }] : [];
   });
+  // Memoized so picking a start doesn't rebuild the 3D scene (selection only recolours).
+  const levels3d = useMemo(() => [{ label: shown.floor || "1F", g: shown }], [shown]);
+  const markers3d = useMemo(
+    () => START_NODES.flatMap((n) => {
+      const node = nodeFor(shown, n.id);
+      return node ? [{ id: n.id, level: 0, nodeId: node.id }] : [];
+    }),
+    [shown],
+  );
 
   const pickOnMap = (id: StartNodeId) =>
     s.locEdit ? actions.update({ start: id, locEdit: false }) : actions.toast("‘위치 수정’을 누르면 다른 지점을 고를 수 있어요");
@@ -67,36 +66,13 @@ export function StartLocationScreen() {
         </div>
       </div>
       {view === "3d" && (
-        <div
-          className="relative mx-auto h-[300px] w-[330px] max-w-full touch-none overflow-hidden rounded-[18px] border border-line bg-[#FAF9F6] [perspective:800px]"
-          {...iso.handlers}
-        >
-          <IsoPlane layout={g ? BLANK_FLOOR : FLOOR1} rot={iso.rot}>
-            {g && <MapSketch g={g} frame={frame3} variant="lite" />}
-            {spots.map(({ n, f3: p }) => {
-              const on = s.start === n.id;
-              return (
-                <button
-                  type="button"
-                  key={n.id}
-                  aria-pressed={on}
-                  aria-label={`${n.label}${on ? " (선택됨)" : ""}`}
-                  onClick={() => pickOnMap(n.id)}
-                  className="absolute -mt-[18px] -ml-[18px] flex size-9 items-center justify-center rounded-full border-[3px] p-0"
-                  style={{ ...pct(p.x, p.y), borderColor: on ? C.brand : C.ink, background: on ? "rgba(122,24,50,.25)" : "#fff" }}
-                >
-                  <span className="size-3 rounded-full" style={{ background: on ? C.brand : C.ink }} />
-                </button>
-              );
-            })}
-          </IsoPlane>
-          <div className="pointer-events-none absolute top-2.5 left-2.5 rounded-lg bg-white/90 px-2.5 py-[5px] text-[12px] font-semibold text-muted">드래그해서 돌려보기</div>
+        <div className="relative mx-auto h-[320px] w-full overflow-hidden rounded-[18px] border border-line bg-[#FAF9F6]">
+          <Floor3DLazy levels={levels3d} markers={markers3d} selected={s.start} onSelect={(id) => START_IDS.has(id as StartNodeId) && pickOnMap(id as StartNodeId)} hint="돌려보기 · 원판을 눌러 출발 지점 선택" />
           {startNode && (
             <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-brand px-2.5 py-1 text-[12px] font-bold text-white">
               {s.locEdit ? "현재 위치" : "현재 위치 · 추정"} · {startNode.label}
             </div>
           )}
-          <RotateButtons setRot={iso.setRot} />
         </div>
       )}
       <div className={view === "3d" ? "hidden" : ""}>

@@ -57,8 +57,13 @@ export function graphFrame(g: ParsedGraph, photo?: MapPhoto | null) {
 const SPOT_TYPE: Record<Exclude<StartNodeId, "here">, NodeType> = { stair: "stairs", hall: "elevator_hall", main: "entrance" };
 
 /** Where a start choice sits in a frame, as 0–1 fractions; null when the graph has no such node. */
+/** The graph node a start choice stands for: 현위치 for "here", otherwise the first node of that type. */
+export function startNode(g: ParsedGraph, id: StartNodeId): GraphNode | undefined {
+  return id === "here" ? g.nodes.find((x) => x.id === g.current_node_id) : g.nodes.find((x) => x.type === SPOT_TYPE[id]);
+}
+
 export function parsedSpot(g: ParsedGraph, f: MapFrame, id: StartNodeId): { fx: number; fy: number } | null {
-  const n = id === "here" ? g.nodes.find((x) => x.id === g.current_node_id) : g.nodes.find((x) => x.type === SPOT_TYPE[id]);
+  const n = startNode(g, id);
   return n ? f.toFrac(n) : null;
 }
 

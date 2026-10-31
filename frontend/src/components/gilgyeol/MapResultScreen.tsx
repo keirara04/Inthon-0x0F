@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { BUILDING, C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { graphFrame } from "./MapSketch";
+import { Floor3DLazy } from "./Floor3DLazy";
 import { MapViewer } from "./MapViewer";
 import { BackHeader, Badge, PrimaryButton, SecondaryButton, StatusDot, Title } from "./ui";
 
@@ -17,6 +18,8 @@ export function MapResultScreen() {
   const photo = g ? state.parsedPhoto : null;
   const frame = graphFrame(shown, photo);
   const [sel, setSel] = useState<string | null>(null);
+  const [mode, setMode] = useState<"2d" | "3d">("2d");
+  const levels3d = useMemo(() => [{ label: shown.floor || "1F", g: shown }], [shown]);
   const picked = sel ? shown.nodes.find((n) => n.id === sel) : undefined;
   const links = picked ? shown.edges.filter((e) => e.a === picked.id || e.b === picked.id).length : 0;
   const rooms = shown.nodes.filter((n) => n.type === "room").length;
@@ -44,14 +47,32 @@ export function MapResultScreen() {
       </div>
 
       <div className="relative min-h-[300px] flex-1 border-y border-line">
-        <MapViewer
-          g={shown}
-          frame={frame}
-          photo={photo}
-          selected={sel}
-          onSelect={setSel}
-          label={`${g ? "AI가 읽은" : "데모"} ${(shown.floor || "1F").replace("F", "층")} 지도. 호실 ${rooms}개. 드래그로 이동, 두 손가락으로 확대`}
-        />
+        {mode === "3d" ? (
+          <Floor3DLazy levels={levels3d} selected={sel} onSelect={setSel} />
+        ) : (
+          <MapViewer
+            g={shown}
+            frame={frame}
+            photo={photo}
+            selected={sel}
+            onSelect={setSel}
+            label={`${g ? "AI가 읽은" : "데모"} ${(shown.floor || "1F").replace("F", "층")} 지도. 호실 ${rooms}개. 드래그로 이동, 두 손가락으로 확대`}
+          />
+        )}
+        <div role="radiogroup" aria-label="지도 형식" className="absolute top-3 right-3 flex gap-0.5 rounded-[10px] bg-[rgba(236,234,227,.95)] p-[3px] shadow-[0_2px_8px_rgba(0,0,0,.08)]">
+          {(["2d", "3d"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={mode === m}
+              onClick={() => setMode(m)}
+              className={`h-9 min-w-11 rounded-lg border-none px-2.5 text-[12px] font-bold text-ink ${mode === m ? "bg-surface" : "bg-transparent"}`}
+            >
+              {m === "2d" ? "2D" : "3D"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 px-5 pt-3.5 pb-5">
