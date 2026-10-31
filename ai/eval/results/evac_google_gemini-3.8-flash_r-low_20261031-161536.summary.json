@@ -1,0 +1,17 @@
+{
+  "task": "evac",
+  "model": "google/gemini-3.8-flash (reasoning=low)",
+  "run": "20261031-161536",
+  "n_images": 7,
+  "n_with_truth": 7,
+  "json_valid": 1.0,
+  "room_recall": 1.0,
+  "room_precision": 1.0,
+  "current_node_ok": 1.0,
+  "vertical_found": 0.9523809523809524,
+  "connected": 1.0,
+  "latency_s_mean": 19.09714285714286,
+  "latency_s_max": 25.49,
+  "cost_usd_total": 0.091347,
+  "csv": "evac_google_gemini-3.8-flash_r-low_20261031-161536.csv"
+}

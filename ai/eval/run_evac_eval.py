@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """작업 A 평가: 피난안내도 사진 → 층 그래프 JSON.
 
-data/evac/evac_<층>_<조건>.jpg 마다 모델을 호출하고, 스키마를 검사한 뒤 truth/<층>.json과 비교한다.
+data/evac/evac_<층>_<조건>.jpg 마다 prod와 같은 프롬프트·스키마(backend/resources/*/evac-map)로 모델을 호출하고,
+스키마를 검사한 뒤 시드 그래프(backend/database/seeders/data/<건물>-<층>.json)와 비교한다.
 
-  python ai/eval/run_evac_eval.py --model google/gemini-2.5-flash
-  python ai/eval/run_evac_eval.py --model google/gemini-2.5-flash --model openai/gpt-4o --limit 3 --overlay
+  python ai/eval/run_evac_eval.py --model google/gemini-3.8-flash --reasoning low --overlay
+  python ai/eval/run_evac_eval.py --model google/gemini-3.8-flash --reasoning low --max-side 1280   # prod 업로드 크기
 """
 
 from __future__ import annotations
@@ -16,8 +17,8 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from common import (DATA_DIR, RESULTS_DIR, TRUTH_DIR, call_vision, fmt, list_images, load_image, load_prompt,
-                    load_schema, mean, model_tag, normalize_room, print_table, run_stamp, schema_errors, to_data_url,
+from common import (DATA_DIR, RESULTS_DIR, call_vision, fmt, image_data_url, list_images, load_image, load_prompt,
+                    load_schema, load_truth, mean, model_tag, normalize_room, print_table, run_stamp, schema_errors,
                     write_csv, write_summary_json)
 
 NODE_TYPES = {"room", "junction", "stairs", "elevator_hall", "entrance", "exit", "landmark"}
@@ -26,10 +27,8 @@ ID_RE = re.compile(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$")
 CURRENT_DIST_OK = 0.08
 
 
-def user_message(building: str | None, floor: str | None) -> str:
-    return (f"건물 힌트: {building or '모름'}\n"
-            f"층 힌트: {floor or '모름'}\n"
-            "이 피난안내도를 층 그래프 JSON으로 변환하라.")
+def user_message(building: str, floor: str) -> str:
+    return f"건물: {building}, 층: {floor}"  # EvacMapParser::parse와 같은 문장
 
 
 def floor_from_name(path: Path) -> str | None:
@@ -113,6 +112,11 @@ def score(pred: dict, truth: dict | None) -> dict:
     else:
         m["connected"] = False
     m["n_nodes"], m["n_edges"], m["n_rooms"] = len(pred["nodes"]), len(pred["edges"]), len(rooms)
+    types = {n["id"]: n["type"] for n in pred["nodes"]}
+    corridor = [float(e["heading_deg"]) for e in pred["edges"]
+                if types[e["from"]] == "junction" and types[e["to"]] == "junction" and e.get("heading_deg") is not None]
+    off_axis = lambda h: min(h % 90, 90 - h % 90)
+    m["corridor_axis_ok"] = sum(off_axis(h) <= 15 for h in corridor) / len(corridor) if corridor else None
 
     if truth is None:
         return m
@@ -140,6 +144,14 @@ def score(pred: dict, truth: dict | None) -> dict:
     p_cnt = Counter(n["type"] for n in pred["nodes"] if n["type"] in VERTICAL_TYPES)
     total = sum(t_cnt.values())
     m["vertical_found"] = sum(min(p_cnt[t], c) for t, c in t_cnt.items()) / total if total else None
+
+    # ref: 층끼리 같은 계단·엘리베이터를 잇는 id. 정답과 (type, ref) 집합이 같아야 층 연결이 맞는다
+    refs = lambda g: {(n["type"], n.get("ref")) for n in g["nodes"] if n["type"] in ("stairs", "elevator_hall")}
+    p_refs, t_refs = refs(pred), refs(truth)
+    m["ref_missing"] = sum(r is None for _, r in p_refs)
+    m["ref_match"] = p_refs == t_refs
+    m["pred_refs"] = " ".join(sorted(f"{t[:5]}:{r}" for t, r in p_refs))
+    m["truth_refs"] = " ".join(sorted(f"{t[:5]}:{r}" for t, r in t_refs))
     return m
 
 
@@ -181,27 +193,30 @@ def draw_overlay(img, g: dict, out_path: Path) -> None:
 
 def run_model(model: str, images: list[Path], args, system: str, schema: dict, stamp: str) -> dict:
     rows = []
-    raw_dir = RESULTS_DIR / "raw" / f"evac_{model_tag(model, args.reasoning)}_{stamp}"
+    tag = model_tag(model, args.reasoning) + f"_px{args.max_side or 'raw'}"
+    raw_dir = RESULTS_DIR / "raw" / f"evac_{tag}_{stamp}"
     for img_path in images:
         floor = floor_from_name(img_path)
-        truth_path = TRUTH_DIR / f"{floor}.json"
-        truth = json.loads(truth_path.read_text(encoding="utf-8")) if floor and truth_path.exists() else None
+        truth = load_truth(args.building, floor) if floor else None
         img = load_image(img_path)
-        res = call_vision(model, system, user_message(args.building, floor), to_data_url(img, args.max_side),
-                          schema, "floor_graph",
+        res = call_vision(model, system, user_message(args.building, floor), image_data_url(img_path, img, args.max_side),
+                          schema, "evac-map",
                           reasoning=args.reasoning)
 
         row = {"image": img_path.name, "floor": floor, "has_truth": truth is not None,
                "latency_s": round(res["latency_s"], 2) if res["latency_s"] else None,
-               "cost_usd": res["cost_usd"], "format": res["format"], "error": res["error"]}
+               "cost_usd": res["cost_usd"], "format": res["format"], "error": res["error"],
+               "completion_tokens": res["usage"].get("completion_tokens") or res["usage"].get("output_tokens"),
+               "reasoning_tokens": (res["usage"].get("completion_tokens_details") or {}).get("reasoning_tokens")}
         if res["data"] is not None:
             errs = schema_errors(schema, res["data"])
+            graph = res["data"]
+            raw_dir.mkdir(parents=True, exist_ok=True)
             row["json_valid"] = not errs
             row["schema_errors"] = " | ".join(errs[:5])
-            raw_dir.mkdir(parents=True, exist_ok=True)
-            (raw_dir / f"{img_path.stem}.json").write_text(json.dumps(res["data"], ensure_ascii=False, indent=2),
+            (raw_dir / f"{img_path.stem}.json").write_text(json.dumps(graph, ensure_ascii=False, indent=2),
                                                            encoding="utf-8")
-            pred, issues = clean_graph(res["data"])
+            pred, issues = clean_graph(graph)
             row["cleanup_issues"] = len(issues)
             row.update(score(pred, clean_graph(truth)[0] if truth else None))
             if args.overlay:
@@ -212,18 +227,21 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, s
         print(f"  {img_path.name}: valid={row.get('json_valid')} recall={fmt(row.get('room_recall'), True)} "
               f"cur={row.get('current_node_ok')} {row['latency_s']}s {row['error'] or ''}")
 
-    csv_path = RESULTS_DIR / f"evac_{model_tag(model, args.reasoning)}_{stamp}.csv"
+    csv_path = RESULTS_DIR / f"evac_{tag}_{stamp}.csv"
     write_csv(csv_path, rows)
     truth_rows = [r for r in rows if r["has_truth"]]
     rate = lambda key, rs: mean([float(r[key]) for r in rs if r.get(key) is not None])
     summary = {
-        "task": "evac", "model": model + (f" (reasoning={args.reasoning})" if args.reasoning else ""), "run": stamp, "n_images": len(rows), "n_with_truth": len(truth_rows),
+        "task": "evac", "model": model + (f" (reasoning={args.reasoning})" if args.reasoning else "") + f" {args.max_side or 'raw'}px", "run": stamp, "n_images": len(rows), "n_with_truth": len(truth_rows),
         "json_valid": rate("json_valid", rows),
         "room_recall": rate("room_recall", truth_rows),
         "room_precision": rate("room_precision", truth_rows),
         "current_node_ok": rate("current_node_ok", truth_rows),
         "vertical_found": rate("vertical_found", truth_rows),
+        "ref_match": rate("ref_match", truth_rows),
         "connected": rate("connected", rows),
+        "corridor_axis_ok": rate("corridor_axis_ok", rows),
+        "completion_tokens_mean": mean([r["completion_tokens"] for r in rows]),
         "latency_s_mean": mean([r["latency_s"] for r in rows]),
         "latency_s_max": max((r["latency_s"] for r in rows if r["latency_s"]), default=None),
         "cost_usd_total": sum(r["cost_usd"] for r in rows if r["cost_usd"]) or None,
@@ -237,17 +255,19 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="피난안내도 → 층 그래프 평가")
     ap.add_argument("--model", action="append", required=True, help="OpenRouter 모델 id (여러 번 지정해 비교)")
     ap.add_argument("--limit", type=int, help="앞에서 N장만")
+    ap.add_argument("--pattern", default="*", help="파일 이름 패턴 (예: evac_4F_*)")
     ap.add_argument("--building", default="우정정보관", help="건물 힌트")
-    ap.add_argument("--max-side", type=int, default=2048, help="전송 이미지 긴 변 px")
+    ap.add_argument("--max-side", type=int, default=2048,
+                    help="전송 이미지 긴 변 px. prod 업로드는 1280px 이하(2MB 제한), 0이면 원본 그대로")
     ap.add_argument("--overlay", action="store_true", help="results/raw/에 그래프를 겹친 PNG 저장")
     ap.add_argument("--reasoning", choices=["minimal", "low", "medium", "high"],
                     help="OpenRouter reasoning effort (지정 안 하면 모델 기본값)")
     args = ap.parse_args()
 
-    images = list_images(DATA_DIR / "evac")[: args.limit]
+    images = [p for p in list_images(DATA_DIR / "evac") if p.match(args.pattern)][: args.limit]
     if not images:
         raise SystemExit(f"{DATA_DIR / 'evac'}에 사진이 없습니다 (evac_<층>_<조건>.jpg)")
-    system, schema, stamp = load_prompt("evac_map_to_graph"), load_schema("floor_graph"), run_stamp()
+    system, schema, stamp = load_prompt("evac-map"), load_schema("evac-map"), run_stamp()
 
     summaries = []
     for model in args.model:
@@ -258,10 +278,11 @@ def main() -> None:
           "vertical_found ≥90% · connected 100% · latency ≤10s")
     print_table(
         ["model", "n", "json_valid", "room_recall", "room_prec", "current_ok", "vertical", "connected",
-         "latency avg/max", "cost $"],
+         "ref_match", "corridor_axis", "out_tokens", "latency avg/max", "cost $"],
         [[s["model"], s["n_images"], fmt(s["json_valid"], True), fmt(s["room_recall"], True),
           fmt(s["room_precision"], True), fmt(s["current_node_ok"], True), fmt(s["vertical_found"], True),
-          fmt(s["connected"], True), f"{fmt(s['latency_s_mean'], digits=1)}/{fmt(s['latency_s_max'], digits=1)}s",
+          fmt(s["connected"], True), fmt(s["ref_match"], True), fmt(s["corridor_axis_ok"], True), fmt(s["completion_tokens_mean"], digits=0),
+          f"{fmt(s['latency_s_mean'], digits=1)}/{fmt(s['latency_s_max'], digits=1)}s",
           fmt(s["cost_usd_total"], digits=4)] for s in summaries])
 
 

@@ -1,14 +1,22 @@
-# 길결 AI 모듈 (담당: 상후)
+# 길결 AI 평가 (담당: 상후)
 
-피난안내도 → 층 그래프(작업 A), 체크포인트 OCR(작업 B), 장면 인식 백업(작업 C)의 프롬프트·스키마·평가 스크립트입니다.
-실제 서비스에서는 Laravel이 이 폴더의 프롬프트와 스키마를 그대로 읽어 OpenRouter를 호출합니다.
+피난안내도 → 층 그래프(작업 A), 체크포인트 OCR(작업 B), 장면 인식 백업(작업 C)을 **prod와 같은 조건으로** 재는 평가 스크립트입니다.
+
+**원본은 백엔드 하나입니다.** 평가는 아래 파일을 직접 읽으므로, 프롬프트를 고치면 prod와 평가에 같이 반영됩니다.
+
+| 무엇 | 위치 | prod에서 쓰는 곳 |
+|---|---|---|
+| 시스템 프롬프트 | `backend/resources/prompts/{evac-map,checkpoint,scene}.md` | `VisionClient` (파일 전체를 그대로 보냄) |
+| 출력 스키마 | `backend/resources/schemas/{evac-map,checkpoint,scene}.json` | `VisionClient` (strict structured output) |
+| 정답 그래프 | `backend/database/seeders/data/<건물>-<층>.json` (명성 검수 데이터) | `GraphSeeder` |
+| 체크포인트 매칭 규칙 | `ai/eval/matcher.py` = `backend/app/Services/CheckpointMatcher.php` 이식 | `CheckpointMatcher` |
+
+`matcher.py`는 PHP와 한 줄씩 맞춰 둔 사본입니다. **`CheckpointMatcher.php`나 `GraphImporter`의 랜드마크 저장 규칙을 바꾸면 `matcher.py`도 같이 바꿔 주세요.** (`scene`은 아직 백엔드 API에 연결되지 않았습니다.)
 
 ```
 ai/
-  prompts/   evac_map_to_graph.md · checkpoint_ocr.md · scene_recognition.md   (시스템 프롬프트 원문, 파일 전체가 프롬프트)
-  schema/    floor_graph · checkpoint · scene .schema.json                     (structured output 스키마 = 팀 공유 규격)
-  eval/      run_*_eval.py · make_summary.py · common.py
-    data/    evac/ checkpoint/ scene/ (사진, 커밋 안 함) · truth/ (정답 JSON, 커밋함)
+  eval/      run_evac_eval.py · run_checkpoint_eval.py · run_scene_eval.py · matcher.py · make_summary.py · common.py
+    data/    evac/ checkpoint/ scene/ (사진, 커밋 안 함)
     results/ CSV + summary.json + summary.md (커밋함) · raw/ (모델 원본 출력·overlay, 커밋 안 함)
 ```
 
@@ -16,105 +24,106 @@ ai/
 
 ```bash
 pip install -r ai/requirements.txt
-cp ai/.env.example ai/.env        # OPENROUTER_API_KEY 입력 (환경변수나 backend/.env에 있어도 됨)
+# OPENROUTER_API_KEY는 환경변수 → ai/.env → backend/.env 순서로 찾습니다 (커밋 금지)
 
-python ai/eval/run_evac_eval.py --model google/gemini-2.5-flash --model google/gemini-2.5-pro --overlay
-python ai/eval/run_checkpoint_eval.py --model google/gemini-2.5-flash
-python ai/eval/run_scene_eval.py --model google/gemini-2.5-flash
+python ai/eval/run_evac_eval.py --model google/gemini-3.8-flash --reasoning low --overlay
+python ai/eval/run_checkpoint_eval.py --model google/gemini-3.8-flash --reasoning low
+python ai/eval/run_scene_eval.py --model google/gemini-3.8-flash --reasoning low
 python ai/eval/make_summary.py    # results/summary.md 갱신 (발표 표)
 ```
 
-**Lablup(대회 제공 API)으로 돌리기:** 모델 id 앞에 `lablup:`을 붙입니다. 키는 `LABLUP_API_KEY`(환경변수 → `ai/.env` → `backend/.env`)에서 읽습니다.
-Lablup은 structured output이 없어서 스키마를 프롬프트에 넣고 응답을 파싱합니다 (CSV `format` 열이 `prompt_json`).
+공통 옵션: `--model`(여러 번 지정 가능), `--reasoning low|minimal|medium|high`(prod는 low), `--pattern 'evac_4F_*'`(파일 고르기),
+`--limit N`, `--building 우정정보관`, `--max-side PX`(기본: 안내도 2048, 체크포인트·장면 768. `0`이면 원본 그대로).
+prod 업로드는 2MB 제한이고 클라이언트가 1280px 이하로 줄이므로, prod 조건은 `--max-side 1280`입니다.
 
-```bash
-python ai/eval/run_evac_eval.py --model lablup:DeepSeek-V4.1-Flash-B300 --overlay
-```
-
-공통 옵션: `--model`(여러 번 지정 가능), `--limit N`, `--max-side PX`(기본: 안내도 2048, 체크포인트·장면 768).
-모델 id는 예시입니다. 실제 비교한 모델은 아래 "선택한 모델"에 측정 후 기록합니다.
+**Lablup(대회 제공 API):** 모델 id 앞에 `lablup:`을 붙입니다 (`LABLUP_API_KEY`). structured output이 없어서 스키마를 프롬프트에 넣고 파싱합니다.
 
 ## 데이터 넣는 법
 
 | 폴더 | 파일 이름 | 정답 |
 |---|---|---|
-| `data/evac/` | `evac_<층>_<조건>.jpg` (예: `evac_1F_front.jpg`) | `truth/<층>.json` |
-| `data/checkpoint/` | `room_<번호>_<조건>.jpg` | `<번호>호`와 그 호실 노드 |
-| | `sign_<층>_<조건>.jpg` | 층 `<층>`과 그 층 표지 노드 |
-| | `none_<아무거나>.jpg` | `none` (표지 없음) |
-| `data/scene/` | `scene_<node_id>_<n>.jpg` (예: `scene_1F-elev-A_01.jpg`) | `<node_id>` |
+| `data/evac/` | `evac_<층>_<조건>.jpg` (예: `evac_1F_front.jpg`) | 시드 `<건물>-<층>.json` |
+| `data/checkpoint/` | `room_<번호>_<조건>.jpg` (예: `room_401A_far.jpg`) | 시드에서 라벨이 `<번호>호`인 노드 |
+| | `sign_<층>_<조건>.jpg` | 그 층 표지 (시드의 엘리베이터 홀·계단 노드) |
+| | `none_<아무거나>.jpg` | 표지 없음 |
+| `data/scene/` | `scene_<node_id>_<n>.jpg` (예: `scene_4F-elev-A_01.jpg`) | `<node_id>` |
 
-- `truth/<층>.json`: 명성이 손으로 만든 정답. 형식은 `schema/floor_graph.schema.json`과 같습니다.
-- `truth/landmarks.json` (선택): `[{node_id, kind, ocr_text}]`. 없으면 `truth/<층>.json`에서 만듭니다.
-  room 노드는 `room_no`로, 층마다 엘리베이터 홀 하나(없으면 계단 → 출입구)는 `floor_sign`으로 씁니다.
-- `data/scene/descriptions.json`: `{"1F-elev-A": "엘리베이터 2대, 자판기, 유리문"}`
+- `data/scene/descriptions.json`: `{"4F-elev-A": "엘리베이터 2대, 자판기, 유리문"}`
+- 시드에 없는 층(예: 2F)의 사진은 정답 없이 JSON 형식·연결·응답 시간만 잽니다.
 
-## 지표 계산 방식
+## 지표
 
-**작업 A (`run_evac_eval.py`)**: 지표는 모델 출력에서 잘못된 노드·간선(없는 노드를 잇는 간선, 범위 밖 좌표)을 버린 뒤 계산합니다.
-`json_valid`는 버리기 전의 원본으로 판단합니다.
-- `room_recall` / `room_precision`: 호실 라벨을 정규화해서 집합으로 비교합니다 (`405호`, `405 호`, `405` → `405`).
-- `current_node_ok`: 정규화한 라벨이 정답 현위치 노드와 같거나, 좌표 거리가 0.08 이내면 맞음.
-- `vertical_found`: 계단·엘리베이터 홀·비상구를 타입별 개수로 비교합니다 (Σ min(예측, 정답) / Σ 정답). 사진 구도가 정답 이미지와 달라 좌표로 짝짓기 어렵기 때문입니다.
-- `connected`: `current_node_id`에서 BFS로 모든 room에 갈 수 있는지. 현위치가 없으면 false.
+**작업 A (`run_evac_eval.py`)**: user 문장은 prod와 같은 `건물: <건물>, 층: <층>`. 지표는 잘못된 노드·간선을 버린 뒤 계산하고, `json_valid`는 원본으로 판단합니다.
+- `room_recall` / `room_precision`: 호실 라벨 정규화 후 집합 비교 (`405호` = `405`)
+- `current_node_ok`: 현위치 노드 라벨이 같거나 좌표 거리 0.08 이내
+- `vertical_found`: 계단·엘리베이터 홀·비상구 타입별 개수 비교
+- `connected`: 현위치에서 모든 room에 갈 수 있는지 (BFS)
+- `ref_match`: 계단·엘리베이터 노드의 (type, ref) 집합이 정답과 같은지 → 층 연결이 맞는지
+- `corridor_axis_ok`: 복도끼리 잇는 간선의 방향이 0/90/180/270°에서 15° 이내인 비율 (모델이 쓴 `heading_deg` 기준. prod `EvacMapParser`는 heading을 좌표로 다시 계산함)
 
-**작업 B (`run_checkpoint_eval.py`)**
-- 표지 사진에는 정답 노드를 `expected_node_id`로 줍니다 (정상 안내 상황). none 사진에는 파일 이름으로 고정한 임의 노드를 줍니다.
-- 기본으로는 예상 노드가 있는 층의 랜드마크만 줍니다. `--all-floors`를 쓰면 전체 층을 줍니다.
-- `exact`: 텍스트(정규화)와 노드가 모두 맞음. `confident_wrong`: 기준값 이상의 확신으로 정답이 아닌 노드를 고름 (none 사진에서 노드를 고른 경우 포함).
-- 기준값 0.50~0.95마다 `exact_rate` / `confident_wrong` / `none_rate`를 `*_thresholds.csv`에 저장합니다.
-  추천 기준값은 `confident_wrong = 0`이 되는 가장 낮은 값입니다.
+**작업 B (`run_checkpoint_eval.py`)**: AI는 글자만 읽고(`{text, kind}`), 매칭은 `matcher.py`(= `CheckpointMatcher`)가 합니다.
+AI 호출은 사진당 한 번, 매칭은 여러 '예상 노드'로 돌려 봅니다.
+- `read`: 정답 글자를 `canonical()`로 읽어냈는지
+- `matched`: 예상 노드 = 실제 위치일 때 `matched`가 나온 비율 (정상 안내)
+- `mismatch 감지`: 예상 노드 = 다른 위치일 때 `mismatch`가 나온 비율 (길 잘못 듦)
+- **`false_match`**: 다른 위치를 예상했는데 `matched`가 나온 횟수 / 확인한 횟수. **0이어야 합니다** (틀린 곳에서 "맞다"고 하는 가장 나쁜 실패).
+  호실 사진은 라벨이 다른 모든 호실을, 층 표지 사진은 다른 층의 모든 노드를 예상 노드로 넣어 봅니다. none 사진은 모든 노드에서 `unknown`이어야 합니다.
+- `latency avg/p50/max`
 
-**작업 C (`run_scene_eval.py`)**: 정답 노드의 층 노드 목록과 설명을 주고 top-1·top-3 정확도를 계산합니다.
+**작업 C (`run_scene_eval.py`)**: 정답 노드의 층 노드 목록과 설명을 주고 top-1·top-3 정확도.
 
-## Laravel에서 호출하는 방법
+## 선택한 모델 · 측정 기록
 
-OpenRouter `POST https://openrouter.ai/api/v1/chat/completions`:
+| 작업 | 설정 | 근거 (측정한 값만) |
+|---|---|---|
+| A | `google/gemini-3.8-flash`, reasoning low | 1F·2F·4F 사진 7장(2026-10-31, 당시 정답은 상후 초안): 호실·현위치·연결 100%, 응답 약 13~22s. 시드 정답(18:00 이후)으로 다시 잴 것 |
+| B | 미정 (후보: flash-lite 768px) | 임시 세트(프롬프트 수정 후): flash-lite 2.2s·matched 100%·false_match 0 (아래). 실제 문패 사진 대기 |
+| C | 미정 | |
 
-```json
-{
-  "model": "<선택한 모델 id>",
-  "temperature": 0,
-  "messages": [
-    { "role": "system", "content": "<ai/prompts/evac_map_to_graph.md 파일 전체>" },
-    { "role": "user", "content": [
-      { "type": "text", "text": "건물 힌트: 우정정보관\n층 힌트: 4F\n이 피난안내도를 층 그래프 JSON으로 변환하라." },
-      { "type": "image_url", "image_url": { "url": "data:image/jpeg;base64,..." } }
-    ]}
-  ],
-  "response_format": { "type": "json_schema", "json_schema": {
-    "name": "floor_graph", "strict": true,
-    "schema": "<ai/schema/floor_graph.schema.json에서 $schema, $id 키를 뺀 것>"
-  }},
-  "provider": { "require_parameters": true },
-  "usage": { "include": true }
-}
-```
+**작업 A 응답 시간 실험** (2026-10-31, 사진 7장): 이미지 1536/1024px, reasoning minimal, 간선 속성 빼기(출력 축소)는 정확도를 지키면서 빨라지지 않았고,
+`gemini-3.5-flash-lite`는 7.6s로 빠르지만 엘리베이터를 3/7만 찾았다. reasoning 기본값은 품질이 같고 2.5배 느리다.
+prod 프롬프트(ref 포함)로 2048px 19.3s / 1280px 18.3s (각 1회, 7장).
 
-응답의 `choices[0].message.content`가 JSON 문자열입니다.
+**작업 B 지연 임시 측정** (2026-10-31, prod 프롬프트·스키마·user 문장, 사진 3장 × 2회: 합성 문패 1 + 실제 폰 사진 2. 실제 문패 사진으로 다시 잴 것):
 
-| 작업 | 시스템 프롬프트 | 스키마 (name) | user 텍스트 | 이미지 긴 변 |
+| 모델 | 이미지 | 평균 | p50 | 최대 |
 |---|---|---|---|---|
-| A | `evac_map_to_graph.md` | `floor_graph` | `건물 힌트: …\n층 힌트: …\n이 피난안내도를 층 그래프 JSON으로 변환하라.` | 2048px |
-| B | `checkpoint_ocr.md` | `checkpoint` | `expected_node_id: 4F-405\nlandmarks: [{"node_id":…,"kind":…,"ocr_text":…}, …]` | 768px |
-| C | `scene_recognition.md` | `scene` | `nodes: [{"id","type","label"}…]\nlandmark_descriptions: [{"node_id","description"}…]` | 768px |
+| gemini-3.8-flash (low) | 원본 4000px | 8.3s | 7.4s | 15.5s |
+| gemini-3.8-flash (low) | 1280px | 7.8s | 7.7s | 12.7s |
+| gemini-3.8-flash (low) | 768px | 5.1s | 5.2s | 6.0s |
+| gemini-3.8-flash (low) | 512px | 6.1s | 6.3s | 9.4s |
+| gemini-3.5-flash-lite | 1280px | 2.9s | 2.9s | 3.1s |
+| gemini-3.5-flash-lite | 768px | 2.4s | 2.5s | 2.8s |
 
-서버에서 꼭 할 후처리:
-- **A**: 없는 노드를 잇는 간선, 0~1 범위 밖 좌표, 중복 id를 버립니다 (`run_evac_eval.py`의 `clean_graph`와 같은 규칙). 저장 상태는 `draft`이고, 사람이 검수해야 `verified`가 됩니다.
-- **B**: `match`는 모델 값을 믿지 말고 `matched_node_id == expected_node_id`로 다시 계산합니다. `matched_node_id`가 landmarks 목록에 없으면 null로 봅니다. `confidence < 기준값`이면 none으로 처리합니다 (기준값은 아래에 기록).
-- provider가 `json_schema`를 거부하면 `{"type": "json_object"}`로 한 번 더 시도합니다 (평가 스크립트도 이렇게 하고, CSV의 `format` 열에 남깁니다).
+**ref 규칙 영향 확인** (2026-10-31, 사진 7장, gemini-3.8-flash low 2048px, 사진 대조 초안 정답 aabf456으로 채점, 각 1회):
+ref 있음 / 없음 = 호실 recall·precision 100% / 100%, 현위치 100% / 100%, 연결 100% / 100%, vertical 90% / 95%, 응답 19.4s / 19.3s.
+→ ref 규칙은 품질을 떨어뜨리지 않는다. 1280·2048px 실행의 room_recall 62%·current 0%는 시드 정답이 임시값이라서다
+(시드 4F 호실 "401호"는 실제 401A~C와 다르고, 시드 현위치 좌표가 사진과 다름).
+
+**작업 B 임시 세트 정확도** (2026-10-31, 10장: 실제 폰 사진의 안내판 층 표시 4 + 실제 사진에서 자른 벽·포스터·엘리베이터 표시등 5 + 합성 문패 1.
+실제 문패 사진으로 다시 잴 것):
+
+| 모델 | 이미지 | 실행 | read | matched | false_match | none | 응답 avg / p50 / max |
+|---|---|---|---|---|---|---|---|
+| gemini-3.5-flash-lite | 768px | 2 | 80% / 80% | 80% / 80% | 0/64 / 0/64 | 100% / 100% | 2.2 / 2.2 / 2.8s · 2.1 / 2.1 / 2.6s |
+| gemini-3.5-flash-lite | 1280px | 1 | 80% | 80% | 0/64 | 100% | 2.2 / 2.2 / 2.7s |
+| gemini-3.8-flash (low) | 768px | 1 | 100% | 100% | 0/64 | 100% | 5.5 / 4.0 / 10.4s |
+
+flash-lite가 틀린 사진은 모두 안내판 옆에 **엘리베이터 위치 표시등("6")**이 같이 찍힌 사진으로, 층 표지 대신 "6"을 읽었다 (결과는 unknown이라 오안내는 아님).
+
+→ `checkpoint.md`에 "엘리베이터 위치 표시등은 층 표지가 아님 / 안내판·계단참의 층 표시는 floor_sign" 규칙 추가 후 (같은 10장):
+
+| 모델 | 이미지 | 실행 | read | matched | false_match | none | 응답 avg / p50 / max |
+|---|---|---|---|---|---|---|---|
+| gemini-3.5-flash-lite | 768px | 2 | 100% / 100% | 100% / 100% | 0/64 / 0/64 | 100% / 100% | 2.2 / 2.2 / 2.8s · 2.3 / 2.2 / 2.7s |
+| gemini-3.8-flash (low) | 768px | 1 | 100% | 100% | 0/64 | 100% | 3.9 / 3.8 / 4.9s |
+
+중간에 표시등을 "주황·빨강 LED"로 설명했더니 flash-lite가 안내판의 빨간 "1F"까지 무시해서(2회 모두 none) 색 설명을 빼고 모양으로 바꿨다.
+이 10장에 맞춰 고친 규칙이라 실제 문패·층 표지 사진으로 다시 확인해야 한다.
 
 ## 규격 메모 (팀 공유)
 
-- 출력은 팀 공유 그래프 JSON 형식과 같습니다 (필드 추가 없음).
-- `heading_deg`: 북쪽 0°, 시계 방향. 안내도에 방위표가 없으면 **안내도 위쪽을 북쪽으로 간주**하므로, 실제 방위와 다를 수 있습니다 (백엔드에서 층별 보정값을 더하면 됨).
-- `building`, `floor`는 안내도와 힌트 둘 다에서 알 수 없으면 빈 문자열입니다. `current_node_id`는 현위치를 못 찾으면 null입니다.
-- 한 장의 안내도에서는 `walk` 간선만 나옵니다. 층 사이 `stairs`·`elevator` 간선은 백엔드가 층 그래프를 합칠 때 만듭니다.
-
-## 선택한 모델 · 기준값 (측정 후 기록)
-
-| 작업 | 모델 | 기준값 | 근거 |
-|---|---|---|---|
-| A | (미정) | - | `results/summary.md` |
-| B | (미정) | (미정) | |
-| C | (미정) | - | |
+- `heading_deg`: 안내도 위쪽 = 0°, 시계 방향. **실제 나침반 방위가 아님** → 층별 방위 보정 필요
+- `ref`: 모델 형식(`stairs-1`, `elev-1`, 왼쪽(서쪽)부터 번호)으로 통일 (2026-10-31 키미 결정). 시드의 ref 값도 이 형식으로 바뀜. 노드 id(`1F-elev-A` 등)는 프론트가 쓰므로 그대로
+- 체크포인트 매칭 (키미 `feat/keira-ref-roomletter`, `matcher.py` 반영): 호실 끝 글자 보존(`401A호` → `401A`, 랜드마크도 같은 함수로 저장), 지하 호실 `B101`은 호실·`B1`은 층, 엘리베이터 표시등 `6`은 null. 카메라가 `301`만 읽으면 `301A/B` 중 못 고르므로 unknown. `python ai/eval/matcher.py`로 PHP 테스트(VisionTest) 기대값 22개를 검사
+- 한 장의 안내도에서는 `walk` 간선만 나옵니다. 층 사이 간선은 `GraphImporter::linkFloors`가 `ref`로 만듭니다.

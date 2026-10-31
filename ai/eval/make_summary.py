@@ -31,21 +31,23 @@ def main() -> None:
     lines = ["# 길결 AI 평가 결과", "",
              "각 (작업, 모델)의 가장 최근 실행 기준. 측정한 값만 기록한다. `-`는 아직 측정하지 않은 항목.", "",
              "## 발표용 요약", "",
-             "| 모델 | json_valid | room_recall | current_node_ok | 안내도 응답 | 체크포인트 exact_rate | confident_wrong | threshold | 체크포인트 응답 | 장면 top-3 |",
-             "|---|---|---|---|---|---|---|---|---|---|"]
+             "| 모델 | json_valid | room_recall | current_node_ok | ref_match | 안내도 응답 | 체크포인트 matched | false_match | none | 체크포인트 응답 (p50) | 장면 top-3 |",
+             "|---|---|---|---|---|---|---|---|---|---|---|"]
     for m in models:
         e, c, s = runs.get(("evac", m)), runs.get(("checkpoint", m)), runs.get(("scene", m))
-        at = (c or {}).get("at_recommended") or {}
+        if c and "matched_rate" not in c:
+            c = None  # 백엔드 설계(AI 읽기 + 코드 매칭) 이전 형식
         lines.append("| " + " | ".join([
             f"`{m}`",
             fmt(e["json_valid"], True) if e else "-",
             fmt(e["room_recall"], True) if e else "-",
             fmt(e["current_node_ok"], True) if e else "-",
+            fmt(e.get("ref_match"), True) if e else "-",
             lat(e),
-            fmt(at.get("exact_rate"), True) if c else "-",
-            str(at.get("confident_wrong", "-")) if c else "-",
-            str(c.get("recommended_threshold") or "없음") if c else "-",
-            lat(c),
+            fmt(c["matched_rate"], True) if c else "-",
+            f"{c['false_match']}/{c['false_match_checks']}" if c else "-",
+            fmt(c["none_rate"], True) if c else "-",
+            f"{fmt(c.get('latency_s_p50'), digits=1)}s" if c else "-",
             fmt(s["top3_acc"], True) if s else "-",
         ]) + " |")
 
