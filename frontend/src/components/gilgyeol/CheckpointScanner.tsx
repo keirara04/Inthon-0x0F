@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { C, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
+import { boxDrift, detectSign, detectSignIn, smoothBox, withMargin, type Box } from "@/lib/gilgyeol/signDetect";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { ScanOutcome } from "@/lib/gilgyeol/types";
 import { Check, PrimaryButton, SecondaryButton, SegButton, useAlbumPick } from "./ui";
@@ -148,21 +149,95 @@ function useCamera(onDenied: () => void) {
     }
   };
 
-  /** One JPEG frame from the preview, or null when the camera is not showing a picture yet. */
-  const grab = async (max = 1280): Promise<Blob | null> => {
+  /**
+   * One JPEG frame from the preview, or null when the camera is not showing a picture yet.
+   * `crop` (frame fractions) keeps only the detected sign plus a margin, so the map fills the photo.
+   */
+  const grab = async (max = 1280, crop?: Box): Promise<Blob | null> => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
-    const scale = Math.min(1, max / Math.max(video.videoWidth, video.videoHeight));
+    const [vw, vh] = [video.videoWidth, video.videoHeight];
+    const c = crop ? withMargin(crop) : { x: 0, y: 0, w: 1, h: 1 };
+    const [sx, sy, sw, sh] = [c.x * vw, c.y * vh, c.w * vw, c.h * vh];
+    const scale = Math.min(1, max / Math.max(sw, sh));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.width = Math.round(sw * scale);
+    canvas.height = Math.round(sh * scale);
+    canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.7));
   };
 
   useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
 
   return { videoRef, on, error, start, stop, grab };
+}
+
+const HOLD_MS = 1200; // how long the sign must stay put before the photo is taken
+
+type Tracked = { box: Box; rect: { left: number; top: number; width: number; height: number }; progress: number };
+
+/**
+ * Watches the live preview ~7 times a second for an evacuation-map sign. Reports where it is (in the
+ * viewfinder's pixels, for the on-screen frame) and how long it has held still; calls `onHold` once
+ * when it has stayed put for HOLD_MS.
+ */
+function useSignTracker(videoRef: RefObject<HTMLVideoElement | null>, boxRef: RefObject<HTMLDivElement | null>, enabled: boolean, onHold: (box: Box) => void) {
+  const [tracked, setTracked] = useState<Tracked | null>(null);
+  const holdRef = useRef(onHold);
+  useEffect(() => {
+    holdRef.current = onHold;
+  }, [onHold]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    let smooth: Box | null = null;
+    let since = 0;
+    let misses = 0;
+    let fired = false;
+    let timer = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      const el = boxRef.current;
+      if (ctx && video?.videoWidth && el && !fired) {
+        const W = 160;
+        const H = Math.round((W * video.videoHeight) / video.videoWidth);
+        canvas.width = W;
+        canvas.height = H;
+        ctx.drawImage(video, 0, 0, W, H);
+        const found = detectSign(ctx.getImageData(0, 0, W, H).data, W, H);
+        if (found) {
+          misses = 0;
+          const now = performance.now();
+          if (!smooth || boxDrift(smooth, found) > 0.035) since = now; // moved: restart the hold
+          smooth = smoothBox(smooth, found);
+          const progress = Math.min(1, (now - since) / HOLD_MS);
+          // The video is drawn with object-cover, so map frame fractions through the same scale and crop.
+          const r = el.getBoundingClientRect();
+          const scale = Math.max(r.width / video.videoWidth, r.height / video.videoHeight);
+          const [dw, dh] = [video.videoWidth * scale, video.videoHeight * scale];
+          const [ox, oy] = [(r.width - dw) / 2, (r.height - dh) / 2];
+          setTracked({ box: smooth, rect: { left: ox + smooth.x * dw, top: oy + smooth.y * dh, width: smooth.w * dw, height: smooth.h * dh }, progress });
+          if (progress >= 1) {
+            fired = true;
+            holdRef.current(smooth);
+          }
+        } else if (++misses > 3) {
+          smooth = null;
+          setTracked(null);
+        }
+      }
+      timer = window.setTimeout(tick, 140);
+    };
+    timer = window.setTimeout(tick, 0);
+    return () => {
+      clearTimeout(timer);
+      setTracked(null);
+    };
+  }, [enabled, videoRef, boxRef]);
+
+  return tracked;
 }
 
 export function CheckpointScanner() {
@@ -173,7 +248,61 @@ export function CheckpointScanner() {
   const destFloor = `${s.dest?.floor ?? 4}층`;
   const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam, grab } = useCamera(() => actions.update({ scanState: "denied", camDenied: true }));
   const [capturing, setCapturing] = useState(false);
-  const album = useAlbumPick((file) => actions.readMapPhoto(file));
+  // Uploaded photos get the same treatment as the live camera: find the sign, frame it, then read only that part.
+  const [upload, setUpload] = useState<{ file: Blob; url: string; w: number; h: number; box: Box; progress: number } | null>(null);
+  const pickPhoto = async (file: Blob) => {
+    try {
+      const bmp = await createImageBitmap(file);
+      const box = detectSignIn(bmp, bmp.width, bmp.height);
+      const [w, h] = [bmp.width, bmp.height];
+      bmp.close();
+      if (box) {
+        setUpload({ file, url: URL.createObjectURL(file), w, h, box, progress: 0 });
+        return;
+      }
+    } catch {} // undecodable here (e.g. HEIC): let the server-side read report it
+    actions.readMapPhoto(file); // no sign found: read the whole photo, as before
+  };
+  const readUpload = async (crop: boolean) => {
+    if (!upload) return;
+    const { file, url, box } = upload;
+    setUpload(null);
+    URL.revokeObjectURL(url);
+    if (!crop) return actions.readMapPhoto(file);
+    const bmp = await createImageBitmap(file);
+    const c = withMargin(box);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(c.w * bmp.width);
+    canvas.height = Math.round(c.h * bmp.height);
+    canvas.getContext("2d")?.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    canvas.toBlob((b) => actions.readMapPhoto(b ?? file), "image/jpeg", 0.88);
+  };
+  const album = useAlbumPick((file) => void pickPhoto(file));
+  // A photo picked on the capture-intro screen arrives here.
+  useEffect(() => {
+    const photo = s.pendingPhoto;
+    if (!photo) return;
+    void (async () => {
+      await Promise.resolve();
+      actions.update({ pendingPhoto: null });
+      await pickPhoto(photo);
+    })();
+    // pickPhoto is recreated each render; the photo is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.pendingPhoto]);
+  // Hold bar on the uploaded photo: fills over HOLD_MS, then reads the framed part (tap reads it at once).
+  useEffect(() => {
+    if (!upload) return;
+    const id = window.setTimeout(() => {
+      const next = Math.min(1, upload.progress + 50 / HOLD_MS);
+      if (next >= 1) void readUpload(true);
+      else setUpload({ ...upload, progress: next });
+    }, 50);
+    return () => clearTimeout(id);
+    // readUpload reads the same `upload` this effect closed over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upload]);
   // The photo being read: shown under the scan line now, and under the graph on the result screen.
   const readMap = actions.readMapPhoto;
   const shot = s.parsedPhoto?.url ?? null;
@@ -183,22 +312,26 @@ export function CheckpointScanner() {
   const isMap = s.scanTarget === "map";
   const reading = isMap && s.scanState === "analyzing";
   const realScan = camOn && (isMap || !demo);
+  const finderRef = useRef<HTMLDivElement>(null);
 
-  /** Live: capture one frame and let the engine judge it. Otherwise: the existing simulated result. */
-  const confirmScan = async () => {
+  /** Live: capture one frame (cropped to the detected sign when there is one). Otherwise: the simulated result. */
+  const confirmScan = async (crop?: Box) => {
     if (!realScan) {
       actions.runScan();
       return;
     }
     setCapturing(true);
     try {
-      const frame = await grab(isMap ? 2048 : 1280);
+      const frame = await grab(isMap ? 2048 : 1280, isMap ? crop : undefined);
       if (frame) (isMap ? readMap : actions.runScan)(frame);
       else actions.toast("카메라 화면이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요");
     } finally {
       setCapturing(false);
     }
   };
+
+  // Map scans with the camera on: follow the sign, and take the photo once it has been held still.
+  const tracked = useSignTracker(videoRef, finderRef, camOn && isMap && s.scanState === "aim" && !capturing, (box) => void confirmScan(box));
 
   const manualOpts: { label: string; pick: () => void }[] = (() => {
     switch (s.scanTarget) {
@@ -238,9 +371,45 @@ export function CheckpointScanner() {
           <div aria-hidden="true" className="min-w-11" />
         )}
       </div>
-      <div className="gg-hatch-dark relative mx-3 h-[330px] overflow-hidden rounded-[20px]">
+      <div ref={finderRef} className="gg-hatch-dark relative mx-3 h-[330px] overflow-hidden rounded-[20px]">
         <video ref={videoRef} autoPlay playsInline muted aria-hidden="true" className={`absolute inset-0 size-full object-cover ${camOn ? "" : "hidden"}`} />
-        {!camOn && s.scanTarget === "map" && <SampleEvacMap />}
+        {!camOn && s.scanTarget === "map" && !upload && <SampleEvacMap />}
+        {upload && (
+          // The picked photo with the sign framed, drawn in the photo's own pixels so the frame lands exactly.
+          <svg viewBox={`0 0 ${upload.w} ${upload.h}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 size-full bg-camera">
+            <image href={upload.url} width={upload.w} height={upload.h} />
+            <path
+              fillRule="evenodd"
+              fill="rgba(0,0,0,.32)"
+              d={`M0 0H${upload.w}V${upload.h}H0Z M${upload.box.x * upload.w} ${upload.box.y * upload.h}h${upload.box.w * upload.w}v${upload.box.h * upload.h}h${-upload.box.w * upload.w}Z`}
+            />
+            <rect
+              role="button"
+              aria-label="이 안내도 읽기"
+              tabIndex={0}
+              onClick={() => void readUpload(true)}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && void readUpload(true)}
+              x={upload.box.x * upload.w}
+              y={upload.box.y * upload.h}
+              width={upload.box.w * upload.w}
+              height={upload.box.h * upload.h}
+              rx={upload.box.w * upload.w * 0.02}
+              fill="transparent"
+              stroke={upload.progress >= 1 ? "#4CC38A" : "#fff"}
+              strokeWidth={3}
+              vectorEffect="non-scaling-stroke"
+              className="cursor-pointer"
+            />
+            <rect
+              x={upload.box.x * upload.w}
+              y={(upload.box.y + upload.box.h * 0.95) * upload.h}
+              width={upload.box.w * upload.w * upload.progress}
+              height={upload.box.h * upload.h * 0.03}
+              fill="#4CC38A"
+              pointerEvents="none"
+            />
+          </svg>
+        )}
         {reading && shot && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
@@ -270,8 +439,25 @@ export function CheckpointScanner() {
             {camOn ? "카메라 끄기" : "실제 카메라 켜기"}
           </button>
         )}
+        {tracked && (
+          // The frame follows the sign. Tap it to take the photo now instead of waiting.
+          <button
+            type="button"
+            aria-label="이 안내도 촬영"
+            onClick={() => void confirmScan(tracked.box)}
+            className="absolute rounded-lg border-[3px] bg-transparent p-0 transition-[left,top,width,height,border-color] duration-150 ease-out"
+            style={{ ...tracked.rect, borderColor: tracked.progress >= 1 ? "#4CC38A" : "rgba(255,255,255,.95)", boxShadow: "0 0 0 9999px rgba(0,0,0,.28)" }}
+          >
+            <span className="absolute -top-9 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(21,23,21,.85)] px-3 py-1 text-[13px] font-bold whitespace-nowrap text-white">
+              {tracked.progress >= 1 ? "촬영 중…" : "가만히 들고 계세요"}
+            </span>
+            <span className="absolute inset-x-2 bottom-2 h-1.5 overflow-hidden rounded-full bg-white/30" aria-hidden="true">
+              <span className="block h-full rounded-full bg-[#4CC38A]" style={{ width: `${Math.round(tracked.progress * 100)}%` }} />
+            </span>
+          </button>
+        )}
         <div
-          className={`absolute top-1/2 left-1/2 ${s.scanTarget === "map" ? "-mt-[115px] -ml-[96px] h-[210px] w-[192px]" : "-mt-[65px] -ml-[100px] h-[130px] w-[200px]"}`}
+          className={`absolute top-1/2 left-1/2 ${tracked || upload ? "hidden" : ""} ${s.scanTarget === "map" ? "-mt-[115px] -ml-[96px] h-[210px] w-[192px]" : "-mt-[65px] -ml-[100px] h-[130px] w-[200px]"}`}
           aria-hidden="true"
         >
           {[
@@ -288,7 +474,9 @@ export function CheckpointScanner() {
         </div>
         {s.scanState !== "success" && (
           <div className="absolute right-3 bottom-3 left-3 flex justify-center">
-            <span className="rounded-2xl bg-[rgba(21,23,21,.82)] px-3.5 py-1.5 text-center text-[16px] leading-[1.4] font-bold text-white">{m.guide}</span>
+            <span className="rounded-2xl bg-[rgba(21,23,21,.82)] px-3.5 py-1.5 text-center text-[16px] leading-[1.4] font-bold text-white">
+              {upload ? "사진에서 안내도를 찾았어요 · 곧 이 부분만 읽어요" : tracked ? "안내도를 찾았어요 · 그대로 들고 있으면 자동으로 찍어요" : m.guide}
+            </span>
           </div>
         )}
       </div>
@@ -309,8 +497,17 @@ export function CheckpointScanner() {
               </div>
             </div>
             )}
-            <PrimaryButton onClick={confirmScan} disabled={capturing}>{m.runLabel}</PrimaryButton>
-            {isMap && (
+            {upload ? (
+              <>
+                <PrimaryButton onClick={() => void readUpload(true)}>이 부분 읽기</PrimaryButton>
+                <SecondaryButton onClick={() => void readUpload(false)}>사진 전체로 읽기</SecondaryButton>
+              </>
+            ) : (
+              <PrimaryButton onClick={() => void confirmScan(tracked?.box)} disabled={capturing}>
+                {m.runLabel}
+              </PrimaryButton>
+            )}
+            {isMap && !upload && (
               <>
                 {album.input}
                 <SecondaryButton onClick={album.open}>앨범에서 안내도 사진 선택</SecondaryButton>

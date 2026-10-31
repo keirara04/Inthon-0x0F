@@ -298,12 +298,19 @@ export default function Floor3D({
       // Label centres, so a name is never wider than the gap to its neighbour's name.
       const centres = roomish.map((n) => {
         const b = bbox(polyOf(n));
-        return { id: n.id, x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2 };
+        return { id: n.id, x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2, b };
       });
+      /** Distance to the nearest room in line along `axis`: one whose span on the other axis overlaps ours by half. */
       const gap = (id: string, axis: "x" | "z") => {
         const me = centres.find((c) => c.id === id)!;
-        const other = axis === "x" ? "z" : "x";
-        const ds = centres.filter((c) => c.id !== id && Math.abs(c[other] - me[other]) < 1.2).map((c) => Math.abs(c[axis] - me[axis]));
+        const [lo, hi] = axis === "x" ? (["z0", "z1"] as const) : (["x0", "x1"] as const);
+        const ds = centres
+          .filter((c) => {
+            if (c.id === id) return false;
+            const overlap = Math.min(c.b[hi], me.b[hi]) - Math.max(c.b[lo], me.b[lo]);
+            return overlap > 0.5 * Math.min(c.b[hi] - c.b[lo], me.b[hi] - me.b[lo]);
+          })
+          .map((c) => Math.abs(c[axis] - me[axis]));
         return ds.length ? Math.min(...ds) : Infinity;
       };
       for (const n of roomish) {
@@ -333,8 +340,9 @@ export default function Floor3D({
         // Tall, narrow rooms (406–402) carry the name along their long side, like a printed plan.
         const tall = z1 - z0 > (x1 - x0) * 1.4;
         const [along, across] = tall ? [z1 - z0, x1 - x0] : [x1 - x0, z1 - z0];
-        const maxW = Math.min(along * 0.85, gap(n.id, tall ? "z" : "x") * 0.9);
-        const maxH = Math.min(across * (tall ? 0.6 : 0.32), gap(n.id, tall ? "x" : "z") * 0.8, 1.1);
+        // Floors keep labels readable even in a cramped row (a tiny label is worse than a slight overlap).
+        const maxW = Math.max(0.6, Math.min(along * 0.85, gap(n.id, tall ? "z" : "x") * 0.9));
+        const maxH = Math.max(0.35, Math.min(across * (tall ? 0.6 : 0.32), gap(n.id, tall ? "x" : "z") * 0.8, 1.1));
         const text = floorText(n.type === "room" ? shortLabel(n) : n.type === "stairs" ? "계단" : "승강기", maxW, maxH, restroom ? C.route : C.ink);
         if (tall) text.rotation.y = -Math.PI / 2; // reads bottom-to-top from the default view
         // Stairs: name above the top step. Classrooms with desks: name in the band by the top wall. Else: centre.

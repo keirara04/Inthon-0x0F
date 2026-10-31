@@ -31,6 +31,8 @@ export interface AppState {
   parsed: ParsedGraph | null;
   /** The photo `parsed` was read from (object URL + pixel size), drawn under the graph. */
   parsedPhoto: { url: string; w: number; h: number } | null;
+  /** A photo picked on another screen, handed to the scanner to find the sign in it before reading. */
+  pendingPhoto: Blob | null;
   start: StartNodeId | null;
   locEdit: boolean;
   landmarks: boolean;
@@ -83,6 +85,7 @@ const INITIAL: AppState = {
   mapDemo: false,
   parsed: null,
   parsedPhoto: null,
+  pendingPhoto: null,
   start: "here",
   locEdit: false,
   landmarks: false,
