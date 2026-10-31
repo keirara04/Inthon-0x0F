@@ -55,7 +55,7 @@ export function LandingScreen() {
   const [faq, setFaq] = useState(-1);
   const secRefs = useRef<Record<Sec, HTMLElement | null>>({ trial: null, faq: null });
   const revealRoute = useReveal<HTMLDivElement>();
-  const revealTrial = useReveal<HTMLDivElement>();
+  const revealTrial = useReveal<HTMLOListElement>();
 
   const startTrial = () => actions.enterTrial();
   const [heroCtaVisible, setHeroCtaVisible] = useState(true);
@@ -195,18 +195,15 @@ export function LandingScreen() {
           <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">하은의 3분</h2>
           <p className="m-0 text-[15px] leading-normal text-muted">처음 온 하은이 우정정보관 405호를 찾아가요.</p>
         </div>
-        <div ref={revealTrial} data-reveal className="mt-3.5 grid grid-cols-2 gap-2.5">
+        {/* One numbered list: an odd step count left a lone card and a stretched last one in the old 2-column grid. */}
+        <ol ref={revealTrial} data-reveal className="m-0 mt-3.5 flex list-none flex-col rounded-2xl bg-surface px-4 py-1.5">
           {TRIAL_STEPS.map((t, i) => (
-            <div
-              key={t}
-              style={d(i * 90)}
-              className={`gl-item flex flex-col gap-2 rounded-2xl bg-surface p-3.5 ${i === TRIAL_STEPS.length - 1 ? "col-span-2" : ""}`}
-            >
-              <div className="flex size-[26px] items-center justify-center rounded-full bg-ink text-[13px] font-extrabold text-white">{i + 1}</div>
-              <div className="text-[15px] leading-[1.35] font-bold">{t}</div>
-            </div>
+            <li key={t} style={d(i * 60)} className="gl-item flex min-h-[52px] items-center gap-3 border-b border-divider py-2 last:border-b-0">
+              <span className="flex size-[26px] flex-none items-center justify-center rounded-full bg-ink text-[13px] font-extrabold text-white">{i + 1}</span>
+              <span className="text-[15px] leading-[1.35] font-bold">{t}</span>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
       <section ref={(el) => { secRefs.current.faq = el; }} data-sec="faq" className="scroll-mt-[76px] px-5 pt-11 pb-2">
