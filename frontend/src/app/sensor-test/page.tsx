@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { koreanVoiceReady, speak, speechDebug } from "@/lib/gilgyeol/feedback";
 import { headingFromEvent } from "@/lib/gilgyeol/navMath";
 
 // iOS adds a permission method and a compass field that aren't in the TS DOM types.
@@ -23,6 +24,18 @@ export default function SensorTest() {
   const [heading, setHeading] = useState<number | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const add = (line: string) => setLog((l) => [line, ...l].slice(0, 20));
+  const [voice, setVoice] = useState<ReturnType<typeof speechDebug> | null>(null);
+
+  // Load the voice list up front, so the test button can speak synchronously inside the tap (iOS).
+  useEffect(() => {
+    void koreanVoiceReady().then(() => setVoice(speechDebug()));
+  }, []);
+
+  function testVoice() {
+    speak("4층 405호까지 약 12m 가세요. 오른쪽으로 돌아 복도를 따라 가세요");
+    setVoice(speechDebug());
+    setTimeout(() => setVoice(speechDebug()), 4000); // a failed voice reports its error a moment later
+  }
 
   async function start() {
     add(`secure context: ${window.isSecureContext}`);
@@ -106,6 +119,21 @@ export default function SensorTest() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="flex flex-col gap-2 rounded-lg border p-4">
+        <div className="text-neutral-500">음성 (소리가 안 나면 미디어 볼륨 확인)</div>
+        <button onClick={testVoice} className="rounded-lg border px-3 py-2 font-semibold">
+          목소리 테스트
+        </button>
+        <div>사용 중: {voice?.picked ?? "브라우저 기본 (ko-KR)"}</div>
+        <div>오류: {voice?.lastError ?? "없음"}</div>
+        <div className="text-neutral-500">한국어 음성 {voice?.voices.length ?? 0}개 (✕ = 실패해서 제외)</div>
+        <ul className="font-mono text-xs">
+          {voice?.voices.map((v) => (
+            <li key={v}>{v}</li>
+          ))}
+        </ul>
       </section>
 
       <ul className="font-mono text-xs text-neutral-600">
