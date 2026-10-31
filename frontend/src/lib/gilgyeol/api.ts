@@ -1,7 +1,7 @@
 // API adapter. Screens call these functions instead of fetching directly.
 // Mock mode is the default; set NEXT_PUBLIC_GILGYEOL_API=live to call the Laravel API at NEXT_PUBLIC_API_URL.
 // Live responses are converted to the UI types here, so screens don't care which mode is on.
-import type { ApiCheckpointResult, ApiGraph, ApiNodeType, ApiRoute, ApiSearchResult, ApiStep } from "@/types/api";
+import type { ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
 import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
 
@@ -166,6 +166,34 @@ export async function postCheckpoint(image: Blob, expectedNode: string): Promise
   }
   await delay(1200);
   return { status: "matched", texts: [], node: { id: expectedNode, label: "", floor: "" } };
+}
+
+/** Where am I? One photo of a nearby door number or floor sign, matched across the whole building. */
+export async function locate(image: Blob): Promise<ApiLocateResult> {
+  if (API_MODE === "live") {
+    const body = new FormData();
+    body.append("image", await downscale(image), "sign.jpg");
+    body.append("building", BUILDING);
+    return request<ApiLocateResult>("/api/locate", { method: "POST", body });
+  }
+  await delay(1200);
+  return { status: "found", texts: ["101"], node: { id: "1F-101", label: "101호", floor: "1F" }, floor: "1F" };
+}
+
+/** Entrances, exits, elevator halls and stairs to start from ("다른 입구에 계신가요?"). */
+export async function startPoints(): Promise<ApiStartFloor[]> {
+  if (API_MODE === "live") return request<ApiStartFloor[]>(`/api/start-points?building=${encodeURIComponent(BUILDING)}`);
+  await delay(200);
+  return [
+    {
+      floor: "1F",
+      points: [
+        { id: "1F-entrance", label: "정문 출입구", type: "entrance" },
+        { id: "1F-elev-A", label: "엘리베이터 홀", type: "elevator_hall" },
+        { id: "1F-stairs-W", label: "서쪽 계단", type: "stairs" },
+      ],
+    },
+  ];
 }
 
 const TURN_LABEL: Record<NonNullable<Extract<ApiStep, { kind: "walk" }>["turn"]>, string> = {

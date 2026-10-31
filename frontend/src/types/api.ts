@@ -46,6 +46,20 @@ export interface ApiRoute {
   arrived: { node: string; label: string; floor: string };
 }
 
+/** POST /api/locate: where am I, from one photo of a nearby sign (no expected node). */
+export interface ApiLocateResult {
+  status: "found" | "floor_only" | "unknown"; // floor_only: only a floor sign was read, ask for a room number
+  texts: string[];
+  node: { id: string; label: string; floor: string } | null;
+  floor: string | null;
+}
+
+/** GET /api/start-points: entrances, exits, elevator halls and stairs on verified floors, bottom floor first. */
+export interface ApiStartFloor {
+  floor: string;
+  points: { id: string; label: string; type: "entrance" | "exit" | "elevator_hall" | "stairs" }[];
+}
+
 export interface ApiCheckpointResult {
   status: "matched" | "mismatch" | "unknown";
   texts: string[];

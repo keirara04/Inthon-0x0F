@@ -8,6 +8,7 @@ use App\Services\VisionClient;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use JsonException;
 use RuntimeException;
 
@@ -40,6 +41,21 @@ class VisionController extends Controller
         $texts = is_string($read['text'] ?? null) ? [$read['text']] : [];
 
         return ['data' => $matcher->match(array_filter((array) $texts, 'is_string'), $data['expected_node'])];
+    }
+
+    /** POST /api/locate (multipart: image, building) -> found | floor_only | unknown. For starting anywhere. */
+    public function locate(Request $request, VisionClient $vision, CheckpointMatcher $matcher)
+    {
+        $data = $request->validate([
+            'image' => self::IMAGE_RULE,
+            'building' => 'required|string|exists:buildings,name',
+        ]);
+
+        $read = $this->vision(fn () => $vision->json('checkpoint', $request->file('image')));
+        $texts = is_string($read['text'] ?? null) ? [$read['text']] : [];
+        $buildingId = DB::table('buildings')->where('name', $data['building'])->value('id');
+
+        return ['data' => $matcher->locate($texts, $buildingId)];
     }
 
     private function vision(Closure $call): mixed

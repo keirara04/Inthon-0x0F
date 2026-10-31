@@ -14,10 +14,12 @@ Route::get('/ping', fn () => ['message' => 'pong from laravel']);
 
 Route::get('/search', [NavigationController::class, 'search']);
 Route::post('/route', [NavigationController::class, 'route']);
+Route::get('/start-points', [NavigationController::class, 'startPoints']);
 
 // Every vision call costs money. Generous checkpoint limit: venue phones share one public IP.
 Route::post('/evac-map/parse', [VisionController::class, 'parse'])->middleware('throttle:10,1');
 Route::post('/checkpoint', [VisionController::class, 'checkpoint'])->middleware('throttle:60,1');
+Route::post('/locate', [VisionController::class, 'locate'])->middleware('throttle:60,1');
 Route::put('/graph', [GraphController::class, 'save'])->middleware('throttle:30,1');
 
 // Starter AI call (Lablup, Anthropic Messages format). Throttled: every call costs tokens.
