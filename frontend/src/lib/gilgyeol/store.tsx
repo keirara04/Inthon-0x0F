@@ -98,6 +98,8 @@ export interface AppState {
   sheet: boolean;
   toast: string | null;
   cue: string | null;
+  /** Demo login name; prefilled so the judge just taps 시작하기. Not persisted. */
+  nickname: string;
 }
 
 const INITIAL: AppState = {
@@ -149,10 +151,12 @@ const INITIAL: AppState = {
   sheet: false,
   toast: null,
   cue: null,
+  nickname: "김하은",
 };
 
 const BACK: Partial<Record<Screen, Screen>> = {
-  trial: "landing",
+  login: "landing",
+  trial: "login",
   building: "welcome",
   captureIntro: "welcome", // building screen is skipped while there is only one building
   invalidMap: "captureIntro",

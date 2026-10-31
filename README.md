@@ -1,6 +1,8 @@
-# [Project Name] — InThon 2026 0x0F
+# 어디路 (길결) — InThon 2026 0x0F
 
-> One-line pitch: what problem it solves, for whom.
+> 보지 않고 느끼며 찾는 실내 길. Indoor navigation that turns the evacuation map already posted on every floor into a route, then guides you there with vibration and voice, so you don't have to keep looking at the screen.
+
+**Theme:** 감각 (senses). AI reads what is visual (evacuation maps, signs, room numbers) and translates it into touch and sound. It is built for first-time visitors, international students and visually impaired people. The pilot building is 우정정보관 at Korea University.
 
 ## Team
 | Name | Role |
@@ -13,12 +15,16 @@
 ## Tech Stack
 - **Frontend:** Next.js (TypeScript), Tailwind CSS
 - **Backend:** Laravel (PHP), MySQL
-- **Hosting:** Self-hosted homelab — [URL]
+- **AI:** OpenRouter vision (`google/gemini-3.8-flash`) called from the backend only (`App\Services\VisionClient`, prompts in `backend/resources/prompts/`)
+- **Platform:** Mobile web (PWA). Android first, iPhone supported
+- **Hosting:** Self-hosted homelab (Dokploy). https://inthon.hakeemiridza.com
 
 ## Project Structure
 ```
-/frontend      → Next.js app
+/frontend      → Next.js app (screens in src/components/gilgyeol, state in src/lib/gilgyeol)
 /backend       → Laravel API (endpoints: backend/routes/api.php)
+/ai            → AI prompt evals
+/demo-video    → HyperFrames source for the demo video
 compose.yaml   → local MySQL (Docker)
 ```
 
@@ -30,7 +36,7 @@ Node 20.9+, PHP 8.3+, Composer, Docker Desktop
 ### Backend
 ```bash
 cd backend
-cp .env.example .env      # set DB_PASSWORD to any password; keep DB_HOST=127.0.0.1 (not "mysql")
+cp .env.example .env      # set DB_PASSWORD to any password; keep DB_HOST=127.0.0.1 (not "mysql"); set OPENROUTER_API_KEY for AI features
 docker compose --env-file .env -f ../compose.yaml up -d --wait   # starts MySQL on :3306, waits until ready
 composer install
 php artisan key:generate
@@ -46,7 +52,7 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-Open http://localhost:3000 — it should show "Backend says: pong from laravel".
+Open http://localhost:3000. You should see the 어디路 landing page. Backend check: http://localhost:8000/api/ping returns `{"message":"pong from laravel"}`.
 
 ### Troubleshooting
 - **Port 3306 already in use** (local MySQL installed): set `DB_PORT=3307` in `backend/.env` and rerun the `docker compose` line.
@@ -72,7 +78,7 @@ Open http://localhost:3000 — it should show "Backend says: pong from laravel".
 **백엔드**
 ```bash
 cd backend
-cp .env.example .env      # DB_PASSWORD에 원하는 비밀번호 입력, DB_HOST는 127.0.0.1 그대로 ("mysql" 아님)
+cp .env.example .env      # DB_PASSWORD에 원하는 비밀번호 입력, DB_HOST는 127.0.0.1 그대로 ("mysql" 아님), AI 기능은 OPENROUTER_API_KEY 필요
 docker compose --env-file .env -f ../compose.yaml up -d --wait   # MySQL 실행 (준비될 때까지 대기)
 composer install
 php artisan key:generate
@@ -88,7 +94,7 @@ npm install
 npm run dev               # http://localhost:3000
 ```
 
-http://localhost:3000 에서 "Backend says: pong from laravel" 이 보이면 성공입니다.
+http://localhost:3000 에서 어디路 첫 화면이 보이면 성공입니다. 백엔드 확인: http://localhost:8000/api/ping 이 `{"message":"pong from laravel"}` 를 반환
 
 ### 문제 해결
 - **3306 포트 사용 중** (로컬에 MySQL 설치된 경우): `backend/.env`에서 `DB_PORT=3307`로 바꾸고 `docker compose` 명령을 다시 실행
@@ -109,14 +115,22 @@ http://localhost:3000 에서 "Backend says: pong from laravel" 이 보이면 성
 
 ## Deployment
 Merging to `main` auto-deploys via Dokploy. Only 키미 merges.
-- Frontend: [URL]
-- API: [URL]
+- Frontend: https://inthon.hakeemiridza.com
+- API: https://inthon-api.hakeemiridza.com (`/up` health, `/api/ping`)
 
 ## Features
-- [ ] Feature 1
-- [ ] Feature 2
-- [ ] Feature 3
+- [x] **Evacuation map to route map:** take a photo of a floor's evacuation map. Vision AI extracts the room and corridor graph, shows it in 2D/3D and marks the map's 현위치 (you are here) as your start point
+- [x] **Saved maps per building:** maps that have already been read are reused, so the next visitor can skip the photo
+- [x] **Search and route:** search a room (e.g. 405호) and get a landmark-based route that respects which floors each elevator stops at
+- [x] **Vibration direction guidance:** vibration speeds up as you face the right way. iPhone gets a stereo beep instead
+- [x] **Voice guidance:** Korean TTS reads each step
+- [x] **Camera checkpoints:** raise the phone and the camera reads floor signs and room plates to confirm where you are
+- [x] **Off-route and wrong-floor alerts** with re-routing
+- [x] **Graph editor** to fix the AI draft
+- [x] **3-minute guided trial** (하은 persona, 우정정보관 → 405호) behind a demo login with the name prefilled. No sign-up needed
+
+> Everyday wayfinding only. In an emergency, follow official alarms and on-site guidance.
 
 ## Demo
-- Live: [URL]
-- Video: [link]
+- Live: https://inthon.hakeemiridza.com
+- Video: source in `demo-video/`

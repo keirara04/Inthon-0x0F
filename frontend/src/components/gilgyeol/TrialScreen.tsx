@@ -60,7 +60,7 @@ export function TrialScreen() {
           처음 온 우정정보관에서 저장해 둔 안내도 사진부터 405호 도착까지, 실제 안내 화면을 그대로 따라가요. 체험 순서에 따라 화면에서 직접 버튼을 눌러 주세요.
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {["약 3분", "12단계", "로그인 없음"].map((t) => (
+          {["약 3분", "12단계", "가입 없음"].map((t) => (
             <span key={t} className="rounded-lg bg-surface px-2.5 py-[5px] text-[13px] font-bold text-ink">
               {t}
             </span>

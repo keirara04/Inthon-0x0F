@@ -16,6 +16,7 @@ import { GraphEditorScreen } from "./GraphEditorScreen";
 import { GuidanceScreen } from "./GuidanceScreen";
 import { InvalidMapScreen } from "./InvalidMapScreen";
 import { LandingScreen } from "./LandingScreen";
+import { LoginScreen } from "./LoginScreen";
 import { MapResultScreen } from "./MapResultScreen";
 import { ModeScreen } from "./ModeScreen";
 import { OffRouteScreen } from "./OffRouteScreen";
@@ -29,6 +30,7 @@ import { WelcomeScreen } from "./WelcomeScreen";
 
 const SCREENS: Record<Screen, () => ReactNode> = {
   landing: LandingScreen,
+  login: LoginScreen,
   trial: TrialScreen,
   welcome: WelcomeScreen,
   building: BuildingScreen,

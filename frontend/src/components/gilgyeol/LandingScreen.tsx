@@ -57,7 +57,7 @@ export function LandingScreen() {
   const revealRoute = useReveal<HTMLDivElement>();
   const revealTrial = useReveal<HTMLOListElement>();
 
-  const startTrial = () => actions.enterTrial();
+  const startTrial = () => actions.go("login");
   const [heroCtaVisible, setHeroCtaVisible] = useState(true);
   const heroCta = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -154,7 +154,7 @@ export function LandingScreen() {
         </div>
         <div style={d(0)} className="gl-rise inline-flex items-center gap-1.5 self-start rounded-lg bg-haptic-tint px-2.5 py-1.5 text-[13px] font-bold text-haptic-ink">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-haptic" />
-          로그인 없이 · 샘플 경로 체험
+          가입 없이 바로 체험
         </div>
         <h1 className="m-0 text-[33px] leading-[1.24] font-extrabold tracking-[-0.035em] text-pretty">
           <span style={d(80)} className="gl-rise inline-block">처음 온 건물에서도,</span>

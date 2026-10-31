@@ -9,7 +9,7 @@ import { PrimaryButton } from "./ui";
 const BUILDING = { name: "우정정보관", floors: "1–4층" };
 
 export function WelcomeScreen() {
-  const { actions } = useGilgyeol();
+  const { state: s, actions } = useGilgyeol();
   const demo = useDemoTools();
   return (
     <div className="flex min-h-full flex-col gap-4 px-5 pt-2 pb-5">
@@ -55,6 +55,7 @@ export function WelcomeScreen() {
       </div>
 
       <div className="flex flex-col gap-2">
+        {s.nickname.trim() && <p className="m-0 text-[16px] font-bold text-brand">{s.nickname.trim()}님, 안녕하세요</p>}
         <h1 className="m-0 text-[28px] leading-[1.28] font-extrabold tracking-[-0.03em] text-pretty">보지 않고 느끼며 찾는 실내 길</h1>
         <p className="m-0 text-[16px] leading-[1.55] text-pretty text-muted">진동과 음성으로 안내해요. 화면은 가끔만 보면 돼요.</p>
       </div>
