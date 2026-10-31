@@ -34,6 +34,8 @@ export interface AppState {
   /** A photo picked on another screen, handed to the scanner to find the sign in it before reading. */
   pendingPhoto: Blob | null;
   start: StartNodeId | null;
+  /** Real start node from a sign scan or the entrance list; overrides START_NODE_IDS[start] when set. */
+  startAt: { id: string; label: string; floor: string; via: "scan" | "list" } | null;
   locEdit: boolean;
   landmarks: boolean;
   // search
@@ -87,6 +89,7 @@ const INITIAL: AppState = {
   parsedPhoto: null,
   pendingPhoto: null,
   start: "here",
+  startAt: null,
   locEdit: false,
   landmarks: false,
   query: "",
@@ -480,7 +483,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       if (ref.current.routeLoading) return;
       update({ routeLoading: true });
       try {
-        const route = await fetchRoute(START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        const route = await fetchRoute(ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"], room.id);
         navLoad(route);
         update({ route, steps: route.steps.map(toRouteStep), routeLoading: false });
         go("preview", { dest: room, step: 0, dir: "far" });
@@ -500,7 +503,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const endGuide = useCallback(() => {
     stopGuidance();
     navLoad(null);
-    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false, simDir: null });
+    go("welcome", { step: 0, dir: "far", start: "here", startAt: null, route: null, steps: [], routeLoading: false, simDir: null });
   }, [go, stopGuidance, navLoad]);
 
   const back = useCallback(() => {
