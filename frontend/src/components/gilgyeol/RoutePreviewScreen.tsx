@@ -1,35 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { C, START_NODES } from "@/lib/gilgyeol/data";
+import { useMemo, useState } from "react";
+import type { ParsedGraph } from "@/lib/gilgyeol/api";
+import { C, DEMO_1F_GRAPH, EXAMPLE_4F_GRAPH, START_NODES } from "@/lib/gilgyeol/data";
+import { shortestPath } from "@/lib/gilgyeol/geometry";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
-import { FLOOR1, IsoPlane, ROUTE4, RotateButtons, floor4, useIsoRotation } from "./IsoFloor";
+import type { StartNodeId } from "@/lib/gilgyeol/types";
+import { Floor3DLazy } from "./Floor3DLazy";
+import { startNode as nodeFor } from "./MapSketch";
 import { BackHeader, PrimaryButton } from "./ui";
 
-/** 1F and 4F stacked, joined by the elevator shaft, with where each floor's data came from. */
-function StackedRoute({ dest, mapDemo }: { dest: string; mapDemo: boolean }) {
-  const iso = useIsoRotation();
+/**
+ * 1F and the real 4F (traced from the 우정정보관 sign) stacked in 3D, joined at the elevator, with the
+ * route as a tube. Display only: the steps below come from the verified graph via /api/route.
+ */
+function StackedRoute({ dest, start, parsed }: { dest: string; start: StartNodeId | null; parsed: ParsedGraph | null }) {
+  const levels = useMemo(() => {
+    const g1 = parsed && (parsed.floor || "1F") === "1F" ? parsed : DEMO_1F_GRAPH;
+    const from = (start && nodeFor(g1, start)) || g1.nodes.find((n) => n.id === g1.current_node_id);
+    const elev1 = g1.nodes.find((n) => n.type === "elevator_hall");
+    const route1 = from && elev1 ? shortestPath(g1.nodes, g1.edges, from.id, elev1.id) : [];
+    const g4 = EXAMPLE_4F_GRAPH;
+    const key = dest.replace(/호.*$/, "");
+    const to = g4.nodes.find((n) => n.type === "room" && n.label.replace(/호.*$/, "") === key);
+    const elev4 = g4.nodes.find((n) => n.type === "elevator_hall");
+    const route4 = elev4 && to ? shortestPath(g4.nodes, g4.edges, elev4.id, to.id) : elev4 ? [elev4.id] : [];
+    return [
+      { label: "1F", g: g1, route: route1.length ? route1 : from && elev1 ? [from.id, elev1.id] : [] },
+      { label: "4F", g: g4, route: route4 },
+    ];
+  }, [dest, start, parsed]);
   return (
-    <div
-      className="relative h-[340px] touch-none overflow-hidden rounded-2xl bg-[#FAF9F6] [perspective:900px]"
-      role="img"
-      aria-label={`1층에서 엘리베이터로 4층에 올라가 왼쪽 복도로 ${dest}까지 가는 3D 경로 도식`}
-      {...iso.handlers}
-    >
-      <div className="absolute inset-x-0 top-[240px] h-0">
-        <IsoPlane layout={FLOOR1} rot={iso.rot} dim scale={0.85} route={[{ x: 35, y: 84, w: 97, h: 7 }, { x: 31, y: 84, w: 8, h: 64 }]} />
-      </div>
-      <div className="absolute top-[100px] left-1/2 h-[140px] w-1 -translate-x-1/2 rounded bg-route" aria-hidden="true" />
-      <div className="absolute inset-x-0 top-[100px] h-0">
-        <IsoPlane layout={floor4(dest)} rot={iso.rot} route={ROUTE4} scale={0.85} />
-      </div>
-      <span className="absolute top-3 left-3 rounded-lg bg-surface px-2.5 py-1 text-[13px] font-bold text-ink">4F</span>
-      <span className="absolute top-3 right-3 rounded-md bg-haptic-tint px-2 py-1 text-[11px] font-semibold text-haptic-ink">저장된 건물 데이터 · 시연용</span>
-      <span className="absolute top-[200px] left-3 rounded-lg bg-surface px-2.5 py-1 text-[13px] font-bold text-muted">1F</span>
-      <span className="absolute bottom-3 left-3 rounded-md bg-warn-tint px-2 py-1 text-[11px] font-semibold text-warn-ink">
-        {mapDemo ? "데모 안내도" : "방금 촬영한 안내도"}
-      </span>
-      <RotateButtons setRot={iso.setRot} />
+    <div className="relative h-[360px] overflow-hidden rounded-2xl border border-line bg-[#FAF9F6]">
+      <Floor3DLazy levels={levels} hint={`1층 → 엘리베이터 → 4층 ${dest}`} />
+      {/* The picture is a traced diagram; the steps below come from the verified graph and can differ. */}
+      <span className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-haptic-tint px-2 py-1 text-[11px] font-semibold text-haptic-ink">3D 도식 · 안내 단계는 검수된 지도 기준</span>
     </div>
   );
 }
@@ -94,7 +99,7 @@ export function RoutePreviewScreen() {
           ))}
         </div>
       </div>
-      {view === "3d" && <StackedRoute dest={d} mapDemo={s.mapDemo} />}
+      {view === "3d" && <StackedRoute dest={d} start={s.start} parsed={s.mapDemo ? null : s.parsed} />}
       <div className={`grid grid-cols-2 gap-2.5 ${view === "3d" ? "hidden" : ""}`}>
         <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
           <div className="text-[13px] font-bold">1층</div>
