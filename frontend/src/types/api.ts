@@ -56,6 +56,8 @@ export interface ApiCheckpointResult {
 export interface ApiGraph {
   building: string;
   floor: string;
+  /** parse only: "map" = floor read from the sign, "hint" = the floor the app sent. */
+  floor_source?: "map" | "hint";
   status: "draft" | "verified";
   current_node_id?: string | null;
   /** `outline`: wall outline of a room/stair/elevator, 0–1 photo coords, closing edge implicit (display only). */
