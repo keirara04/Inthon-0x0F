@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { MAP_JPEG_QUALITY, canvasToJpeg } from "@/lib/gilgyeol/api";
 import { C, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { boxDrift, detectSign, detectSignIn, smoothBox, withMargin, type Box } from "@/lib/gilgyeol/signDetect";
@@ -171,7 +172,7 @@ function useCamera(onDenied: () => void) {
    * One JPEG frame from the preview, or null when the camera is not showing a picture yet.
    * `crop` (frame fractions) keeps only the detected sign plus a margin, so the map fills the photo.
    */
-  const grab = async (max = 1280, crop?: Box): Promise<Blob | null> => {
+  const grab = async (max = 1280, crop?: Box, quality = 0.7): Promise<Blob | null> => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
     const [vw, vh] = [video.videoWidth, video.videoHeight];
@@ -182,7 +183,7 @@ function useCamera(onDenied: () => void) {
     canvas.width = Math.round(sw * scale);
     canvas.height = Math.round(sh * scale);
     canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.7));
+    return canvasToJpeg(canvas, quality).catch(() => null);
   };
 
   useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
@@ -302,12 +303,15 @@ export function CheckpointScanner() {
     if (!crop) return actions.readMapPhoto(file);
     const bmp = await createImageBitmap(file);
     const c = withMargin(box);
+    // Crop and shrink to the upload size in one draw, then encode once (no second lossy pass later).
+    const [sw, sh] = [c.w * bmp.width, c.h * bmp.height];
+    const scale = Math.min(1, 2048 / Math.max(sw, sh));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(c.w * bmp.width);
-    canvas.height = Math.round(c.h * bmp.height);
-    canvas.getContext("2d")?.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+    canvas.width = Math.round(sw * scale);
+    canvas.height = Math.round(sh * scale);
+    canvas.getContext("2d")?.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, sw, sh, 0, 0, canvas.width, canvas.height);
     bmp.close();
-    canvas.toBlob((b) => actions.readMapPhoto(b ?? file), "image/jpeg", 0.88);
+    actions.readMapPhoto(await canvasToJpeg(canvas, MAP_JPEG_QUALITY).catch(() => file));
   };
   const album = useAlbumPick((file) => void pickPhoto(file));
   // A photo picked on the capture-intro screen arrives here.
@@ -353,7 +357,8 @@ export function CheckpointScanner() {
     }
     setCapturing(true);
     try {
-      const frame = await grab(isMap ? 2048 : 1280, isMap ? crop : undefined);
+      // Maps: 2048px at higher JPEG quality, already final size so the upload isn't re-encoded.
+      const frame = await grab(isMap ? 2048 : 1280, isMap ? crop : undefined, isMap ? MAP_JPEG_QUALITY : 0.7);
       if (frame) (isMap ? readMap : actions.runScan)(frame);
       else actions.toast("카메라 화면이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요");
     } finally {
