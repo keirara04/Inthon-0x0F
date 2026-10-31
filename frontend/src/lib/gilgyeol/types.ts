@@ -16,7 +16,8 @@ export type Screen =
 
 export type GuideMode = "both" | "voice" | "screen";
 export type DirectionState = "far" | "near" | "aligned" | "unstable";
-export type ScanTarget = "map" | "floor4" | "sign" | "door";
+/** Camera checks: the evacuation map before starting, and nearby signs after going off route. */
+export type ScanTarget = "map" | "sign";
 export type ScanOutcome = "success" | "mismatch" | "fail";
 export type ScanState = "aim" | "analyzing" | ScanOutcome | "denied";
 export type OffrouteState = "alert" | "floor" | "confirm";

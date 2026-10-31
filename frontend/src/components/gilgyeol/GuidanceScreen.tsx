@@ -30,7 +30,7 @@ export function GuidanceScreen() {
   const dirColor = unstable ? C.warning : dv.color;
   const dirMsg = unstable ? `방향을 확인하기 어려워요. ${st.landmark}를 기준으로 이동해 주세요` : dv.msg;
   const locColor = unstable ? C.warning : C.success;
-  const locText = unstable ? "구간 추정 중" : s.step === 0 ? "출발 위치 확인됨" : "체크포인트 확인됨";
+  const locText = unstable ? "구간 추정 중" : s.step === 0 ? "출발 위치 확인됨" : "4층 도착";
 
   const mini =
     s.step === 0
@@ -44,9 +44,9 @@ export function GuidanceScreen() {
     "1층 출발 위치",
     "정면 엘리베이터 홀",
     `중앙 엘리베이터 A · ${s.elevUnverified ? "정차 층 확인 중" : "4층 정차 확인"}`,
-    "4층 층 표지 확인",
+    "4층 도착",
     s.step === 2 ? "왼쪽 복도 (재탐색)" : "왼쪽 복도",
-    `${d} 표지 확인`,
+    `${d} 도착`,
   ];
   const curFloor = s.step === 0 ? 1 : 4;
 
@@ -61,9 +61,9 @@ export function GuidanceScreen() {
       </div>
       <div className="flex items-center justify-between gap-2 rounded-[14px] bg-warm-panel py-1.5 pr-1.5 pl-3">
         <span className="text-[13px] font-semibold text-ink">
-          {s.raised ? "폰 들음 · 카메라 켜짐" : "폰 내림 · 카메라 꺼짐"}
+          {s.raised ? "폰 들음" : "폰 내림 · 카메라 꺼짐"}
           <span className="block text-[12px] font-medium text-muted">
-            {s.postureSensor ? "폰을 들면 카메라가 켜져 표지를 읽어요" : "자세 감지가 꺼져 있어요"}
+            {s.postureSensor ? "경로를 벗어나면 폰을 들어 주변 표지를 비춰요" : "자세 감지가 꺼져 있어요"}
           </span>
         </span>
         <button
@@ -153,7 +153,7 @@ export function GuidanceScreen() {
 
       <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-3.5">
         <div className="flex flex-col gap-[3px]">
-          <div className="text-[12px] font-semibold text-muted">다음 체크포인트</div>
+          <div className="text-[12px] font-semibold text-muted">다음 지점</div>
           <div className="text-[16px] font-bold">{st.next}</div>
         </div>
         <div aria-hidden="true" className="size-3 rounded-full border-[3px] border-haptic" />
@@ -201,7 +201,7 @@ export function GuidanceScreen() {
               <circle cx={mini.x} cy={mini.y} r="4" fill={unstable ? C.warning : C.success} />
             </svg>
             <div className="text-[12px] font-semibold" style={{ color: unstable ? C.warning : C.success }}>
-              {unstable ? "추정 위치 · 표지로 확인이 필요해요" : "마지막 체크포인트 기준 위치"}
+              {unstable ? "추정 위치 · 표지로 확인이 필요해요" : "마지막으로 확인한 위치 기준"}
             </div>
           </>
         ) : (
@@ -234,13 +234,6 @@ export function GuidanceScreen() {
             </SegButton>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => actions.setRaised(true)}
-          className="h-11 rounded-xl border-[1.5px] border-edge bg-surface text-[14px] font-bold text-ink"
-        >
-          폰 들어 표지 비추기
-        </button>
         {st.offDemo && (
           <button type="button" onClick={actions.toOffroute} className="h-11 rounded-xl border-[1.5px] border-[#E5B9B5] bg-err-tint text-[14px] font-bold text-error">
             반대 복도로 이동해 보기
@@ -248,7 +241,7 @@ export function GuidanceScreen() {
         )}
       </DemoBox>
 
-      <PrimaryButton onClick={() => (s.step === 0 ? actions.toElevator() : actions.openScan("door"))}>{st.cta}</PrimaryButton>
+      <PrimaryButton onClick={() => (s.step === 0 ? actions.toElevator() : actions.arrive())}>{st.cta}</PrimaryButton>
 
       <div className="overflow-hidden rounded-2xl bg-surface">
         <button

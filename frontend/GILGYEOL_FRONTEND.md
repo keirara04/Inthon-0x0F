@@ -77,9 +77,21 @@ frontend/src/
 ```text
 welcome → building → captureIntro → scan(map) → mapResult → start(여기 계신가요?)
   → search(405호) → preview → mode → guide(step 0, 1층)
-  → elevator → scan(floor4) → guide(step 1, 4층 왼쪽 복도)
-  → offroute(경고) → scan(sign) → offroute(confirm) → guide(step 2, 복구)
-  → scan(door) → arrive
+  → elevator → guide(step 1, 4층 왼쪽 복도)
+  → offroute(경고) → scan(sign) → offroute(confirm) → guide(step 2, 복구)   ※ 경로 이탈 시에만
+  → arrive
+```
+
+### 카메라 확인 시점
+
+| 시점 | 읽는 것 | 진입 |
+|---|---|---|
+| 안내 시작 전 | 1층 피난안내도 | `카메라 켜기` (`데모 안내도 불러오기`로 생략 가능) |
+| 경로 이탈 시에만 | 주변 층·호실 표지 | 이탈 경고의 `주변 표지 확인` 또는 자세 감지 중 폰 들기 |
+
+4층 하차와 목적지(405호) 도착은 카메라 확인 없이 사용자가 버튼(`4층에서 내렸어요`, `405호에 도착했어요`)으로 진행합니다.
+
+```text
 welcome → editor (관리자 · 지도 만들기)
 ```
 
@@ -95,9 +107,9 @@ welcome → editor (관리자 · 지도 만들기)
 | `mode` | ModeScreen | 진동+음성 / 음성만 / 화면만, 진동 테스트, 미지원 안내 |
 | `guide` | GuidanceScreen | 방향 링·펄스, 폰 자세 상태, 진동 강도 막대·패턴 범례, 2D/3D 미니맵, 데모 입력, 전체 경로, 다시 듣기/종료 |
 | `elevator` | ElevatorScreen | 4층 이동, 정차 확인/미확인 상태, 층 표시 스트립 |
-| `scan` | CheckpointScanner | 대상: map / floor4 / sign / door. 상태: aim·analyzing·success·mismatch·fail·denied, 수동 선택 |
+| `scan` | CheckpointScanner | 대상: map(안내도) / sign(이탈 시 주변 표지). 상태: aim·analyzing·success·mismatch·fail·denied, 수동 선택 |
 | `offroute` | OffRouteScreen | 경고 → 층·랜드마크 선택 → 위치 재확인 → 새 경로 |
-| `arrive` | ArrivalScreen | 도착, 직접 확인 배지, **이동 통계**, **비상구 정보** |
+| `arrive` | ArrivalScreen | 도착, **이동 통계**(소요 시간·층 이동·경로 재확인), **비상구 정보** |
 | `editor` | GraphEditorScreen | **층별 데이터 목록**, 이미지 업로드/샘플, AI 초안(시뮬레이션), SVG 그래프 편집, 검증, draft/verified 저장 |
 
 뒤로 가기: 화면의 뒤로 버튼과 브라우저/안드로이드 하드웨어 뒤로 가기(`popstate`)가 같은 `actions.back()`을 탑니다.
@@ -117,9 +129,9 @@ welcome → editor (관리자 · 지도 만들기)
 | 검색 | `query`, `cat`, `floorPick`, `dest` |
 | 안내 | `mode`, `vibe`, `voice`, `view`, `dir`, `step`, `routeOpen` |
 | 스캔 | `scanTarget`, `scanFrom`, `scanState`, `outcome`, `manual` |
-| 이탈 | `offState`, `offFloor`, `offSign`, `arrivedManual` |
+| 이탈 | `offState`, `offFloor`, `offSign` |
 | 자세 | `raised`, `postureSensor` |
-| 통계 | `trip: { startedAt, arrivedAt, checkpoints, reroutes }` |
+| 통계 | `trip: { startedAt, arrivedAt, reroutes }` |
 | 시연 대체 상태 | `simNoVibe`, `camDenied`, `elevUnverified` |
 | 오버레이 | `sheet`, `toast`, `cue` |
 
@@ -137,7 +149,7 @@ welcome → editor (관리자 · 지도 만들기)
 | 왼쪽 회전 | 80,90,80 | 짧게–짧게 |
 | 오른쪽 회전 | 320,140,320 | 길게–길게 |
 | 층 이동 | 90,70,90,70,90 | 짧게 3회 |
-| 체크포인트 확인 | 60 | 짧게 1회 |
+| 표지 확인 성공 | 60 | 짧게 1회 (이탈 후 주변 표지) |
 | 도착 | 520,160,90,110,90 | 길게 1회 + 짧게 2회 |
 | 경로 이탈 | 40,50,40,50,40 | 아주 짧게 3회 |
 
@@ -145,7 +157,7 @@ welcome → editor (관리자 · 지도 만들기)
 - iPhone은 `navigator.vibrate`가 없어 진동 미지원 배너가 뜸 (네이티브 브리지 없음)
 - **폰 자세 감지**: `DeviceOrientationEvent` 기울기 > 60° = 들음, < 35° = 내림
   - iOS는 `requestPermission()`을 버튼 탭에서 요청
-  - 들면: guide(step≥1) → 문패 스캔, elevator → 층 표지 스캔, offroute → 주변 표지 스캔
+  - 들면: 이탈 경고 화면(offroute)에서만 주변 표지 스캔을 엽니다. 일반 안내 중에는 카메라를 켜지 않습니다
   - 내리면: 스캔 대기 중일 때 이전 안내 화면으로 복귀
   - 센서가 없으면 데모 버튼 `폰 들어 표지 비추기`로 동일 동작
 - **카메라**: 스캐너의 `실제 카메라 켜기`로 후면 카메라 미리보기. 프레임은 캡처·저장하지 않으며, 권한 거부 시 `denied` 상태와 수동 선택으로 전환
@@ -217,7 +229,7 @@ welcome → editor (관리자 · 지도 만들기)
 | 진동 · 음성 | 기기가 지원하면 **실제 동작** |
 | 카메라 미리보기 | **실제 동작** (HTTPS/localhost), 인식은 하지 않음 |
 | 폰 자세 감지 | **실제 센서** (권한 필요), 데모 버튼 대체 |
-| 안내도 OCR · 체크포인트 인식 | **데모**: 성공/불일치/실패를 직접 선택 |
+| 안내도 OCR · 주변 표지 인식 | **데모**: `?demo`에서 성공/불일치/실패 선택, 기본 모드는 성공 |
 | 방향 센서 | **데모**: 벗어남/가까움/일치/불안정 버튼 |
 | 경로 이탈 감지 | **데모**: `반대 복도로 이동해 보기`로 재현 (기준 문구: 60° 이상 · 5초 이상) |
 | 건물·경로·비상구·층 상태 데이터 | **데모 데이터**, 현장 검증 아님 |
@@ -230,7 +242,7 @@ welcome → editor (관리자 · 지도 만들기)
 ## 11. 검증 내역
 
 - `npx tsc --noEmit`, `npx eslint src`, `npm run build` 통과
-- Edge(headless, 390×844)로 안내도 촬영 → 위치 확인(3D) → 검색 → 경로(3D) → 안내 → 엘리베이터 → 층 표지 → 이탈 → 복구 → 문패 → 도착(비상구) → 관리자(초안·정차 층 편집) 전체 흐름 클릭 확인, 콘솔 오류 없음
+- Edge(headless, 390×844)로 안내도 촬영 → 위치 확인(3D) → 검색 → 경로(3D) → 안내 → 엘리베이터 → 4층 → 이탈 → 주변 표지 → 복구 → 도착(비상구) → 관리자(초안·정차 층 편집) 전체 흐름 클릭 확인, 콘솔 오류 없음
 - 실제 휴대폰에서 진동·음성·카메라·자세 센서는 **아직 확인하지 않음**
 
 ---
@@ -241,7 +253,6 @@ welcome → editor (관리자 · 지도 만들기)
 - [ ] 백엔드 `search` / `route` / `evac-map/parse` / `floors/{id}/graph` / `checkpoint` / `sessions` 연동 후 `NEXT_PUBLIC_GILGYEOL_API=live` 전환
 - [ ] 경로 단계를 `POST /api/route` 응답 기준으로 렌더 (현재 고정 3단계 + 405호 기준 문구)
 - [ ] 실제 방향 센서(heading) 기반 방향 상태와 이탈 감지(60°/5초)
-- [ ] 엘리베이터 홀 표지(1층) 체크포인트 스캔 대상 추가 (현재 step 0에서는 안내 토스트만)
 - [ ] 그래프 에디터 층별 세션 유지 (현재 층 전환 시 이전 편집 세션 초기화)
 - [ ] PWA 아이콘(192/512 PNG) 추가, 오프라인 지원 검토
 
@@ -257,3 +268,5 @@ welcome → editor (관리자 · 지도 만들기)
 |---|---|
 | `8f80219` | feat<전소현> 길결 모바일 프로토타입 화면 구현 |
 | `d3058ee` | feat<전소현> 화면 흐름 레퍼런스 기능 반영 |
+| `5d43f9b` | fix<전소현> 기본 화면에서 시연 패널 숨김, 개발 노트 추가 |
+| `103ae56` | fix<전소현> 데모 입력 박스와 데모 결과 선택을 ?demo 모드에서만 표시 |

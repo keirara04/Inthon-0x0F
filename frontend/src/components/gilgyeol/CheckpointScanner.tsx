@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FLOORS, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
+import { START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { ScanOutcome } from "@/lib/gilgyeol/types";
@@ -80,21 +80,8 @@ export function CheckpointScanner() {
 
   const manualOpts: { label: string; pick: () => void }[] = (() => {
     switch (s.scanTarget) {
-      case "floor4":
-        return FLOORS.map((f) => ({
-          label: `${f}층`,
-          pick: () => {
-            if (f === 4) actions.scanNext(true);
-            else {
-              actions.toElevator();
-              actions.toast(`${f}층으로 선택했어요. 4층으로 다시 이동해 주세요`);
-            }
-          },
-        }));
       case "map":
         return [{ label: "데모 안내도 불러오기", pick: () => actions.go("mapResult", { mapDemo: true }) }];
-      case "door":
-        return [{ label: `${d} 문패를 직접 확인했어요`, pick: () => actions.scanNext(true) }];
       case "sign":
         return ["4층 엘리베이터 홀", "4층 서측 복도", "4층 동측 복도"].map((l) => ({
           label: l,

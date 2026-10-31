@@ -44,8 +44,8 @@ export function RoutePreviewScreen() {
     { t: `1층 ${startNode?.label ?? "출발 위치"}에서 출발` },
     { t: "정면 엘리베이터 홀로 이동" },
     { t: "중앙 엘리베이터 A로 4층 이동", badge: s.elevUnverified ? "정차 층 확인 중 · 층 버튼 확인" : "4층 정차 확인", tone: s.elevUnverified ? "warn" : "ok" },
-    { t: "4층 층 표지 확인", badge: "체크포인트", tone: "cp" },
-    { t: `왼쪽 복도 → ${d} 표지 확인`, badge: "체크포인트", tone: "cp" },
+    { t: "4층에서 내리기" },
+    { t: `왼쪽 복도 → ${d}` },
   ];
   const badgeCls = { warn: "bg-warn-tint text-warn-ink", cp: "bg-haptic-tint text-haptic-ink", ok: "bg-ok-tint text-ok-ink" };
 
@@ -103,7 +103,7 @@ export function RoutePreviewScreen() {
         </div>
         <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
           <div className="text-[13px] font-bold">4층</div>
-          <svg viewBox="0 0 150 90" className="h-auto w-full" role="img" aria-label={`4층: 층 표지에서 왼쪽 복도로 ${d}까지`}>
+          <svg viewBox="0 0 150 90" className="h-auto w-full" role="img" aria-label={`4층: 엘리베이터에서 왼쪽 복도로 ${d}까지`}>
             <g stroke="#EAE7DF" strokeWidth="10" strokeLinecap="round">
               <line x1="15" y1="45" x2="135" y2="45" />
             </g>
@@ -112,7 +112,7 @@ export function RoutePreviewScreen() {
             <circle cx="45" cy="45" r="5" fill="#fff" stroke={C.haptic} strokeWidth="2.5" />
             <circle cx="15" cy="20" r="7" fill={C.brand} />
           </svg>
-          <div className="text-[12px] text-muted">층 표지 → 왼쪽 복도 → {d}</div>
+          <div className="text-[12px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
         </div>
       </div>
       <div className="rounded-[18px] bg-surface px-[18px] py-1.5">

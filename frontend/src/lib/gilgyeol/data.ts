@@ -82,12 +82,12 @@ export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
     {
       floor: "4층",
       title: "왼쪽 복도로 가세요",
-      sub: `${dest} 표지를 확인해 주세요`,
+      sub: `${dest}에 도착하면 아래 버튼을 눌러주세요`,
       subWarn: false,
       turn: "좌회전 · 진동 짧게–짧게",
-      next: `${dest} 문패 확인`,
+      next: `${dest} 도착`,
       landmark: "호실 번호 표지",
-      cta: `${dest} 앞에 왔어요`,
+      cta: `${dest}에 도착했어요`,
       offDemo: true,
     },
     {
@@ -96,9 +96,9 @@ export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
       sub: "홀을 지나 왼쪽 복도로 직진합니다",
       subWarn: false,
       turn: "방향 전환 · 뒤로 돌기",
-      next: `${dest} 문패 확인`,
+      next: `${dest} 도착`,
       landmark: "호실 번호 표지",
-      cta: `${dest} 앞에 왔어요`,
+      cta: `${dest}에 도착했어요`,
       offDemo: false,
     },
   ];
@@ -126,12 +126,8 @@ export function scanMeta(target: ScanTarget, dest: string): ScanMeta {
   switch (target) {
     case "map":
       return { title: "안내도 촬영", read: "안내도 “우정정보관 1층”", next: "현재 위치를 확인한 뒤 목적지를 찾아요.", expect: "층별 안내도 전체", guide: "안내도 전체가 프레임 안에 들어오게 맞춰주세요", ok: "우정정보관 1층 안내도를 찾았어요", okCta: "인식 결과 보기", mis: "인식: 다른 건물 안내도", runLabel: "촬영 · 데모 인식", analyzing: "층·복도·엘리베이터 정보를 읽고 있어요", manualLabel: "데모 안내도 사용" };
-    case "floor4":
-      return { title: "체크포인트 확인", read: "층 표지 “4F”", next: `왼쪽 복도로 가세요. 다음 확인: ${dest} 문패`, expect: "4층 층 표지", guide: "층 표지나 호실 번호를 화면에 맞춰주세요", ok: "4층 확인됨", okCta: "다음 안내 듣기", mis: "인식: 3층", runLabel: run, analyzing, manualLabel: "층 직접 선택" };
     case "sign":
-      return { title: "체크포인트 확인", read: "방향 표지 “401–404 →”", next: "현재 위치에서 경로를 다시 계산해요.", expect: "주변 층·호실 표지", guide: "현재 위치를 다시 확인할게요", ok: "4층 동측 복도 표지 확인됨", okCta: "복구 결과 보기", mis: "인식: 5층 표지", runLabel: run, analyzing, manualLabel: "직접 선택" };
-    case "door":
-      return { title: "체크포인트 확인", read: `문패 “${dest}”`, next: "목적지에 도착했어요.", expect: `${dest} 문패`, guide: "호실 번호를 화면에 맞춰주세요", ok: `${dest} 확인됨`, okCta: "도착 완료", mis: "인식: 404호", runLabel: run, analyzing, manualLabel: "직접 확인" };
+      return { title: "주변 표지 확인", read: "방향 표지 “401–404 →”", next: `현재 위치에서 ${dest}까지 경로를 다시 계산해요.`, expect: "주변 층·호실 표지", guide: "현재 위치를 다시 확인할게요", ok: "4층 동측 복도 표지 확인됨", okCta: "복구 결과 보기", mis: "인식: 5층 표지", runLabel: run, analyzing, manualLabel: "직접 선택" };
   }
 }
 

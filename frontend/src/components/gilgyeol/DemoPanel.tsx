@@ -21,7 +21,7 @@ export function DemoPanel({ compact }: { compact?: boolean }) {
         actions.setDir("near");
       },
     },
-    { label: "엘리베이터·4층 확인", cur: is("elevator") || scanIs("floor4"), go: actions.toElevator },
+    { label: "엘리베이터·4층 확인", cur: is("elevator"), go: actions.toElevator },
     {
       label: "반대 복도 이탈",
       cur: (is("offroute") && s.offState !== "confirm") || (is("guide") && s.step === 1),
@@ -40,10 +40,10 @@ export function DemoPanel({ compact }: { compact?: boolean }) {
     },
     {
       label: "405호 도착",
-      cur: is("arrive") || scanIs("door"),
+      cur: is("arrive"),
       go: () => {
-        actions.update({ screen: "guide", step: 1 });
-        actions.openScan("door");
+        actions.update({ step: 1, dest: actions.ensureDest() });
+        actions.arrive();
       },
     },
     { label: "지도 만들기·그래프 편집", cur: is("editor"), go: () => actions.go("editor") },

@@ -42,7 +42,7 @@ export function ElevatorScreen() {
         </div>
       </div>
       <Badge tone="haptic">층 이동 · 진동 짧게 3회</Badge>
-      <p className="m-0 text-[16px] leading-normal text-ink">엘리베이터에서 내리면 층 표지를 카메라로 비춰 4층인지 확인해요.</p>
+      <p className="m-0 text-[16px] leading-normal text-ink">4층에서 내리면 아래 버튼을 눌러주세요. 왼쪽 복도 안내를 시작해요.</p>
       <DemoBox label="데모 입력 · 승강기 데이터 상태">
         <button
           type="button"
@@ -53,7 +53,7 @@ export function ElevatorScreen() {
         </button>
       </DemoBox>
       <div className="flex-1" />
-      <PrimaryButton onClick={() => actions.openScan("floor4")}>4층에서 내렸어요 · 층 표지 확인</PrimaryButton>
+      <PrimaryButton onClick={() => actions.startGuide(1)}>4층에서 내렸어요</PrimaryButton>
       <GhostButton onClick={actions.replay}>안내 다시 듣기</GhostButton>
     </div>
   );

@@ -48,12 +48,11 @@ export interface AppState {
   offState: OffrouteState;
   offFloor: string;
   offSign: string;
-  arrivedManual: boolean;
   // phone posture: lowered = vibration guidance, raised = camera reads signs
   raised: boolean;
   postureSensor: boolean;
   // trip stats for the arrival summary
-  trip: { startedAt: number | null; arrivedAt: number | null; checkpoints: number; reroutes: number };
+  trip: { startedAt: number | null; arrivedAt: number | null; reroutes: number };
   // demo-panel fallback simulations
   simNoVibe: boolean;
   camDenied: boolean;
@@ -81,7 +80,7 @@ const INITIAL: AppState = {
   dir: "far",
   step: 0,
   routeOpen: false,
-  scanTarget: "floor4",
+  scanTarget: "map",
   scanFrom: "elevator",
   scanState: "aim",
   outcome: "success",
@@ -89,10 +88,9 @@ const INITIAL: AppState = {
   offState: "alert",
   offFloor: "4층",
   offSign: "",
-  arrivedManual: false,
   raised: false,
   postureSensor: false,
-  trip: { startedAt: null, arrivedAt: null, checkpoints: 0, reroutes: 0 },
+  trip: { startedAt: null, arrivedAt: null, reroutes: 0 },
   simNoVibe: false,
   camDenied: false,
   elevUnverified: false,
@@ -234,8 +232,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   }, [update]);
 
   const arrive = useCallback(
-    (manual: boolean) => {
-      go("arrive", { arrivedManual: manual, trip: { ...ref.current.trip, arrivedAt: Date.now() } });
+    () => {
+      go("arrive", { trip: { ...ref.current.trip, arrivedAt: Date.now() } });
       cue("arrive");
       say(`우정정보관 ${destName()}에 도착했어요`);
     },
@@ -251,17 +249,14 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const scanNext = useCallback(
     (manual: boolean) => {
       const t = ref.current.scanTarget;
-      if (t !== "map") update({ trip: { ...ref.current.trip, checkpoints: ref.current.trip.checkpoints + 1 } });
       if (t === "map") go("mapResult", { mapDemo: false });
-      else if (t === "floor4") startGuide(1);
-      else if (t === "sign") go("offroute", { offState: "confirm", offFloor: "4층", offSign: manual ? "직접 선택" : "4층 동측 복도 표지" });
-      else arrive(manual);
+      else go("offroute", { offState: "confirm", offFloor: "4층", offSign: manual ? "직접 선택" : "4층 동측 복도 표지" });
     },
-    [go, update, startGuide, arrive],
+    [go],
   );
 
   const beginTrip = useCallback(() => {
-    update({ trip: { startedAt: Date.now(), arrivedAt: null, checkpoints: 0, reroutes: 0 } });
+    update({ trip: { startedAt: Date.now(), arrivedAt: null, reroutes: 0 } });
     startGuide(0);
   }, [update, startGuide]);
 
@@ -273,16 +268,14 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       if (s.raised === raised && s.postureSensor) return;
       update({ raised });
       if (raised) {
-        if (s.screen === "guide" && s.step === 0) toast("엘리베이터 홀에 도착하면 폰을 들어 표지를 비춰주세요");
-        else if (s.screen === "guide") openScan("door");
-        else if (s.screen === "elevator") openScan("floor4");
-        else if (s.screen === "offroute" && s.offState === "alert") openScan("sign");
+        // Only off-route recovery needs the camera during guidance.
+        if (s.screen === "offroute" && s.offState === "alert") openScan("sign");
       } else if (s.screen === "scan" && s.scanTarget !== "map" && (s.scanState === "aim" || s.scanState === "denied")) {
         clearTimeout(timers.current.scan);
         go(s.scanFrom === "scan" ? "guide" : s.scanFrom);
       }
     },
-    [update, toast, openScan, go],
+    [update, openScan, go],
   );
 
   const enablePosture = useCallback(async () => {

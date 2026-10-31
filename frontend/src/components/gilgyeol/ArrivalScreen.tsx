@@ -17,7 +17,7 @@ export function ArrivalScreen() {
   const [exitsOpen, setExitsOpen] = useState(false);
   const stats = [
     { k: "소요 시간", v: duration(s.trip.startedAt, s.trip.arrivedAt) },
-    { k: "체크포인트", v: `${s.trip.checkpoints}곳 확인` },
+    { k: "층 이동", v: "1층 → 4층" },
     { k: "경로 재확인", v: `${s.trip.reroutes}회` },
   ];
   return (
@@ -33,10 +33,9 @@ export function ArrivalScreen() {
           <br />
           도착했어요
         </h1>
-        <div className="text-[18px] text-muted">{s.arrivedManual ? "우정정보관 · 4층" : `${d} 문패를 확인했어요 · 4층`}</div>
+        <div className="text-[18px] text-muted">우정정보관 · 4층</div>
         <div className="flex flex-wrap gap-1.5">
           <Badge tone="haptic">진동 · 길게 1회 + 짧게 2회</Badge>
-          {s.arrivedManual && <Badge tone="warn">직접 확인으로 완료</Badge>}
         </div>
       </div>
       <dl className="m-0 grid grid-cols-3 gap-2 rounded-[18px] bg-surface px-3 py-4 text-center">
