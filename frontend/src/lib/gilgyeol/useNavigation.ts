@@ -281,6 +281,26 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     [arrive, enter, next, set],
   );
 
+  /**
+   * The user set where they are by hand (map pin): new route from that node, like a checkpoint mismatch.
+   * Resolves false when the pin is the destination itself (arrived instead of rerouting).
+   */
+  const rerouteFrom = useCallback(
+    async (nodeId: string): Promise<boolean> => {
+      const r = live.current.route;
+      if (!r) throw new Error("경로가 없어요");
+      if (nodeId === r.arrived.node) {
+        arrive();
+        return false;
+      }
+      const fresh = await fetchRoute(nodeId, r.arrived.node);
+      enter(fresh, 0);
+      cb.current.onReroute?.(fresh);
+      return true;
+    },
+    [arrive, enter],
+  );
+
   return {
     route,
     step,
@@ -305,5 +325,6 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     goTo,
     resume,
     confirmCheckpoint,
+    rerouteFrom,
   };
 }

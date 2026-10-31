@@ -1,7 +1,7 @@
 // Run: node --test src/lib/gilgyeol/geometry.test.mjs   (Node 24 strips the TS types on import)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fallbackOutlines, shortestPath, snapAxis, snapOutlines, straighten } from "./geometry.ts";
+import { fallbackOutlines, pinNode, shortestPath, snapAxis, snapOutlines, straighten } from "./geometry.ts";
 
 test("straighten squares off a hand-drawn rectangle", () => {
   const out = straighten([{ x: 0, y: 0.2 }, { x: 10, y: -0.2 }, { x: 10.3, y: 5 }, { x: -0.1, y: 5.2 }]);
@@ -55,4 +55,22 @@ test("fallbackOutlines sizes rooms from their neighbours without overlap or cove
 test("fallbackOutlines leaves a lone room alone", () => {
   const nodes = [{ id: "r1", type: "room", label: "101호", x: 0, y: 0 }];
   assert.deepEqual(fallbackOutlines(nodes, []), nodes);
+});
+
+test("pinNode: inside a room picks it, open corridor snaps to the nearest node", () => {
+  const sq = (x, y) => [{ x, y }, { x: x + 10, y }, { x: x + 10, y: y + 10 }, { x, y: y + 10 }];
+  const nodes = [
+    { id: "r1", type: "room", label: "405호", x: 5, y: 5, outline: sq(0, 0) },
+    { id: "j1", type: "junction", label: "", x: 5, y: 20 },
+    { id: "j2", type: "junction", label: "", x: 50, y: 20 },
+    { id: "lm", type: "landmark", label: "소화기", x: 30, y: 20 },
+    { id: "s1", type: "stairs", label: "동쪽 계단", x: 60, y: 30 },
+  ];
+  assert.equal(pinNode(nodes, { x: 9, y: 9 }).node.id, "r1"); // inside outline, even if j1 were closer
+  const c = pinNode(nodes, { x: 8, y: 22 });
+  assert.equal(c.node.id, "j1");
+  assert.equal(c.label, "405호 앞 복도");
+  assert.equal(pinNode(nodes, { x: 31, y: 20 }).node.id, "j2"); // landmarks never chosen (j2 at 19 beats j1 at 26)
+  assert.equal(pinNode(nodes, { x: 61, y: 31 }).label, "동쪽 계단");
+  assert.equal(pinNode([], { x: 0, y: 0 }), null);
 });

@@ -171,3 +171,30 @@ export function shortestPath(nodes: GraphNode[], edges: GraphEdge[], from: strin
   while (path[0] !== from) path.unshift(prev.get(path[0])!);
   return path;
 }
+
+/** Ray-casting point-in-polygon. */
+function inside(p: Pt, poly: Pt[]): boolean {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [a, b] = [poly[i], poly[j]];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) hit = !hit;
+  }
+  return hit;
+}
+
+/**
+ * Where a tap on the floor map lands in the graph (routes start at nodes): the room/stair/elevator whose
+ * outline holds the tap, else the nearest node. `label` names it for people; a bare corridor point is
+ * named after the closest place ("405호 앞 복도"). Same units for `p` and the nodes.
+ */
+export function pinNode<N extends GraphNode>(nodes: N[], p: Pt): { node: N; label: string } | null {
+  const usable = nodes.filter((n) => n.type !== "landmark");
+  const d = (n: Pt) => Math.hypot(n.x - p.x, n.y - p.y);
+  const closest = (ns: N[]) => ns.reduce<N | null>((best, n) => (!best || d(n) < d(best) ? n : best), null);
+  const room = usable.find((n) => n.outline && n.outline.length >= 3 && inside(p, n.outline));
+  const node = room ?? closest(usable);
+  if (!node) return null;
+  if (node.type !== "junction") return { node, label: node.label };
+  const named = closest(usable.filter((n) => n.type !== "junction"));
+  return { node, label: named ? `${named.label} 앞 복도` : "복도" };
+}

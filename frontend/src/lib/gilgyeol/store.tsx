@@ -38,7 +38,7 @@ export interface AppState {
   pendingPhoto: Blob | null;
   start: StartNodeId | null;
   /** Real start node from a sign scan or the entrance list; overrides START_NODE_IDS[start] when set. */
-  startAt: { id: string; label: string; floor: string; via: "scan" | "list" } | null;
+  startAt: { id: string; label: string; floor: string; via: "scan" | "list" | "pin" } | null;
   locEdit: boolean;
   landmarks: boolean;
   // search
@@ -255,7 +255,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       update({ route: r, steps: r.steps.map(toRouteStep), step: 0, dir: ref.current.simDir ?? "far" });
     },
   });
-  const { dir: navDir, load: navLoad, start: navStart, next: navNext, continueAfterFloorMap: navContinueAfterFloorMap, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm } = nav;
+  const { dir: navDir, load: navLoad, start: navStart, next: navNext, continueAfterFloorMap: navContinueAfterFloorMap, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm, rerouteFrom: navRerouteFrom } = nav;
 
   /** "무시하고 계속": clear the engine's off-route state and go back to the current step. */
   const dismissOffroute = useCallback(() => {
@@ -265,6 +265,18 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     go(st && st.kind && st.kind !== "walk" ? "elevator" : "guide");
     say("계속 안내할게요");
   }, [navResume, go, say]);
+
+  /** Off-route, pinned on the map: new route from that spot (the engine then emits onStep / onReroute). */
+  const rerouteFromPin = useCallback(
+    async (spot: { id: string; label: string }) => {
+      try {
+        if (await navRerouteFrom(spot.id)) say(`${spot.label}에서 새 경로로 안내할게요`);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "새 경로를 찾지 못했어요");
+      }
+    },
+    [navRerouteFrom, say, toast],
+  );
 
   // The compass drives `dir`; ?demo can still override it from the presenter panel.
   useEffect(() => {
@@ -691,6 +703,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       arrive,
       toOffroute,
       dismissOffroute,
+      rerouteFromPin,
       pickDest,
       endGuide,
       setMode,
@@ -703,7 +716,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.
