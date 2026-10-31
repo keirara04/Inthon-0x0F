@@ -125,7 +125,7 @@ const INITIAL: AppState = {
 
 const BACK: Partial<Record<Screen, Screen>> = {
   building: "welcome",
-  captureIntro: "building",
+  captureIntro: "welcome", // building screen is skipped while there is only one building
   mapResult: "captureIntro",
   start: "mapResult",
   search: "start",

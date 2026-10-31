@@ -676,7 +676,26 @@ button:not(:disabled):active {
   to { opacity: 1; transform: none; }
 }
 
+/* Welcome hero: rings ripple outward from Alienie, one every ~1.1 s, like the vibration guidance. */
+.gw-ring {
+  animation: gw-ripple 3.3s ease-out infinite;
+}
+.gw-ring-2 {
+  animation-delay: 1.1s;
+}
+.gw-ring-3 {
+  animation-delay: 2.2s;
+}
+@keyframes gw-ripple {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(2.1); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .gw-ring {
+    animation: none !important;
+    opacity: 0.6;
+  }
   .gl-m-bob,
   .gl-m-pop,
   .gl-m-peek,
