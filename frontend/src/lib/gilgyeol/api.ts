@@ -243,6 +243,7 @@ export function toRouteStep(step: ApiStep): RouteStep {
     toFloor: step.kind === "walk" ? undefined : step.to_floor,
     headingDeg: step.kind === "walk" ? step.heading_deg : null,
     lengthM: step.kind === "walk" ? step.length_m : undefined,
+    turnDir: step.kind === "walk" ? step.turn : null,
     checkpoint: step.checkpoint,
     toNode: step.to,
   };

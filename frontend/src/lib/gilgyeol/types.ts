@@ -65,6 +65,7 @@ export interface RouteStep {
   toFloor?: string;
   headingDeg?: number | null;
   lengthM?: number;
+  turnDir?: "left" | "right" | "back" | "straight" | null;
   checkpoint?: { kind: string; text: string } | null;
   toNode?: string;
 }

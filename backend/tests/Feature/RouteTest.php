@@ -45,7 +45,11 @@ class RouteTest extends TestCase
             $this->assertDoesNotMatchRegularExpression('/^\s|\s\s|(돌아|해서|지나서) (까지|쪽으로)/u', $s['text'], $s['text']);
         }
         $this->assertSame('엘리베이터 홀 방향 갈림길', $steps->first()['to_label']);
-        $this->assertSame('엘리베이터 홀 쪽으로 가세요', $steps->first()['text']);
+        $this->assertMatchesRegularExpression('/^엘리베이터 홀 쪽으로 약 \d+m 가세요$/u', $steps->first()['text']);
+        // Legs ending at unnamed junctions must read differently, and no leg is a sub-2m hop.
+        $walks = $steps->where('kind', 'walk');
+        $this->assertSame($walks->count(), $walks->pluck('text')->unique()->count());
+        $this->assertTrue($walks->every(fn ($s) => $s['length_m'] >= 2 || $s === $walks->first()));
     }
 
     public function test_draft_floor_is_not_routable(): void
