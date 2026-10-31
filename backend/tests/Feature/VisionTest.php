@@ -142,6 +142,28 @@ class VisionTest extends TestCase
         $this->assertSame($nodesBefore, DB::table('nodes')->count());
     }
 
+    public function test_parse_cleans_outlines(): void
+    {
+        $sq = [['x' => 0.1, 'y' => 0.1], ['x' => 0.3, 'y' => 0.1], ['x' => 0.3, 'y' => 0.3], ['x' => 0.1, 'y' => 0.3]];
+        $this->fakeVision([
+            'current_node_id' => null,
+            'nodes' => [
+                // repeated closing point, a duplicate neighbour and one point off the photo
+                ['id' => '405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.2, 'ref' => null,
+                    'outline' => [...$sq, ['x' => 0.1, 'y' => 0.3], ['x' => 1.4, 'y' => -0.2], ['x' => 0.1, 'y' => 0.1]]],
+                ['id' => 'j1', 'type' => 'junction', 'label' => '', 'x' => 0.5, 'y' => 0.5, 'ref' => null, 'outline' => $sq],
+                ['id' => '406', 'type' => 'room', 'label' => '406호', 'x' => 0.6, 'y' => 0.2, 'ref' => null, 'outline' => [['x' => 0.5, 'y' => 0.1], ['x' => 0.7, 'y' => 0.1]]],
+            ],
+            'edges' => [],
+        ]);
+
+        $res = $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '4F'])->assertOk();
+
+        $this->assertEquals([...$sq, ['x' => 1, 'y' => 0]], $res->json('data.nodes.0.outline')); // JSON drops .0
+        $this->assertArrayNotHasKey('outline', $res->json('data.nodes.1')); // junctions never carry one
+        $this->assertArrayNotHasKey('outline', $res->json('data.nodes.2')); // fewer than 3 points
+    }
+
     public function test_sends_prompt_schema_and_falls_back_to_json_mode(): void
     {
         Http::fake(['openrouter.ai/*' => Http::sequence()

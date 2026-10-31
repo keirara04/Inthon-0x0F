@@ -31,8 +31,9 @@ export type MapFrame = ReturnType<typeof graphFrame>;
 export function graphFrame(g: ParsedGraph, photo?: MapPhoto | null) {
   const W = 1000;
   const H = 1000 * (photo ? photo.h / photo.w : EDITOR_H / EDITOR_W);
-  const pt = (n: GraphNode) => ({ x: (n.x / EDITOR_W) * W, y: (n.y / EDITOR_H) * H });
-  const ps = g.nodes.map(pt);
+  const pt = (n: { x: number; y: number }) => ({ x: (n.x / EDITOR_W) * W, y: (n.y / EDITOR_H) * H });
+  // Room outlines count too, so a shape near the edge isn't cropped.
+  const ps = g.nodes.flatMap((n) => [n, ...(n.outline ?? [])]).map(pt);
   let box = { x: 0, y: 0, w: W, h: H };
   if (ps.length) {
     const xs = ps.map((p) => p.x);
@@ -61,7 +62,42 @@ export function parsedSpot(g: ParsedGraph, f: MapFrame, id: StartNodeId): { fx: 
   return n ? f.toFrac(n) : null;
 }
 
-const shortLabel = (n: GraphNode) => n.label.replace(/\s*호$/, "").slice(0, 6);
+/** Fill for room / stair / elevator outlines. */
+const OUTLINE_FILL: Partial<Record<NodeType, string>> = { room: "#FFFFFF", stairs: "#DCE8F4", elevator_hall: "#E6E2F6" };
+
+/** Wall outlines the AI traced, as polygons (closing edge implicit). */
+function Outlines({ g, f, selected, stroke }: { g: ParsedGraph; f: MapFrame; selected?: string | null; stroke: number }) {
+  return (
+    <g className="gg-fade-in">
+      {g.nodes.map((n) => {
+        if (!n.outline || n.outline.length < 3 || !OUTLINE_FILL[n.type]) return null;
+        const on = selected === n.id;
+        return (
+          <polygon
+            key={`o-${n.id}`}
+            points={n.outline
+              .map(f.pt)
+              .map((q) => `${q.x},${q.y}`)
+              .join(" ")}
+            fill={OUTLINE_FILL[n.type]}
+            fillOpacity={0.75}
+            stroke={on ? C.brand : C.border}
+            strokeWidth={(on ? 2.5 : 1.2) * stroke}
+            strokeLinejoin="miter"
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+/** "405호" -> "405", "412호(화장실)" -> "412 화장실" (the prompt labels restrooms that way). */
+const shortLabel = (n: GraphNode) =>
+  n.label
+    .replace(/\s*호(?=$|\s*\()/, "")
+    .replace(/\s*\(?화장실\)?/, " 화장실")
+    .trim()
+    .slice(0, 8);
 /** Rough text width in em: Hangul is about square, Latin and digits about 0.6em. */
 const textEm = (t: string) => [...t].reduce((w, ch) => w + (/[ㄱ-힣]/.test(ch) ? 1 : 0.62), 0);
 
@@ -129,6 +165,7 @@ export function MapSketch({
   if (variant === "lite") {
     return (
       <svg viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
+        <Outlines g={g} f={f} stroke={k} />
         {corridors.map((e, i) => (
           <path key={`${e.a}-${e.b}`} d={line(at.get(e.a)!, at.get(e.b)!)} pathLength={1} className="gg-draw-in" stroke={C.route} strokeOpacity={0.55} strokeWidth={7 * k} strokeLinecap="round" style={{ animationDelay: corridorDelay(i) }} />
         ))}
@@ -157,6 +194,7 @@ export function MapSketch({
       )}
       {/* Hidden with display (not unmounted) so switching layers doesn't replay the entrance. */}
       <g display={layers === "photo" ? "none" : undefined}>
+        <Outlines g={g} f={f} selected={selected} stroke={k} />
       {/* Door stubs: thin lines from a room to the corridor it opens onto. */}
       {g.edges.map((e) => {
         const [a, b] = [at.get(e.a), at.get(e.b)];
