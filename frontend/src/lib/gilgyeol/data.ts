@@ -60,6 +60,9 @@ export const ROOMS: Room[] = [
 export const CATEGORIES = ["강의실", "행정실", "엘리베이터", "계단", "기타"] as const;
 export const FLOORS = [1, 2, 3, 4, 5];
 
+/** Verified demo destination used by presenter shortcuts (id must be a real backend node id in live mode). */
+export const DEMO_DEST: Room = { id: "4F-405", name: "405호", kind: "호실", floor: 4, cat: "강의실", routeReady: true };
+
 export const START_NODES: StartNode[] = [
   { id: "here", label: "현위치 표시", x: 44, y: 194 },
   { id: "stair", label: "계단 A", x: 44, y: 62 },

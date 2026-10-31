@@ -4,7 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ApiRoute } from "@/types/api";
 import { fetchRoute, toRouteStep } from "./api";
 import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
+import { useDemoTools } from "./demo";
 import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
+import { useNavigation } from "./useNavigation";
 import type {
   DirectionState,
   GuideMode,
@@ -45,6 +47,8 @@ export interface AppState {
   route: ApiRoute | null;
   steps: RouteStep[];
   routeLoading: boolean;
+  /** ?demo 방향 시뮬레이션 값. null이면 나침반(nav.dir)을 씁니다. */
+  simDir: DirectionState | null;
   // checkpoint scan
   scanTarget: ScanTarget;
   scanFrom: Screen;
@@ -90,6 +94,7 @@ const INITIAL: AppState = {
   route: null,
   steps: [],
   routeLoading: false,
+  simDir: null,
   scanTarget: "map",
   scanFrom: "elevator",
   scanState: "aim",
@@ -176,21 +181,73 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [update],
   );
 
+  const arrive = useCallback(
+    () => {
+      go("arrive", { trip: { ...ref.current.trip, arrivedAt: Date.now() } });
+      cue("arrive");
+      say(`우정정보관 ${ref.current.route?.arrived.label ?? destName()}에 도착했어요`);
+    },
+    [go, cue, say, destName],
+  );
+
+  const toOffroute = useCallback(() => {
+    go("offroute", { offState: "alert", trip: { ...ref.current.trip, reroutes: ref.current.trip.reroutes + 1 } });
+    cue("off");
+    say("경로와 다른 쪽인 것 같아요. 멈춰서 주변 표지를 비춰주세요");
+  }, [go, cue, say]);
+
+  // Sensor engine: route/step/heading/off-route/checkpoint live here. Screens stay in the store below.
+  const demo = useDemoTools();
+  const nav = useNavigation({
+    onStep: (apiStep, index) => {
+      const st = toRouteStep(apiStep);
+      const dir = ref.current.simDir ?? "far";
+      if (apiStep.kind === "walk") {
+        go("guide", { step: index, dir, routeOpen: false });
+        if (st.turn.startsWith("좌회전")) cue("left");
+        else if (st.turn.startsWith("우회전")) cue("right");
+        say(`${st.title}. ${st.sub}`);
+      } else {
+        go("elevator", { step: index, dir, routeOpen: false });
+        cue("floor");
+        say(st.title);
+      }
+    },
+    onOffRoute: () => toOffroute(),
+    onArrive: () => arrive(),
+    onReroute: (r) => {
+      update({ route: r, steps: r.steps.map(toRouteStep), step: 0, dir: ref.current.simDir ?? "far" });
+    },
+  });
+  const { dir: navDir, load: navLoad, start: navStart, next: navNext, goTo: navGoTo } = nav;
+
+  // The compass drives `dir`; ?demo can still override it from the presenter panel.
+  useEffect(() => {
+    const next = state.simDir ?? (demo ? "far" : navDir);
+    if (next !== state.dir) update({ dir: next });
+  }, [demo, navDir, state.simDir, state.dir, update]);
+
   const startGuide = useCallback(
     (step: GuideStep) => {
+      // With a loaded route the engine owns the step (and emits onStep); this is only a demo fallback.
+      if (ref.current.route) {
+        navGoTo(step);
+        return;
+      }
       const st = ref.current.steps[step];
       if (!st) return;
-      go("guide", { step, dir: "far", routeOpen: false });
+      const dir = ref.current.simDir ?? "far";
+      go(st.kind && st.kind !== "walk" ? "elevator" : "guide", { step, dir, routeOpen: false });
       if (st.turn.startsWith("좌회전")) cue("left");
       else if (st.turn.startsWith("우회전")) cue("right");
       say(`${st.title}. ${st.sub}`);
     },
-    [go, cue, say],
+    [navGoTo, go, cue, say],
   );
 
   const setDir = useCallback(
     (dir: DirectionState) => {
-      update({ dir });
+      update({ dir, simDir: dir });
       const st = ref.current.steps[ref.current.step];
       say(dir === "unstable" ? `방향을 확인하기 어려워요. ${st?.landmark || "표지판"}를 기준으로 이동해 주세요` : DIRECTION[dir].msg);
     },
@@ -199,13 +256,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const toElevator = useCallback(() => {
     const s = ref.current;
-    const idx = s.steps.findIndex((st, i) => i >= s.step && st.kind !== "walk");
-    if (idx < 0) return;
-    const st = s.steps[idx];
-    go("elevator", { step: idx });
-    cue("floor");
-    say(st.title);
-  }, [go, cue, say]);
+    if (!s.route) return;
+    const idx = s.route.steps.findIndex((st, i) => i >= s.step && st.kind !== "walk");
+    if (idx >= 0) navGoTo(idx);
+  }, [navGoTo]);
 
   const openScan = useCallback(
     (target: ScanTarget) => {
@@ -242,44 +296,20 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     update({ scanState: "aim" });
   }, [update]);
 
-  const arrive = useCallback(
-    () => {
-      go("arrive", { trip: { ...ref.current.trip, arrivedAt: Date.now() } });
-      cue("arrive");
-      say(`우정정보관 ${ref.current.route?.arrived.label ?? destName()}에 도착했어요`);
-    },
-    [go, cue, say, destName],
-  );
-
-  /** Walk-step CTA: next walk step, the elevator/stairs screen, or arrival. */
+  /** Walk-step CTA: the engine moves to the next step, the elevator screen, or arrival. */
   const advance = useCallback(() => {
+    if (ref.current.route) {
+      navNext();
+      return;
+    }
     const s = ref.current;
-    const next = s.steps[s.step + 1];
-    if (!next) {
-      arrive();
-      return;
-    }
-    if (next.kind === "walk") {
-      startGuide(s.step + 1);
-      return;
-    }
-    go("elevator", { step: s.step + 1 });
-    cue("floor");
-    say(next.title);
-  }, [arrive, cue, go, say, startGuide]);
+    if (s.step + 1 >= s.steps.length) arrive();
+    else startGuide(s.step + 1);
+  }, [navNext, arrive, startGuide]);
 
   const leaveElevator = useCallback(() => {
-    const s = ref.current;
-    const next = s.step + 1;
-    if (next < s.steps.length) startGuide(next);
-    else arrive();
-  }, [arrive, startGuide]);
-
-  const toOffroute = useCallback(() => {
-    go("offroute", { offState: "alert", trip: { ...ref.current.trip, reroutes: ref.current.trip.reroutes + 1 } });
-    cue("off");
-    say("경로와 다른 쪽인 것 같아요. 멈춰서 주변 표지를 비춰주세요");
-  }, [go, cue, say]);
+    advance();
+  }, [advance]);
 
   const scanNext = useCallback(
     (manual: boolean) => {
@@ -291,9 +321,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   );
 
   const beginTrip = useCallback(() => {
-    update({ trip: { startedAt: Date.now(), arrivedAt: null, reroutes: 0 } });
-    startGuide(0);
-  }, [update, startGuide]);
+    update({ trip: { startedAt: Date.now(), arrivedAt: null, reroutes: 0 }, simDir: null });
+    // Must run inside the tap handler so iOS grants compass access.
+    if (ref.current.route) navStart();
+    else toast("경로를 먼저 선택해 주세요");
+  }, [update, navStart, toast]);
 
   // Raising the phone opens the camera on the next checkpoint; lowering it returns to vibration guidance.
   const setRaised = useCallback(
@@ -348,6 +380,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       update({ routeLoading: true });
       try {
         const route = await fetchRoute(START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        navLoad(route);
         update({ route, steps: route.steps.map(toRouteStep), routeLoading: false });
         go("preview", { dest: room, step: 0, dir: "far" });
       } catch (e) {
@@ -355,7 +388,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         toast(e instanceof Error ? e.message : "경로를 찾을 수 없어요");
       }
     },
-    [go, toast, update],
+    [go, toast, update, navLoad],
   );
 
   const stopGuidance = useCallback(() => {
@@ -365,8 +398,9 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const endGuide = useCallback(() => {
     stopGuidance();
-    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false });
-  }, [go, stopGuidance]);
+    navLoad(null);
+    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false, simDir: null });
+  }, [go, stopGuidance, navLoad]);
 
   const back = useCallback(() => {
     const s = ref.current;

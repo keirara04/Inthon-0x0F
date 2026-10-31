@@ -119,6 +119,16 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     [set],
   );
 
+  /** Jump to any step (demo shortcuts, re-entering guidance after a sign check). Fires onStep like next(). */
+  const goTo = useCallback(
+    (index: number) => {
+      const r = live.current.route;
+      if (!r || index < 0 || index >= r.steps.length) return;
+      enter(r, index);
+    },
+    [enter],
+  );
+
   /** Call from a tap handler: iOS only grants compass access inside a user gesture. */
   const start = useCallback(async () => {
     const r = live.current.route;
@@ -200,6 +210,7 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     load,
     start,
     next,
+    goTo,
     resume,
     confirmCheckpoint,
   };

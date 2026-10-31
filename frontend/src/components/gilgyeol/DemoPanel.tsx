@@ -1,6 +1,7 @@
 "use client";
 
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { DEMO_DEST } from "@/lib/gilgyeol/data";
 
 /** Presenter shortcuts and fallback-state simulations. Not part of the end-user flow. */
 export function DemoPanel({ compact }: { compact?: boolean }) {
@@ -12,7 +13,7 @@ export function DemoPanel({ compact }: { compact?: boolean }) {
     { label: "안내도 촬영·분석", cur: is("captureIntro") || is("mapResult") || scanIs("map"), go: () => actions.openScan("map") },
     { label: "“여기 계신가요?” 확인", cur: is("start"), go: () => actions.go("start", { start: "here", locEdit: false }) },
     { label: "405호 검색", cur: is("search"), go: () => actions.go("search", { query: "405", cat: null, floorPick: null }) },
-    { label: "경로·안내 방식", cur: is("preview") || is("mode"), go: () => actions.go("preview", { dest: actions.ensureDest() }) },
+    { label: "경로·안내 방식", cur: is("preview") || is("mode"), go: () => actions.pickDest(DEMO_DEST) },
     {
       label: "방향 탐색 진동",
       cur: is("guide") && s.step === 0,
@@ -24,9 +25,9 @@ export function DemoPanel({ compact }: { compact?: boolean }) {
     { label: "엘리베이터·4층 확인", cur: is("elevator"), go: actions.toElevator },
     {
       label: "반대 복도 이탈",
-      cur: (is("offroute") && s.offState !== "confirm") || (is("guide") && s.step === 1),
+      cur: (is("offroute") && s.offState !== "confirm") || (is("guide") && s.step === 2),
       go: () => {
-        actions.update({ step: 1, dest: actions.ensureDest() });
+        actions.update({ step: 2, dest: actions.ensureDest() });
         actions.toOffroute();
       },
     },
@@ -42,7 +43,7 @@ export function DemoPanel({ compact }: { compact?: boolean }) {
       label: "405호 도착",
       cur: is("arrive"),
       go: () => {
-        actions.update({ step: 1, dest: actions.ensureDest() });
+        actions.update({ step: 3, dest: actions.ensureDest() });
         actions.arrive();
       },
     },
