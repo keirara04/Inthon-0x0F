@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { EXITS_4F } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
+import { Mascot } from "./Mascot";
 import { Badge, GhostButton, PrimaryButton } from "./ui";
 
 function duration(from: number | null, to: number | null) {
@@ -25,10 +26,13 @@ export function ArrivalScreen() {
   return (
     <div className="flex min-h-full flex-col gap-[18px] p-5 pt-6">
       <div className="flex flex-1 flex-col items-start justify-center gap-[18px]">
-        <div className="flex size-[88px] items-center justify-center rounded-full bg-success" aria-hidden="true">
-          <svg width="44" height="44" viewBox="0 0 44 44">
-            <polyline points="9,23 18,32 35,13" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+        <div className="relative" aria-hidden="true">
+          <Mascot pose="happy" height={128} motion="pop" />
+          <div className="absolute right-0 bottom-1 flex size-11 items-center justify-center rounded-full bg-success shadow-[0_6px_14px_rgba(37,115,75,.35)]">
+            <svg width="22" height="22" viewBox="0 0 44 44">
+              <polyline points="9,23 18,32 35,13" fill="none" stroke="#fff" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
         </div>
         <h1 role="status" className="m-0 text-[32px] leading-[1.25] font-extrabold tracking-[-0.03em]">
           우정정보관 {d}에

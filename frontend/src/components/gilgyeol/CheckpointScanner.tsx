@@ -5,6 +5,7 @@ import { C, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { ScanOutcome } from "@/lib/gilgyeol/types";
+import { Mascot } from "./Mascot";
 import { Check, PrimaryButton, SecondaryButton, SegButton, useAlbumPick } from "./ui";
 
 const OUTCOMES: [ScanOutcome, string][] = [
@@ -333,6 +334,7 @@ export function CheckpointScanner() {
         {reading && <MapReading onCancel={actions.cancelScan} />}
         {s.scanState === "analyzing" && !reading && (
           <>
+            <Mascot pose="lying" height={72} motion="bob" className="self-center" />
             <div className="text-[20px] font-extrabold">{m.analyzing}</div>
             <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="분석 중">
               <div className="h-full w-[55%] animate-pulse rounded-[3px] bg-route" />

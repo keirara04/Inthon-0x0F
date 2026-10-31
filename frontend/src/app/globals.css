@@ -651,7 +651,35 @@ button:not(:disabled):active {
   transition: transform 0.2s var(--gl-ease);
 }
 
+/* Mascot (Alienie): idle float, bounce in, rise in. */
+.gl-m-bob {
+  animation: gl-m-bob 3.2s ease-in-out infinite;
+}
+.gl-m-pop {
+  animation:
+    gl-m-pop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1.4) 0.1s both,
+    gl-m-bob 3.2s ease-in-out 0.8s infinite;
+}
+.gl-m-peek {
+  animation: gl-m-peek 0.5s var(--gl-ease) 0.15s both;
+}
+@keyframes gl-m-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes gl-m-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes gl-m-peek {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .gl-m-bob,
+  .gl-m-pop,
+  .gl-m-peek,
   .gg-screen-in,
   .gl-drop,
   .gl-backdrop,

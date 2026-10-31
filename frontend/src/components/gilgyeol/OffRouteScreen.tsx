@@ -2,6 +2,7 @@
 
 import { DETECTION_RULE, FLOORS } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
+import { Mascot } from "./Mascot";
 import { Badge, PrimaryButton, SecondaryButton, StatusDot } from "./ui";
 
 export function OffRouteScreen() {
@@ -21,11 +22,14 @@ export function OffRouteScreen() {
       {s.offState === "alert" && (
         <>
           <div role="alert" className="flex flex-col gap-3.5 rounded-[22px] border-2 border-error bg-err-tint px-5 py-6">
-            <svg width="44" height="40" viewBox="0 0 44 40" aria-hidden="true">
-              <polygon points="22,3 42,37 2,37" fill="#B3261E" stroke="#B3261E" strokeWidth="3" strokeLinejoin="round" />
-              <rect x="20" y="14" width="4" height="12" rx="2" fill="#fff" />
-              <circle cx="22" cy="31" r="2.4" fill="#fff" />
-            </svg>
+            <div className="flex items-end justify-between">
+              <svg width="44" height="40" viewBox="0 0 44 40" aria-hidden="true">
+                <polygon points="22,3 42,37 2,37" fill="#B3261E" stroke="#B3261E" strokeWidth="3" strokeLinejoin="round" />
+                <rect x="20" y="14" width="4" height="12" rx="2" fill="#fff" />
+                <circle cx="22" cy="31" r="2.4" fill="#fff" />
+              </svg>
+              <Mascot pose="peek" height={58} motion="peek" className="-mb-1" />
+            </div>
             <h1 className="m-0 text-[28px] leading-[1.25] font-extrabold text-err-ink">경로와 다른 쪽인 것 같아요</h1>
             <div className="text-[17px] font-semibold text-ink">잠시 멈춰주세요.</div>
             <div className="flex flex-wrap gap-1.5">
