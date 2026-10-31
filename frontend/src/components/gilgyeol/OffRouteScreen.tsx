@@ -7,10 +7,11 @@ import { Badge, PrimaryButton, SecondaryButton, StatusDot } from "./ui";
 export function OffRouteScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
+  const destFloor = `${s.dest?.floor ?? 4}층`;
   return (
     <div className="flex min-h-full flex-col gap-4 px-5 pt-1.5 pb-6">
       <div className="flex min-h-8 items-center justify-between">
-        <div className="text-[15px] font-bold">우정정보관 · 4층</div>
+        <div className="text-[15px] font-bold">우정정보관 · {s.steps[s.step]?.floor ?? destFloor}</div>
         <div className="flex items-center gap-1.5 text-[13px] font-bold text-warning">
           <StatusDot color="#965900" />
           구간 추정 중
@@ -63,11 +64,11 @@ export function OffRouteScreen() {
           </div>
           <div className="pt-1.5 text-[13px] font-bold text-muted">가까운 랜드마크</div>
           <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
-            {["4층 엘리베이터 홀", "계단 A", "401–404호 방향 표지"].map((l) => (
+            {[`${destFloor} 엘리베이터 홀`, "계단 A", "401–404호 방향 표지"].map((l) => (
               <button
                 type="button"
                 key={l}
-                onClick={() => actions.update({ offState: "confirm", offFloor: "4층", offSign: `${l} · 직접 선택` })}
+                onClick={() => actions.update({ offState: "confirm", offFloor: destFloor, offSign: `${l} · 직접 선택` })}
                 className="min-h-[52px] border-0 border-b border-divider bg-surface px-4 text-left text-[16px] font-semibold text-ink"
               >
                 {l}
@@ -85,7 +86,7 @@ export function OffRouteScreen() {
           </h1>
           <dl className="m-0 flex flex-col rounded-[18px] bg-surface px-[18px] py-1">
             {[
-              ["목적지", `${d} · 4층`],
+              ["목적지", `${d} · ${destFloor}`],
               ["현재 층", s.offFloor],
               ["확인한 표지", s.offSign],
             ].map(([k, v], i) => (
@@ -96,10 +97,10 @@ export function OffRouteScreen() {
             ))}
           </dl>
           <p className="m-0 text-[15px] leading-normal text-muted">
-            {s.offFloor === "4층" ? `4층 서측 복도에서 ${d}까지 경로를 다시 계산했어요.` : `목적지는 4층이에요. ${s.offFloor}에서 엘리베이터로 4층에 가는 경로로 안내할게요.`}
+            {s.offFloor === destFloor ? `${destFloor} 복도에서 ${d}까지 경로를 다시 계산했어요.` : `목적지는 ${destFloor}이에요. ${s.offFloor}에서 엘리베이터로 ${destFloor}에 가는 경로로 안내할게요.`}
           </p>
           <div className="flex-1" />
-          <PrimaryButton onClick={() => (s.offFloor === "4층" ? actions.startGuide(s.step) : actions.toElevator())}>새 경로로 안내 시작</PrimaryButton>
+          <PrimaryButton onClick={() => (s.offFloor === destFloor ? actions.startGuide(s.step) : actions.toElevator())}>새 경로로 안내 시작</PrimaryButton>
         </>
       )}
     </div>
