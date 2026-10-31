@@ -60,6 +60,9 @@ class VisionController extends Controller
 
     private function vision(Closure $call): mixed
     {
+        // An evac-map read takes ~20-27 s and the HTTP timeout is 60 s, but PHP's default 30 s limit
+        // (wall-clock under FrankenPHP) killed requests at ~31 s with a 500. Give AI calls room to finish.
+        set_time_limit(90);
         try {
             return $call();
         } catch (RuntimeException|JsonException|ConnectionException) {

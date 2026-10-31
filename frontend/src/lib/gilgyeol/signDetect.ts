@@ -23,7 +23,8 @@ export function detectSign(px: Uint8ClampedArray, w: number, h: number): Box | n
     const g = px[i * 4 + 1];
     const b = px[i * 4 + 2];
     const max = Math.max(r, g, b);
-    coloured[i] = max > 90 && max - Math.min(r, g, b) > 70 ? 1 : 0;
+    // Saturation threshold 50 (was 70): under 1F lighting the red title band measured 68 and was missed.
+    coloured[i] = max > 90 && max - Math.min(r, g, b) > 50 ? 1 : 0;
   }
 
   // Largest wide, solid connected block of colour.
