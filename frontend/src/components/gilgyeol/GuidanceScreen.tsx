@@ -132,6 +132,7 @@ export function GuidanceScreen() {
             ))}
           </span>
         </div>
+        {s.step === 0 && (
         <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px] text-muted">
           {[
             ["왼쪽", "짧게·짧게"],
@@ -145,6 +146,7 @@ export function GuidanceScreen() {
             </div>
           ))}
         </dl>
+        )}
       </div>
 
       <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-3.5">
@@ -166,7 +168,7 @@ export function GuidanceScreen() {
                 key={v}
                 aria-selected={s.view === v}
                 onClick={() => actions.update({ view: v })}
-                className={`h-9 rounded-lg border-none text-[13px] font-bold text-ink ${v === "2d" ? "min-w-[52px]" : "min-w-16"} ${s.view === v ? "bg-surface" : "bg-transparent"}`}
+                className={`h-11 rounded-lg border-none text-[13px] font-bold text-ink ${v === "2d" ? "min-w-[52px]" : "min-w-16"} ${s.view === v ? "bg-surface" : "bg-transparent"}`}
               >
                 {v === "2d" ? "2D" : "3D 보기"}
               </button>

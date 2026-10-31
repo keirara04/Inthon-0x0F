@@ -29,6 +29,11 @@ class RouteTest extends TestCase
         $this->assertSame('중앙 엘리베이터에 타서 4층에서 내리세요', $elevator['text']);
         $this->assertSame('4F-405', $res->json('data.arrived.node'));
         $this->assertSame(['kind' => 'room_no', 'text' => '405'], $res->json('data.steps.3.checkpoint'));
+
+        // Walk steps name where they end; a floor sign is only a checkpoint after changing floors.
+        $this->assertSame('중앙 엘리베이터 홀', $res->json('data.steps.0.to_label'));
+        $this->assertNull($res->json('data.steps.0.checkpoint'));
+        $this->assertSame(['kind' => 'floor_sign', 'text' => '4F'], $res->json('data.steps.1.checkpoint'));
     }
 
     public function test_draft_floor_is_not_routable(): void
