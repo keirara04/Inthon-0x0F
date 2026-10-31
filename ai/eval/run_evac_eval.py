@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -24,7 +23,6 @@ from common import (DATA_DIR, RESULTS_DIR, call_vision, fmt, image_data_url, lis
 NODE_TYPES = {"room", "junction", "stairs", "elevator_hall", "entrance", "exit", "landmark"}
 VERTICAL_TYPES = ("stairs", "elevator_hall", "exit")
 ID_RE = re.compile(r"^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$")
-CURRENT_DIST_OK = 0.08
 
 
 def user_message(building: str, floor: str) -> str:
@@ -37,6 +35,36 @@ def floor_from_name(path: Path) -> str | None:
 
 
 # ---------------------------------------------------------------- 후처리 (백엔드도 같은 규칙으로 정리)
+
+OUTLINE_TYPES = ("room", "stairs", "elevator_hall")
+
+
+def clean_outline(points) -> list[dict] | None:
+    """EvacMapParser::outline: 0~1로 자르고, 연달아 같은 점·끝에 반복한 첫 점을 빼고, 3~12점만."""
+    if not isinstance(points, list):
+        return None
+    out: list[dict] = []
+    for p in points:
+        try:
+            pt = {"x": min(1.0, max(0.0, float(p["x"]))), "y": min(1.0, max(0.0, float(p["y"])))}
+        except (KeyError, TypeError, ValueError):
+            continue
+        if not out or pt != out[-1]:
+            out.append(pt)
+    if len(out) > 1 and out[0] == out[-1]:
+        out.pop()
+    return out[:12] if len(out) >= 3 else None
+
+
+def read_floor(value) -> str | None:
+    """EvacMapParser::readFloor: '4F'·'B1'·'4층'·'지하1층' → '4F'·'B1', 못 읽으면 None."""
+    v = re.sub(" ", "", value if isinstance(value, str) else "").upper()
+    if re.fullmatch(r"B\d+|\d+F", v):
+        return v
+    if m := re.fullmatch(r"지하(\d+)층", v):
+        return f"B{m.group(1)}"
+    return f"{m.group(1)}F" if (m := re.fullmatch(r"(\d+)층", v)) else None
+
 
 def clean_graph(g: dict) -> tuple[dict, list[str]]:
     """잘못된 노드·간선을 버린 사본과 이슈 목록. 지표는 이 사본으로 계산한다."""
@@ -58,7 +86,10 @@ def clean_graph(g: dict) -> tuple[dict, list[str]]:
         if not ID_RE.match(nid):
             issues.append(f"bad id format: {nid}")
         ids.add(nid)
-        nodes.append({**n, "x": x, "y": y})
+        outline = clean_outline(n.get("outline")) if n["type"] in OUTLINE_TYPES else None
+        if n.get("outline") and outline is None:
+            issues.append(f"outline dropped: {nid}")
+        nodes.append({**n, "x": x, "y": y, "outline": outline})
 
     edges, pairs = [], set()
     for e in g.get("edges") or []:
@@ -102,6 +133,76 @@ def node_by_id(g: dict, nid: str | None) -> dict | None:
     return next((n for n in g["nodes"] if n["id"] == nid), None) if nid else None
 
 
+def bbox(outline: list[dict]) -> tuple[float, float, float, float]:
+    xs, ys = [p["x"] for p in outline], [p["y"] for p in outline]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def bbox_iou(a, b) -> float:
+    ix = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    union = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
+    return inter / union if union > 0 else 0.0
+
+
+def fit_axis(src: list[float], dst: list[float]) -> tuple[float, float] | None:
+    """dst ≈ a·src + b (최소제곱). 점이 한 줄에 몰려 있으면 None."""
+    n = len(src)
+    ms, md = sum(src) / n, sum(dst) / n
+    var = sum((s - ms) ** 2 for s in src)
+    if var < 1e-6:
+        return None
+    a = sum((s - ms) * (d - md) for s, d in zip(src, dst)) / var
+    return a, md - a * ms
+
+
+def outline_iou(pred: dict, truth: dict) -> float | None:
+    """같은 번호 방끼리 윤곽 bbox IoU 평균.
+
+    정답 좌표는 펴진 도면 기준이고 예측은 사진 기준이라 좌표계가 다르다.
+    같은 번호 방의 중심점으로 x·y 축별 배율·이동을 맞춘 뒤 비교한다 (방 위치·크기 비율이 맞는지 보는 지표).
+    """
+    def rooms(g):
+        out = {}
+        for n in g["nodes"]:
+            if n["type"] == "room" and n.get("outline"):
+                out.setdefault(normalize_room(n.get("label") or n["id"].split("-", 1)[-1]), bbox(n["outline"]))
+        return out
+    p, t = rooms(pred), rooms(truth)
+    common = sorted(set(p) & set(t))
+    if len(common) < 3:
+        return None
+    center = lambda b, i: (b[i] + b[i + 2]) / 2
+    fx = fit_axis([center(p[k], 0) for k in common], [center(t[k], 0) for k in common])
+    fy = fit_axis([center(p[k], 1) for k in common], [center(t[k], 1) for k in common])
+    if not fx or not fy:
+        return None
+    tf = lambda b: (fx[0] * b[0] + fx[1], fy[0] * b[1] + fy[1], fx[0] * b[2] + fx[1], fy[0] * b[3] + fy[1])
+    return sum(bbox_iou(tf(p[k]), t[k]) for k in common) / len(common)
+
+
+def current_ok(pred: dict, truth: dict) -> bool | None:
+    """현위치가 정답 현위치와 같은 종류의 노드(예: 엘리베이터 홀)이거나, 예측 그래프 안에서 그 위치와
+    가장 가까운 시설(junction 아닌 노드)이 그 종류인가.
+
+    정답(펴진 도면)과 예측(사진)의 좌표계가 달라 정답과의 거리는 쓰지 않고, 예측 안에서만 거리를 잰다.
+    """
+    t_cur = node_by_id(truth, truth.get("current_node_id"))
+    if t_cur is None:
+        return None
+    p_cur = node_by_id(pred, pred.get("current_node_id"))
+    if p_cur is None:
+        return False
+    if p_cur["type"] == t_cur["type"]:
+        return True
+    if p_cur["type"] != "junction":
+        return False
+    others = [n for n in pred["nodes"] if n["type"] != "junction"]
+    near = min(others, key=lambda n: (n["x"] - p_cur["x"]) ** 2 + (n["y"] - p_cur["y"]) ** 2, default=None)
+    return near is not None and near["type"] == t_cur["type"]
+
+
 def score(pred: dict, truth: dict | None) -> dict:
     m: dict = {}
     cur = pred.get("current_node_id")
@@ -117,9 +218,18 @@ def score(pred: dict, truth: dict | None) -> dict:
                 if types[e["from"]] == "junction" and types[e["to"]] == "junction" and e.get("heading_deg") is not None]
     off_axis = lambda h: min(h % 90, 90 - h % 90)
     m["corridor_axis_ok"] = sum(off_axis(h) <= 15 for h in corridor) / len(corridor) if corridor else None
+    shaped = [n for n in pred["nodes"] if n["type"] in OUTLINE_TYPES]
+    m["outline_coverage"] = sum(bool(n.get("outline")) for n in shaped) / len(shaped) if shaped else None
+    m["floor_read"] = read_floor(pred.get("floor"))
 
     if truth is None:
         return m
+
+    m["floor_ok"] = m["floor_read"] == truth.get("floor")
+    m["n_elevators"] = sum(n["type"] == "elevator_hall" for n in pred["nodes"])
+    m["elevator_count_ok"] = m["n_elevators"] == sum(n["type"] == "elevator_hall" for n in truth["nodes"])
+    iou = outline_iou(pred, truth)
+    m["outline_iou"] = round(iou, 3) if iou is not None else None
 
     t_rooms, p_rooms = room_set(truth), room_set(pred)
     hit = t_rooms & p_rooms
@@ -128,16 +238,7 @@ def score(pred: dict, truth: dict | None) -> dict:
     m["rooms_missed"] = " ".join(sorted(t_rooms - p_rooms))
     m["rooms_extra"] = " ".join(sorted(p_rooms - t_rooms))
 
-    t_cur, p_cur = node_by_id(truth, truth.get("current_node_id")), node_by_id(pred, cur)
-    if t_cur is None:
-        m["current_node_ok"] = None
-    elif p_cur is None:
-        m["current_node_ok"] = False
-    else:
-        same_label = bool(t_cur.get("label")) and normalize_room(t_cur["label"]) == normalize_room(p_cur.get("label"))
-        dist = math.dist((t_cur["x"], t_cur["y"]), (p_cur["x"], p_cur["y"]))
-        m["current_dist"] = round(dist, 3)
-        m["current_node_ok"] = same_label or dist <= CURRENT_DIST_OK
+    m["current_node_ok"] = current_ok(pred, truth)
 
     # 타입별 개수로 비교: 사진 구도가 정답 이미지와 달라 좌표 매칭은 믿기 어렵다
     t_cnt = Counter(n["type"] for n in truth["nodes"] if n["type"] in VERTICAL_TYPES)
@@ -174,6 +275,10 @@ def draw_overlay(img, g: dict, out_path: Path) -> None:
     except OSError:
         font = ImageFont.load_default()
     pos = {n["id"]: (n["x"] * W, n["y"] * H) for n in g["nodes"]}
+    for n in g["nodes"]:
+        if n.get("outline"):
+            draw.polygon([(q["x"] * W, q["y"] * H) for q in n["outline"]], fill=colors[n["type"]] + (40,),
+                          outline=colors[n["type"]] + (220,))
     for e in g["edges"]:
         draw.line([pos[e["from"]], pos[e["to"]]], fill=(15, 23, 42, 200), width=max(2, r // 2))
     for n in g["nodes"]:
@@ -225,7 +330,8 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, s
             row["json_valid"] = False
         rows.append(row)
         print(f"  {img_path.name}: valid={row.get('json_valid')} recall={fmt(row.get('room_recall'), True)} "
-              f"cur={row.get('current_node_ok')} {row['latency_s']}s {row['error'] or ''}")
+              f"cur={row.get('current_node_ok')} elev={row.get('n_elevators')} iou={row.get('outline_iou')} "
+              f"{row['latency_s']}s {row['error'] or ''}")
 
     csv_path = RESULTS_DIR / f"evac_{tag}_{stamp}.csv"
     write_csv(csv_path, rows)
@@ -239,6 +345,10 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, s
         "current_node_ok": rate("current_node_ok", truth_rows),
         "vertical_found": rate("vertical_found", truth_rows),
         "ref_match": rate("ref_match", truth_rows),
+        "floor_ok": rate("floor_ok", truth_rows),
+        "elevator_count_ok": rate("elevator_count_ok", truth_rows),
+        "outline_coverage": rate("outline_coverage", rows),
+        "outline_iou": rate("outline_iou", truth_rows),
         "connected": rate("connected", rows),
         "corridor_axis_ok": rate("corridor_axis_ok", rows),
         "completion_tokens_mean": mean([r["completion_tokens"] for r in rows]),
@@ -278,10 +388,12 @@ def main() -> None:
           "vertical_found ≥90% · connected 100% · latency ≤10s")
     print_table(
         ["model", "n", "json_valid", "room_recall", "room_prec", "current_ok", "vertical", "connected",
-         "ref_match", "corridor_axis", "out_tokens", "latency avg/max", "cost $"],
+         "ref_match", "floor", "elev_cnt", "outline cov/iou", "corridor_axis", "out_tokens", "latency avg/max", "cost $"],
         [[s["model"], s["n_images"], fmt(s["json_valid"], True), fmt(s["room_recall"], True),
           fmt(s["room_precision"], True), fmt(s["current_node_ok"], True), fmt(s["vertical_found"], True),
-          fmt(s["connected"], True), fmt(s["ref_match"], True), fmt(s["corridor_axis_ok"], True), fmt(s["completion_tokens_mean"], digits=0),
+          fmt(s["connected"], True), fmt(s["ref_match"], True), fmt(s["floor_ok"], True),
+          fmt(s["elevator_count_ok"], True), f"{fmt(s['outline_coverage'], True)}/{fmt(s['outline_iou'], digits=2)}",
+          fmt(s["corridor_axis_ok"], True), fmt(s["completion_tokens_mean"], digits=0),
           f"{fmt(s['latency_s_mean'], digits=1)}/{fmt(s['latency_s_max'], digits=1)}s",
           fmt(s["cost_usd_total"], digits=4)] for s in summaries])
 
