@@ -41,6 +41,23 @@ class EvacMapParser
         return count($out) >= 3 ? array_slice($out, 0, 12) : null;
     }
 
+    /** Two distinct photo-relative endpoints of a visible door or stair-flight axis. */
+    private function segment(mixed $points): ?array
+    {
+        if (! is_array($points) || count($points) !== 2) {
+            return null;
+        }
+        $out = [];
+        foreach ($points as $point) {
+            if (! is_array($point) || ! is_numeric($point['x'] ?? null) || ! is_numeric($point['y'] ?? null)) {
+                return null;
+            }
+            $out[] = ['x' => min(1, max(0, (float) $point['x'])), 'y' => min(1, max(0, (float) $point['y']))];
+        }
+
+        return $out[0] !== $out[1] ? $out : null;
+    }
+
     public function __construct(private VisionClient $vision) {}
 
     public function parse(UploadedFile $image, string $building, string $floor): array
@@ -95,23 +112,46 @@ class EvacMapParser
                 continue;
             }
             $ids[(string) $n['id']] = $id;
+            $rawLabel = (string) ($n['label'] ?? $id);
+            if ($n['type'] === 'room') {
+                if (preg_match('/화장실|bathroom|restroom/ui', $rawLabel)) {
+                    $label = '화장실';
+                } elseif (preg_match('/^\d+[a-zA-Z]?$/', trim($rawLabel))) {
+                    $label = trim($rawLabel) . '호';
+                } else {
+                    $label = $rawLabel;
+                }
+            } else {
+                $label = $rawLabel;
+            }
             $nodes[$id] = array_filter([
                 'id' => $id,
                 'type' => $n['type'],
-                'label' => (string) ($n['label'] ?? $id),
+                'label' => $label,
                 'x' => min(1, max(0, (float) $n['x'])),
                 'y' => min(1, max(0, (float) $n['y'])),
                 'ref' => in_array($n['type'], ['stairs', 'elevator_hall'], true) && is_string($n['ref'] ?? null) ? $n['ref'] : null,
                 'outline' => in_array($n['type'], ['room', 'stairs', 'elevator_hall'], true) ? $this->outline($n['outline'] ?? null) : null,
+                'door' => in_array($n['type'], ['exit', 'entrance', 'stairs', 'elevator_hall'], true) ? $this->segment($n['door'] ?? null) : null,
+                'stair_flight' => $n['type'] === 'stairs' ? $this->segment($n['stair_flight'] ?? null) : null,
             ], fn ($v) => $v !== null);
+            if (in_array($n['type'], ['exit', 'entrance'], true) && isset($nodes[$id]['door'])) {
+                [$a, $b] = $nodes[$id]['door'];
+                $nodes[$id]['x'] = ($a['x'] + $b['x']) / 2;
+                $nodes[$id]['y'] = ($a['y'] + $b['y']) / 2;
+            }
         }
 
+        $isEntrance = fn (string $type) => in_array($type, ['stairs', 'exit', 'entrance', 'elevator_hall'], true);
         $edges = [];
         foreach ($raw['edges'] ?? [] as $e) {
             $from = $ids[$e['from'] ?? ''] ?? null;
             $to = $ids[$e['to'] ?? ''] ?? null;
             if (! $from || ! $to || $from === $to) {
                 continue;
+            }
+            if ($isEntrance($nodes[$from]['type']) && $isEntrance($nodes[$to]['type'])) {
+                continue; // paths should not be forced between entrances; each branches off corridor
             }
             [$a, $b] = [$nodes[$from], $nodes[$to]];
             $dx = $b['x'] - $a['x'];

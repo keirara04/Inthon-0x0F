@@ -6,6 +6,7 @@ import { floorName, canUseFloorMap } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { WrongFloorScreen } from "./WrongFloorScreen";
 import { graphFrame } from "./MapSketch";
+import { combineRestroomSections } from "@/lib/gilgyeol/restroomGraph";
 import { Floor3DLazy } from "./Floor3DLazy";
 import { MapViewer } from "./MapViewer";
 import { BackHeader, Badge, PrimaryButton, SecondaryButton, StatusDot, Title } from "./ui";
@@ -16,7 +17,7 @@ export function MapResultScreen() {
   const { state, actions } = useGilgyeol();
   const g = state.mapDemo ? null : state.parsed;
   // Demo and sample paths draw the 1F demo floor in the same style, without a photo.
-  const shown = g ?? DEMO_1F_GRAPH;
+  const shown = useMemo(() => combineRestroomSections(g ?? DEMO_1F_GRAPH), [g]);
   const photo = g ? state.parsedPhoto : null;
   const frame = graphFrame(shown, photo);
   const [sel, setSel] = useState<string | null>(null);

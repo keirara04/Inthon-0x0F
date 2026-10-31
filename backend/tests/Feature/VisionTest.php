@@ -196,6 +196,47 @@ class VisionTest extends TestCase
         });
     }
 
+    public function test_parse_keeps_exit_thresholds_separate_from_stair_flights(): void
+    {
+        Http::preventStrayRequests();
+        $door = [['x' => 0.4, 'y' => 0.3], ['x' => 0.4, 'y' => 0.4]];
+        $flight = [['x' => 0.2, 'y' => 0.35], ['x' => 0.35, 'y' => 0.35]];
+        $this->fakeVision([
+            'is_floor_plan' => true, 'floor' => '1F', 'current_node_id' => null,
+            'nodes' => [
+                ['id' => 'stairs', 'type' => 'stairs', 'label' => '서측 계단', 'x' => 0.25, 'y' => 0.35, 'door' => $door, 'stair_flight' => $flight],
+                ['id' => 'exit', 'type' => 'exit', 'label' => '서측 출구', 'x' => 0.25, 'y' => 0.35, 'door' => $door, 'stair_flight' => $flight],
+                ['id' => 'entry', 'type' => 'entrance', 'label' => '주 출입구', 'x' => 0.5, 'y' => 0.8, 'door' => [['x' => 0.45, 'y' => 0.9], ['x' => 0.55, 'y' => 0.9]]],
+                ['id' => 'room', 'type' => 'room', 'label' => '101호', 'x' => 0.7, 'y' => 0.5, 'door' => $door],
+                ['id' => 'bad', 'type' => 'exit', 'label' => '출구', 'x' => 0.1, 'y' => 0.1, 'door' => [['x' => 0.1, 'y' => 0.1], ['x' => 0.1, 'y' => 0.1]]],
+                ['id' => 'hall', 'type' => 'junction', 'label' => '복도', 'x' => 0.4, 'y' => 0.5],
+                ['id' => 'bath', 'type' => 'room', 'label' => '106호(화장실)', 'x' => 0.4, 'y' => 0.4],
+            ],
+            'edges' => [
+                ['from' => 'hall', 'to' => 'exit'],
+                ['from' => 'stairs', 'to' => 'exit'], // forced path between entrances should be filtered out
+            ],
+        ]);
+
+        $res = $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'])->assertOk();
+        $res->assertJsonPath('data.nodes.0.type', 'stairs')->assertJsonPath('data.nodes.0.stair_flight', $flight)
+            ->assertJsonPath('data.nodes.1.type', 'exit')->assertJsonPath('data.nodes.1.door', $door)
+            ->assertJsonPath('data.nodes.1.x', 0.4)->assertJsonPath('data.nodes.1.y', 0.35)
+            ->assertJsonPath('data.nodes.2.x', 0.5)->assertJsonPath('data.nodes.2.y', 0.9)
+            ->assertJsonPath('data.nodes.6.label', '화장실')
+            ->assertJsonPath('data.edges.0.to', '1F-exit');
+        $this->assertCount(1, $res->json('data.edges'));
+        $this->assertArrayNotHasKey('stair_flight', $res->json('data.nodes.1'));
+        $this->assertArrayNotHasKey('door', $res->json('data.nodes.3'));
+        $this->assertArrayNotHasKey('door', $res->json('data.nodes.4'));
+        Http::assertSent(function (ClientRequest $request): bool {
+            $schema = $request['response_format']['json_schema']['schema']['properties']['nodes']['items'];
+
+            return isset($schema['properties']['door'], $schema['properties']['stair_flight'])
+                && in_array('door', $schema['required'], true) && in_array('stair_flight', $schema['required'], true);
+        });
+    }
+
     public function test_parse_keeps_the_floor_read_from_the_map(): void
     {
         $graph = fn (string $floor) => [

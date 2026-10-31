@@ -4,6 +4,7 @@
 import type { ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
 import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
+import { facilityGraph } from "./facilityGeometry";
 
 export const API_MODE: "live" | "mock" = process.env.NEXT_PUBLIC_GILGYEOL_API === "live" ? "live" : "mock";
 
@@ -314,7 +315,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, Number.isFinite(v) ? v : 
 function fromApiGraph(g: ApiGraph): ParsedGraph {
   const elevators = g.elevators ?? [];
   const served = new Map(elevators.map((e) => [e.id, e.served_floors.join(",")]));
-  return {
+  return facilityGraph({
     building: g.building,
     floor: g.floor,
     floorSource: g.floor_source,
@@ -330,6 +331,8 @@ function fromApiGraph(g: ApiGraph): ParsedGraph {
       servedFloors: (n.ref && served.get(n.ref)) || "",
       src: "ai",
       ref: n.ref,
+      door: n.door?.map((p) => ({ x: clamp01(p.x) * EDITOR_W, y: clamp01(p.y) * EDITOR_H })),
+      stairFlight: n.stair_flight?.map((p) => ({ x: clamp01(p.x) * EDITOR_W, y: clamp01(p.y) * EDITOR_H })),
       outline: n.outline?.map((p) => ({ x: clamp01(p.x) * EDITOR_W, y: clamp01(p.y) * EDITOR_H })),
     })),
     edges: g.edges.map((e) => ({
@@ -339,7 +342,7 @@ function fromApiGraph(g: ApiGraph): ParsedGraph {
       lengthM: e.length_m ?? undefined,
       headingDeg: e.heading_deg ?? null,
     })),
-  };
+  });
 }
 
 /** Cross-floor link key. Preserve the parsed ref; otherwise link new nodes by label (same label on every floor). */
