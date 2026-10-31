@@ -1,8 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { SeekingCompass, useReveal } from "./landing-motion";
 import { PrimaryButton, SecondaryButton } from "./ui";
+
+/** Animation delay for gl-* motion classes (see the Landing motion block in globals.css). */
+const d = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
+const STEP_MS = 450; // route card: one stop every 450 ms
 
 /**
  * Mobile landing from the Claude Design handoff ("Gilgyeol Landing Trial").
@@ -45,6 +50,9 @@ export function LandingScreen() {
   const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState(-1);
   const secRefs = useRef<Record<Sec, HTMLElement | null>>({ how: null, trial: null, faq: null });
+  const revealRoute = useReveal<HTMLDivElement>();
+  const revealHow = useReveal<HTMLDivElement>();
+  const revealTrial = useReveal<HTMLDivElement>();
 
   const startTrial = () => actions.go("welcome");
 
@@ -55,10 +63,11 @@ export function LandingScreen() {
 
   return (
     <div className="relative">
-      <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-line bg-app-bg/95 py-2.5 pr-3.5 pl-5">
-        <div className="flex items-baseline gap-1">
+      <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-line bg-app-bg py-2.5 pr-3.5 pl-5">
+        <div className="flex min-w-0 items-baseline gap-1 whitespace-nowrap">
           <span className="text-[24px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
-          <span className="text-[12px] font-semibold text-muted">(어디로)</span>
+          {/* hidden on very narrow phones (320px) so the header CTA still fits on one line */}
+          <span className="text-[12px] font-semibold text-muted max-[359px]:hidden">(어디로)</span>
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -75,15 +84,16 @@ export function LandingScreen() {
             aria-expanded={menu}
             className="flex size-11 flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] border-edge bg-surface p-0"
           >
-            <span aria-hidden="true" className="h-0.5 w-4 rounded-[1px] bg-ink" />
-            <span aria-hidden="true" className="h-0.5 w-4 rounded-[1px] bg-ink" />
+            {/* ☰ morphs into ✕ while the menu is open */}
+            <span aria-hidden="true" className={`gl-burger h-0.5 w-4 rounded-[1px] bg-ink ${menu ? "translate-y-[3px] rotate-45" : ""}`} />
+            <span aria-hidden="true" className={`gl-burger h-0.5 w-4 rounded-[1px] bg-ink ${menu ? "-translate-y-[3px] -rotate-45" : ""}`} />
           </button>
         </div>
       </header>
       {menu && (
         <nav
           aria-label="랜딩 메뉴"
-          className="sticky top-[65px] z-[5] mx-3 flex flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_10px_24px_rgba(30,28,20,.12)]"
+          className="gl-drop sticky top-[65px] z-[5] mx-3 flex flex-col overflow-hidden rounded-2xl bg-surface shadow-[0_10px_24px_rgba(30,28,20,.12)]"
         >
           {(
             [
@@ -104,24 +114,25 @@ export function LandingScreen() {
         </nav>
       )}
 
-      <section className="flex flex-col gap-[18px] px-5 pt-7 pb-2">
-        <div className="inline-flex items-center gap-1.5 self-start rounded-lg bg-haptic-tint px-2.5 py-1.5 text-[13px] font-bold text-haptic-ink">
+      <section className="flex flex-col gap-[18px] px-5 pt-5 pb-2">
+        <SeekingCompass />
+        <div style={d(0)} className="gl-rise inline-flex items-center gap-1.5 self-start rounded-lg bg-haptic-tint px-2.5 py-1.5 text-[13px] font-bold text-haptic-ink">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-haptic" />
           로그인 없이 · 샘플 경로 체험
         </div>
         <h1 className="m-0 text-[33px] leading-[1.24] font-extrabold tracking-[-0.035em] text-pretty">
-          처음 온 건물에서도,
+          <span style={d(80)} className="gl-rise inline-block">처음 온 건물에서도,</span>
           <br />
-          다음 방향이 분명하도록.
+          <span style={d(160)} className="gl-rise inline-block">다음 방향이 분명하도록.</span>
         </h1>
-        <p className="m-0 text-[16px] leading-[1.6] text-pretty text-muted">
+        <p style={d(260)} className="gl-rise m-0 text-[16px] leading-[1.6] text-pretty text-muted">
           어디路는 주변 표지와 층 정보를 바탕으로 목적지까지 길을 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
         </p>
-        <div className="flex flex-col gap-2">
-          <PrimaryButton onClick={startTrial}>3분 체험해보기 →</PrimaryButton>
+        <div style={d(340)} className="gl-rise flex flex-col gap-2">
+          <PrimaryButton onClick={startTrial} className="gl-cta">3분 체험해보기 →</PrimaryButton>
           <SecondaryButton onClick={() => jump("how")}>어떻게 안내하나요?</SecondaryButton>
         </div>
-        <div className="flex flex-col rounded-[22px] bg-surface px-[18px] pt-[18px] pb-1.5">
+        <div ref={revealRoute} data-reveal className="flex flex-col rounded-[22px] bg-surface px-[18px] pt-[18px] pb-1.5">
           <div className="flex items-center justify-between pb-3.5">
             <span className="text-[13px] font-bold text-muted">우정정보관 · 405호 경로</span>
             <span className="rounded-md bg-warn-tint px-2 py-[3px] text-[12px] font-bold text-warn-ink">샘플</span>
@@ -130,21 +141,21 @@ export function LandingScreen() {
             <div key={st.label} className="flex items-stretch gap-3">
               <div className="flex w-[30px] flex-none flex-col items-center">
                 <div
-                  className="flex size-[30px] flex-none items-center justify-center text-[12px] font-extrabold"
-                  style={{ borderRadius: st.radius, background: st.bg, border: `2px solid ${st.bd}`, color: st.fg }}
+                  className={`gl-node flex size-[30px] flex-none items-center justify-center text-[12px] font-extrabold ${i === ROUTE_STOPS.length - 1 ? "gl-arrive" : ""}`}
+                  style={{ borderRadius: st.radius, background: st.bg, border: `2px solid ${st.bd}`, color: st.fg, ...d(i * STEP_MS) }}
                 >
                   {st.glyph}
                 </div>
                 <div
                   aria-hidden="true"
-                  className="min-h-3.5 w-[3px] flex-1"
-                  style={{ background: i === ROUTE_STOPS.length - 1 ? "transparent" : "#2864A0" }}
+                  className="gl-seg min-h-3.5 w-[3px] flex-1"
+                  style={{ background: i === ROUTE_STOPS.length - 1 ? "transparent" : "#2864A0", ...d(i * STEP_MS + 180) }}
                 />
               </div>
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5 pt-1 pb-4">
+              <div style={d(i * STEP_MS + 80)} className="gl-item flex min-w-0 flex-1 flex-col gap-0.5 pt-1 pb-4">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[17px] font-bold">{st.label}</span>
-                  {st.chip && <span className="rounded-md bg-ok-tint px-1.5 py-0.5 text-[12px] font-bold text-ok-ink">{st.chip}</span>}
+                  {st.chip && <span style={d(i * STEP_MS + 300)} className="gl-chip rounded-md bg-ok-tint px-1.5 py-0.5 text-[12px] font-bold text-ok-ink">{st.chip}</span>}
                 </div>
                 <span className="text-[13px] text-muted">{st.kind}</span>
               </div>
@@ -158,8 +169,8 @@ export function LandingScreen() {
           <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">어떻게 안내하나요?</h2>
           <p className="m-0 text-[15px] leading-normal text-muted">찾고, 고르고, 다시 확인하는 세 순간이에요.</p>
         </div>
-        <div className="mt-3.5 flex flex-col gap-2.5">
-          <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-5">
+        <div ref={revealHow} data-reveal className="mt-3.5 flex flex-col gap-2.5">
+          <div style={d(0)} className="gl-item flex flex-col gap-2.5 rounded-[18px] bg-surface p-5">
             <span className="text-[12px] font-extrabold text-muted">01</span>
             <div className="text-[19px] font-extrabold">목적지를 찾고</div>
             <div className="text-[15px] leading-normal text-[#3F433F]">‘405호’처럼 호실 번호나 장소명으로 검색해요.</div>
@@ -168,19 +179,31 @@ export function LandingScreen() {
                 <circle cx="7" cy="7" r="5" fill="none" stroke="#202421" strokeWidth="2" />
                 <line x1="11" y1="11" x2="15" y2="15" stroke="#202421" strokeWidth="2" strokeLinecap="round" />
               </svg>
-              405호
+              {/* Typed one character at a time (Korean glyphs differ in width, so no clip-path reveal). */}
+              <span className="flex items-center">
+                {[..."405호"].map((ch, i) => (
+                  <span key={i} style={d(350 + i * 140)} className="gl-char">{ch}</span>
+                ))}
+                <span aria-hidden="true" className="gl-caret ml-0.5 h-5 w-[2px] bg-ink" />
+              </span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
-            <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
+            <div style={d(120)} className="gl-item flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
               <span className="text-[12px] font-extrabold text-muted">02</span>
-              <div className="flex size-[34px] items-center justify-center rounded-lg bg-route text-[15px] font-extrabold text-white">승</div>
+              <div aria-hidden="true" className="size-[34px] overflow-hidden rounded-lg bg-route text-[14px] font-extrabold text-white">
+                <div className="gl-floors flex flex-col">
+                  {[1, 2, 3, 4].map((f) => (
+                    <span key={f} className="flex h-[34px] flex-none items-center justify-center">{f}F</span>
+                  ))}
+                </div>
+              </div>
               <div className="text-[17px] leading-[1.3] font-extrabold">탈 엘리베이터를 확인하고</div>
               <div className="text-[14px] leading-normal text-[#3F433F]">목적 층에 서는 엘리베이터를 경로에 반영해요.</div>
             </div>
-            <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
+            <div style={d(240)} className="gl-item flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
               <span className="text-[12px] font-extrabold text-muted">03</span>
-              <div aria-hidden="true" className="size-[34px] rounded-full border-[3px] border-haptic" />
+              <div aria-hidden="true" className="gl-ripple size-[34px] rounded-full border-[3px] border-haptic" />
               <div className="text-[17px] leading-[1.3] font-extrabold">표지로 위치를 다시 확인하고</div>
               <div className="text-[14px] leading-normal text-[#3F433F]">층 표지와 호실을 체크포인트로 확인해요.</div>
             </div>
@@ -193,11 +216,12 @@ export function LandingScreen() {
           <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">하은의 3분</h2>
           <p className="m-0 text-[15px] leading-normal text-muted">처음 온 하은이 우정정보관 405호를 찾아가요.</p>
         </div>
-        <div className="mt-3.5 grid grid-cols-2 gap-2.5">
+        <div ref={revealTrial} data-reveal className="mt-3.5 grid grid-cols-2 gap-2.5">
           {TRIAL_STEPS.map((t, i) => (
             <div
               key={t}
-              className={`flex flex-col gap-2 rounded-2xl bg-surface p-3.5 ${i === TRIAL_STEPS.length - 1 ? "col-span-2" : ""}`}
+              style={d(i * 90)}
+              className={`gl-item flex flex-col gap-2 rounded-2xl bg-surface p-3.5 ${i === TRIAL_STEPS.length - 1 ? "col-span-2" : ""}`}
             >
               <div className="flex size-[26px] items-center justify-center rounded-full bg-ink text-[12px] font-extrabold text-white">{i + 1}</div>
               <div className="text-[15px] leading-[1.35] font-bold">{t}</div>
@@ -228,10 +252,10 @@ export function LandingScreen() {
                   className="flex min-h-[54px] w-full items-center justify-between gap-3 border-none bg-surface px-4 py-3 text-left text-[15px] font-bold text-ink"
                 >
                   {f.q}
-                  <span aria-hidden="true" className="flex-none text-[20px] font-medium text-muted">{open ? "−" : "+"}</span>
+                  <span aria-hidden="true" className={`gl-burger flex-none text-[20px] font-medium text-muted ${open ? "rotate-45" : ""}`}>+</span>
                 </button>
                 {open && (
-                  <div id={`gg-faq-${i}`} className="px-4 pb-4 text-[14px] leading-[1.55] text-muted">
+                  <div id={`gg-faq-${i}`} className="gl-drop px-4 pb-4 text-[14px] leading-[1.55] text-muted">
                     {f.a}
                   </div>
                 )}
