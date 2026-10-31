@@ -41,15 +41,15 @@ class VisionTest extends TestCase
     {
         $this->fakeVision(
             ['text' => '405호', 'kind' => 'room_no'],
-            ['text' => '401 호', 'kind' => 'room_no'],
+            ['text' => '401A 호', 'kind' => 'room_no'],
             ['text' => null, 'kind' => 'none'],
         );
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
             ->assertOk()->assertJsonPath('data.status', 'matched');
 
-        // Expected 405 but camera reads 401: user is elsewhere, node tells the frontend where.
+        // Expected 405 but camera reads 401A: user is elsewhere, node tells the frontend where.
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
-            ->assertOk()->assertJsonPath('data.status', 'mismatch')->assertJsonPath('data.node.id', '4F-401');
+            ->assertOk()->assertJsonPath('data.status', 'mismatch')->assertJsonPath('data.node.id', '4F-401A');
 
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
             ->assertOk()->assertJsonPath('data.status', 'unknown')->assertJsonPath('data.node', null);
@@ -234,13 +234,15 @@ class VisionTest extends TestCase
                 ['id' => '5F-501', 'type' => 'room', 'label' => '501호', 'x' => 0.2, 'y' => 0.6],
             ],
             'edges' => [['from' => '5F-elev-A', 'to' => '5F-501', 'type' => 'walk', 'length_m' => 10, 'heading_deg' => 270]],
+            // The seed's elevator only lists 1F/4F; this save says it also stops at 5F.
+            'elevators' => [['id' => 'elev-1', 'name' => '엘리베이터', 'served_floors' => ['1F', '4F', '5F']]],
         ];
 
         $this->putJson('/api/graph', $floor)->assertStatus(401);
         $this->putJson('/api/graph', $floor, ['X-Admin-Token' => 'secret'])->assertOk();
 
         // New floor is linked by elevator A (serves 5F) and routable.
-        $this->postJson('/api/route', ['start_node' => '1F-lobby', 'dest_node' => '5F-501'])->assertOk();
+        $this->postJson('/api/route', ['start_node' => '1F-entrance', 'dest_node' => '5F-501'])->assertOk();
 
         // Saving over a verified floor needs replace: true.
         $this->putJson('/api/graph', $floor, ['X-Admin-Token' => 'secret'])->assertStatus(409);

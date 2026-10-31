@@ -95,6 +95,18 @@ class RouteService
             }
         }
 
+        // Real maps leave corridor junctions unnamed; a step ending at one points to the next named place instead.
+        $order = array_merge([$path[0]->from_node], array_map(fn ($e) => $e->to_node, $path));
+        $nextNamed = function (string $node) use ($order, $nodes): ?string {
+            foreach (array_slice($order, array_search($node, $order, true) + 1) as $n) {
+                if (trim($nodes[$n]->label) !== '') {
+                    return $nodes[$n]->label;
+                }
+            }
+
+            return null;
+        };
+
         $steps = [];
         $prevHeading = null;
         foreach ($groups as $g) {
@@ -106,15 +118,20 @@ class RouteService
             if ($lm && $lm->kind === 'floor_sign' && $g[0]->type === 'walk') {
                 $lm = null;
             }
+            $named = trim($toNode->label) !== '';
+            $goal = $named ? $toNode->label : $nextNamed($to);
             $step = [
-                'kind' => $g[0]->type, 'from' => $from, 'to' => $to, 'to_label' => $toNode->label, 'floor' => $toNode->floor,
+                'kind' => $g[0]->type, 'from' => $from, 'to' => $to,
+                'to_label' => $named ? $toNode->label : ($goal ? "{$goal} 방향 갈림길" : '복도 갈림길'),
+                'floor' => $toNode->floor,
                 'checkpoint' => $lm ? ['kind' => $lm->kind, 'text' => $lm->ocr_text] : null,
             ];
 
             if ($g[0]->type === 'walk') {
                 $heading = $g[0]->heading_deg === null ? null : (float) $g[0]->heading_deg;
                 $turn = ($prevHeading === null || $heading === null) ? null : self::turn(self::delta($prevHeading, $heading));
-                $via = count($g) > 1 ? $nodes[$g[0]->to_node]->label.' 지나서 ' : '';
+                $passed = count($g) > 1 ? trim($nodes[$g[0]->to_node]->label) : '';
+                $via = $passed !== '' ? "{$passed} 지나서 " : '';
                 $action = match ($turn) {
                     'left' => '왼쪽으로 돌아 ',
                     'right' => '오른쪽으로 돌아 ',
@@ -126,7 +143,11 @@ class RouteService
                     'heading_deg' => $heading,
                     'turn' => $turn,
                     'length_m' => round(array_sum(array_map(fn ($e) => (float) $e->length_m, $g)), 1),
-                    'text' => $via.$action.$toNode->label.($via || $action ? '까지 가세요' : ' 쪽으로 가세요'),
+                    'text' => match (true) {
+                        $named => $via.$action.$toNode->label.($via || $action ? '까지 가세요' : ' 쪽으로 가세요'),
+                        $goal !== null => "{$via}{$action}{$goal} 쪽으로 가세요",
+                        default => $via.($action !== '' ? $action.'복도를 따라 가세요' : '복도를 따라 가세요'),
+                    },
                 ];
                 $prevHeading = $heading;
             } else {

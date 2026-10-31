@@ -813,5 +813,8 @@
       "length_m": 6.4,
       "heading_deg": 261.5
     }
+  ],
+  "elevators": [
+    { "id": "elev-1", "name": "엘리베이터", "served_floors": ["1F", "4F"] }
   ]
 }

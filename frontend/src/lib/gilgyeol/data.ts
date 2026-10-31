@@ -74,10 +74,10 @@ export const START_NODES: StartNode[] = [
 
 /** Start choices on the demo 1F map -> verified graph node ids used by POST /api/route. */
 export const START_NODE_IDS: Record<StartNodeId, string> = {
-  here: "1F-lobby",
+  here: "1F-elev-A", // the 1F evacuation map's 현위치 (current_node_id in the seed)
   stair: "1F-stairs-W",
   hall: "1F-elev-A",
-  main: "1F-lobby",
+  main: "1F-entrance", // 주 출입구
 };
 
 export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
