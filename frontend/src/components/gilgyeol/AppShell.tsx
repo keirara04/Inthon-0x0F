@@ -7,7 +7,7 @@ import { ArrivalScreen } from "./ArrivalScreen";
 import { BuildingScreen } from "./BuildingScreen";
 import { CaptureIntroScreen } from "./CaptureIntroScreen";
 import { CheckpointScanner } from "./CheckpointScanner";
-import { DemoPanel } from "./DemoPanel";
+import { DemoPanel, useDemoTools } from "./DemoPanel";
 import { ElevatorScreen } from "./ElevatorScreen";
 import { GraphEditorScreen } from "./GraphEditorScreen";
 import { GuidanceScreen } from "./GuidanceScreen";
@@ -79,13 +79,16 @@ function Device() {
 }
 
 export function AppShell() {
+  const demo = useDemoTools();
   return (
     <GilgyeolProvider>
       <div className="gg-stage">
         <Device />
-        <aside className="gg-aside min-w-[260px] flex-[0_1_320px] flex-col gap-5 pt-3" aria-label="시연 패널">
-          <DemoPanel />
-        </aside>
+        {demo && (
+          <aside className="gg-aside min-w-[260px] flex-[0_1_320px] flex-col gap-5 pt-3" aria-label="시연 패널">
+            <DemoPanel />
+          </aside>
+        )}
       </div>
     </GilgyeolProvider>
   );

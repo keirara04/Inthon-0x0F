@@ -5,12 +5,13 @@ import { PATTERNS } from "@/lib/gilgyeol/data";
 import { supportsSpeech, supportsVibration } from "@/lib/gilgyeol/feedback";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { HapticPattern } from "@/lib/gilgyeol/types";
-import { DemoPanel } from "./DemoPanel";
+import { DemoPanel, useDemoTools } from "./DemoPanel";
 
 export function SettingsSheet() {
   const { state: s, actions } = useGilgyeol();
   const close = () => actions.update({ sheet: false });
   const dialogRef = useRef<HTMLDivElement>(null);
+  const demo = useDemoTools();
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -87,12 +88,14 @@ export function SettingsSheet() {
           </div>
           {!supportsVibration() && <div className="text-[13px] leading-normal text-warn-ink">이 브라우저는 진동을 지원하지 않아요. 음성과 화면으로 안내합니다.</div>}
         </div>
+        {demo && (
         <details className="gg-mobile-only rounded-2xl bg-warm-panel px-4 py-3">
           <summary className="min-h-8 cursor-pointer text-[14px] font-bold text-muted">시연 패널 (발표용)</summary>
           <div className="pt-3">
             <DemoPanel compact />
           </div>
         </details>
+        )}
       </div>
     </div>
   );
