@@ -15,11 +15,17 @@ export function WelcomeScreen() {
     <div className="flex min-h-full flex-col gap-4 px-5 pt-2 pb-5">
       {/* Same header pattern as the landing: mark + wordmark, settings as an icon. */}
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+        {/* Logo = home: back to the landing. */}
+        <button
+          type="button"
+          onClick={() => actions.go("landing")}
+          aria-label="어디路 홈"
+          className="flex min-h-11 items-center gap-1.5 border-none bg-transparent p-0"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
           <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} />
           <span className="text-[22px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
-        </div>
+        </button>
         <button
           type="button"
           onClick={() => actions.update({ sheet: true })}

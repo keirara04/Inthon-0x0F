@@ -47,7 +47,7 @@ const FAQS = [
 ];
 
 export function LandingScreen() {
-  const { actions } = useGilgyeol();
+  const { actions, scrollRef } = useGilgyeol();
   const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState(-1);
   const secRefs = useRef<Record<Sec, HTMLElement | null>>({ how: null, trial: null, faq: null });
@@ -74,13 +74,22 @@ export function LandingScreen() {
   return (
     <div className="relative">
       <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-line bg-app-bg py-2.5 pr-3.5 pl-5">
-        <div className="flex min-w-0 items-baseline gap-1 whitespace-nowrap">
+        {/* Logo = home: back to the top of the landing. */}
+        <button
+          type="button"
+          onClick={() => {
+            setMenu(false);
+            scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          aria-label="어디路 홈"
+          className="flex min-h-11 min-w-0 items-baseline gap-1 border-none bg-transparent p-0 whitespace-nowrap"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
           <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} className="flex-none self-center" />
           <span className="text-[24px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
           {/* hidden on very narrow phones (320px) so the header CTA still fits on one line */}
           <span className="text-[12px] font-semibold text-muted max-[359px]:hidden">(어디로)</span>
-        </div>
+        </button>
         <div className="flex items-center gap-1.5">
           {/* Shown only once the hero CTA has scrolled away, so the first screen never has two of it. */}
           <button
