@@ -24,7 +24,7 @@ export type DirectionState = "far" | "near" | "aligned" | "unstable";
 export type ScanTarget = "map" | "sign";
 export type ScanOutcome = "success" | "mismatch" | "fail";
 export type ScanState = "aim" | "analyzing" | ScanOutcome | "denied";
-export type OffrouteState = "alert" | "floor" | "confirm";
+export type OffrouteState = "alert" | "floor" | "pin" | "confirm";
 export type GuideStep = number;
 export type HapticPattern = "dir" | "left" | "right" | "floor" | "confirm" | "arrive" | "off";
 

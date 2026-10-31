@@ -9,6 +9,7 @@ import type { StartNodeId } from "@/lib/gilgyeol/types";
 import { Floor3DLazy } from "./Floor3DLazy";
 import { MapBox, MapSketch, graphFrame, parsedSpot, startNode as nodeFor } from "./MapSketch";
 import { Mascot } from "./Mascot";
+import { PinMap } from "./PinMap";
 import { BackHeader, Badge, PrimaryButton, SecondaryButton, Title } from "./ui";
 
 const START_IDS = new Set<StartNodeId>(START_NODES.map((n) => n.id));
@@ -50,9 +51,11 @@ export function StartLocationScreen() {
   const [scan, setScan] = useState<ScanState>({ kind: "idle" });
   const [floors, setFloors] = useState<ApiStartFloor[] | null>(null);
   const [floorsErr, setFloorsErr] = useState(false);
+  const [pinning, setPinning] = useState(false);
 
   const setStartAt = (at: NonNullable<typeof s.startAt>) => {
     setScan({ kind: "idle" }); // a chosen start replaces any old scan message
+    setPinning(false);
     actions.update({ startAt: at, start: null, locEdit: false, landmarks: false });
   };
 
@@ -81,7 +84,7 @@ export function StartLocationScreen() {
   };
 
   const summary = s.startAt
-    ? `${floorKo(s.startAt.floor)} ${s.startAt.label} · ${s.startAt.via === "scan" ? "표지로 확인" : "직접 선택"}`
+    ? `${floorKo(s.startAt.floor)} ${s.startAt.label} · ${s.startAt.via === "scan" ? "표지로 확인" : s.startAt.via === "pin" ? "지도에서 찍음" : "직접 선택"}`
     : startNode
       ? `1층 ${startNode.label}${s.locEdit ? " · 선택 중" : " · 추정 위치"}`
       : "아직 위치를 고르지 않았어요";
@@ -220,6 +223,10 @@ export function StartLocationScreen() {
             ))}
           </div>
         )}
+        <SecondaryButton aria-expanded={pinning} onClick={() => setPinning((v) => !v)}>
+          {pinning ? "지도 찍기 닫기" : "지도에서 정확한 위치 찍기"}
+        </SecondaryButton>
+        {pinning && <PinMap initialFloor={s.startAt?.floor ?? "1F"} confirmLabel="여기에서 출발" onConfirm={(p) => setStartAt({ ...p, via: "pin" })} />}
         <SecondaryButton aria-pressed={s.locEdit} onClick={() => actions.update({ locEdit: !s.locEdit })}>
           {s.locEdit ? "수정 취소" : "위치 수정 (지도에서 누르기)"}
         </SecondaryButton>
