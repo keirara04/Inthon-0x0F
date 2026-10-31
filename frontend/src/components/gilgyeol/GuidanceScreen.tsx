@@ -33,6 +33,7 @@ export function GuidanceScreen() {
   const st = steps[s.step];
   if (!st) return null;
   const unstable = s.dir === "unstable";
+  const apiStep = s.route?.steps[s.step];
   const dv = s.dir === "unstable" ? DIRECTION.far : DIRECTION[s.dir];
   const dirColor = unstable ? C.warning : dv.color;
   // Live needle: the arrow is the phone, the top triangle the corridor. Turning right by `delta` means the
@@ -98,7 +99,15 @@ export function GuidanceScreen() {
           {s.postureSensor ? "자세 감지 켜짐" : "자세 감지 켜기"}
         </button>
       </div>
-      {s.vibe && !actions.canVibe() && <Notice tone="warn">이 기기에서는 진동 안내를 사용할 수 없어 음성으로 안내합니다</Notice>}
+      {s.vibe && !actions.canVibe() && (
+        <Notice tone="warn">
+          {s.beep ? "진동 대신 소리(돌아야 할 쪽 귀)와 음성으로 안내해요. 무음 모드에서는 소리가 나지 않아요" : "이 기기에서는 진동 안내를 사용할 수 없어 음성으로 안내합니다"}
+        </Notice>
+      )}
+      {compass.disturbed && (
+        <Notice tone="warn">주변 철골·전선 때문에 방향이 부정확해요 (방향 부정확). 잠시 멈추거나 주변 표지를 확인해 주세요</Notice>
+      )}
+      {s.voice && s.koVoice === false && <Notice tone="warn">이 기기에서 한국어 음성을 찾지 못했어요. 음성이 안 들리면 화면 안내를 봐 주세요</Notice>}
 
       <div className="relative size-[240px] self-center" role="img" aria-label={`방향 표시: ${dirMsg}`}>
         {!unstable && (
@@ -177,6 +186,12 @@ export function GuidanceScreen() {
           {st.sub}
         </div>
         {st.turn && <div className="self-start rounded-lg bg-haptic-tint px-2.5 py-[5px] text-[13px] font-bold text-haptic-ink">{st.turn}</div>}
+        {compass.walkedM !== null && apiStep?.kind === "walk" && (
+          // Not a live region: it changes every step and would talk over the instructions.
+          <div className="text-[14px] font-semibold text-muted">
+            걸음으로 추정 · 약 {Math.round(compass.walkedM)} m / {Math.round(apiStep.length_m)} m
+          </div>
+        )}
       </div>
 
       {/* Live map: you at the last confirmed point, a cone that turns with the phone, this step's path. */}

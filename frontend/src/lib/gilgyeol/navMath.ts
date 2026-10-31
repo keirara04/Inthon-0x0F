@@ -109,3 +109,40 @@ export function headingFromEvent(e: {
   if (e.absolute && e.alpha !== null) return headingFromAxes(axesFromEuler(e.alpha, e.beta ?? 0, e.gamma ?? 0)); // Android
   return null;
 }
+
+/** Calibration knob: how far (°) the compass may turn differently from the gyro before the field counts as disturbed. */
+export const MAG_TOL_DEG = 15;
+export const MAG_WINDOW_MS = 1500;
+
+/**
+ * Indoor magnetic disturbance (steel, wiring): over the last window, the compass (absolute) turned by a
+ * different amount than the gyroscope (relative) says the phone turned. Samples are oldest first.
+ */
+export function fieldDisturbed(samples: { t: number; abs: number; rel: number }[]): boolean {
+  const last = samples.at(-1);
+  if (!last) return false;
+  const first = samples.find((x) => last.t - x.t <= MAG_WINDOW_MS)!;
+  if (last.t - first.t < MAG_WINDOW_MS * 0.6) return false; // not enough history yet
+  return Math.abs(delta(first.abs, last.abs) - delta(first.rel, last.rel)) > MAG_TOL_DEG;
+}
+
+/** Calibration knob: metres per detected step (adult walking stride is ~0.6–0.8 m). */
+export const STRIDE_M = 0.7;
+
+/** Step detector state: fast and slow averages of |acceleration| (m/s², gravity included). */
+export type StepState = { fast: number; slow: number; above: boolean; last: number; steps: number };
+export const STEP_RESET: StepState = { fast: 9.81, slow: 9.81, above: false, last: -Infinity, steps: 0 };
+
+/**
+ * One accelerometer sample in, step count out. A step is the smoothed magnitude rising 1 m/s² above its slow
+ * baseline (with hysteresis), at most one per 300 ms. ponytail: fixed threshold and stride, a soft
+ * "about X m" between checkpoints only; per-user stride calibration if it ever drives position.
+ */
+export function countStep(s: StepState, t: number, mag: number): StepState {
+  const fast = s.fast + 0.3 * (mag - s.fast);
+  const slow = s.slow + 0.02 * (mag - s.slow);
+  const rising = !s.above && fast - slow > 1;
+  const above = s.above ? fast - slow > 0.3 : rising;
+  const step = rising && t - s.last >= 300;
+  return { fast, slow, above, last: step ? t : s.last, steps: s.steps + (step ? 1 : 0) };
+}

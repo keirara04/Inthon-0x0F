@@ -24,7 +24,8 @@ export function SettingsSheet() {
 
   const toggles = [
     { label: "진동 안내", sub: "방향·회전·층 이동·도착·이탈", on: s.vibe, toggle: () => actions.update({ vibe: !s.vibe }) },
-    { label: "음성 안내", sub: "한국어 음성으로 다음 행동을 읽어요", on: s.voice, toggle: actions.toggleVoice },
+    { label: "음성 안내", sub: s.koVoice === false ? "이 기기에서 한국어 음성을 찾지 못했어요" : "한국어 음성으로 다음 행동을 읽어요", on: s.voice, toggle: actions.toggleVoice },
+    { label: "방향 소리", sub: "돌아야 할 쪽 귀에서 짧은 소리 · 이어폰 권장", on: s.beep, toggle: () => actions.update({ beep: !s.beep }) },
   ];
 
   return (
