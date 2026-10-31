@@ -90,6 +90,24 @@ export function SettingsSheet() {
           </div>
           {!supportsVibration() && <div className="text-[13px] leading-normal text-warn-ink">이 브라우저는 진동을 지원하지 않아요. 음성과 화면으로 안내합니다.</div>}
         </div>
+        {/* Admin tools live here instead of on the user's home screen. */}
+        <div className="flex flex-col gap-2">
+          <div className="text-[13px] font-bold text-muted">관리자</div>
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              actions.go("editor");
+            }}
+            className="flex min-h-[52px] items-center justify-between rounded-2xl border-none bg-surface px-4 text-left text-[15px] font-semibold text-ink"
+          >
+            <span className="flex flex-col gap-0.5">
+              지도 만들기
+              <span className="text-[12px] font-normal text-muted">안내도 사진으로 층 그래프 만들기 · 검수</span>
+            </span>
+            <span aria-hidden="true" className="text-[18px] text-muted">›</span>
+          </button>
+        </div>
         {demo && (
         <details className="gg-mobile-only rounded-2xl bg-warm-panel px-4 py-3">
           <summary className="min-h-8 cursor-pointer text-[14px] font-bold text-muted">시연 패널 (발표용)</summary>
