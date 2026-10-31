@@ -81,7 +81,7 @@ def check_floor(path, g):
             if not is_num(v) or not 0 <= v <= 1:
                 err(at, f"{axis}={v!r}: 0~1 사이 숫자여야 함 (안내도 이미지 기준 비율)")
         if n.get("type") in ("stairs", "elevator_hall") and not n.get("ref"):
-            err(at, "계단·엘리베이터 홀에는 ref 필수 (예: \"elev-A\", \"stairs-W\"). 없으면 층끼리 안 이어짐")
+            err(at, "계단·엘리베이터 홀에는 ref 필수 (예: \"elev-1\", \"stairs-1\"). 없으면 층끼리 안 이어짐")
         if n.get("type") == "room" and not re.search(r"\d", n.get("label", "")):
             warn(at, f"방 label '{n.get('label')}'에 숫자가 없음. 카메라 체크포인트(호실 번호)로 확인 불가")
         nodes[nid] = n
