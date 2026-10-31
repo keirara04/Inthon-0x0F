@@ -2,10 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiRoute } from "@/types/api";
-import { ApiError, fetchRoute, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
+import { ApiError, fetchRoute, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
 import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
+import { floorName, canUseFloorMap } from "./floorTransition";
 import { useNavigation } from "./useNavigation";
 import type {
   DirectionState,
@@ -27,6 +28,8 @@ export interface AppState {
   screen: Screen;
   // start / location
   mapDemo: boolean;
+  /** Destination floor awaiting a fresh plan; the active route stays paused. */
+  floorMapTarget: string | null;
   /** AI draft of the photographed evacuation map. Shown on the map result; routing still uses the verified graph. */
   parsed: ParsedGraph | null;
   /** The photo `parsed` was read from (object URL + pixel size), drawn under the graph. */
@@ -83,6 +86,7 @@ export interface AppState {
 const INITIAL: AppState = {
   screen: "landing",
   mapDemo: false,
+  floorMapTarget: null,
   parsed: null,
   parsedPhoto: null,
   pendingPhoto: null,
@@ -238,13 +242,17 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         say(st.title);
       }
     },
+    onFloorArrival: (step) => {
+      go("floorMap", { floorMapTarget: step.to_floor, routeOpen: false, raised: false });
+      say(`${floorName(step.to_floor)}에 도착했어요. 이 층의 안내도를 다시 찍어주세요`);
+    },
     onOffRoute: () => toOffroute(),
     onArrive: () => arrive(),
     onReroute: (r) => {
       update({ route: r, steps: r.steps.map(toRouteStep), step: 0, dir: ref.current.simDir ?? "far" });
     },
   });
-  const { dir: navDir, load: navLoad, start: navStart, next: navNext, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm } = nav;
+  const { dir: navDir, load: navLoad, start: navStart, next: navNext, continueAfterFloorMap: navContinueAfterFloorMap, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm } = nav;
 
   /** "무시하고 계속": clear the engine's off-route state and go back to the current step. */
   const dismissOffroute = useCallback(() => {
@@ -327,17 +335,23 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         parseCtl.current = ctl;
         const timeout = setTimeout(() => ctl.abort(), 70_000); // backend gives the model 60 s
         try {
-          const g = await parseEvacMap(frame, 1, ctl.signal);
+          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : 1, ctl.signal);
           if (parseCtl.current !== ctl || ref.current.screen !== "scan") return;
+          const target = ref.current.floorMapTarget;
+          if (target && !canUseFloorMap(target, g)) {
+            go("wrongFloor", { mapDemo: false, parsed: g });
+            say(`${floorName(g.floor)} 안내도예요. ${floorName(target)} 안내도를 다시 찍어주세요`);
+            return;
+          }
           say("안내도를 읽었어요. 결과를 확인해 주세요");
-          go("mapResult", { mapDemo: false, parsed: g, start: startFromParsed(g) });
+          go("mapResult", { mapDemo: false, parsed: g, ...(target ? {} : { start: startFromParsed(g) }) });
         } catch (e) {
           if (parseCtl.current !== ctl) return; // cancelled by the user
           if (ref.current.screen === "scan" && e instanceof ApiError && e.code === "NOT_FLOOR_PLAN") {
-            go("invalidMap", { parsed: null, pendingPhoto: null, mapDemo: false, start: null, scanState: "aim" });
+            go("invalidMap", { parsed: null, pendingPhoto: null, mapDemo: false, ...(ref.current.floorMapTarget ? {} : { start: null }), scanState: "aim" });
             return;
           }
-          toast(ctl.signal.aborted ? "안내도를 읽는 데 너무 오래 걸려요. 다시 찍거나 데모 안내도로 계속해 주세요" : e instanceof Error ? e.message : "안내도를 읽지 못했어요");
+          toast(ctl.signal.aborted ? "안내도를 읽는 데 너무 오래 걸려요. 다시 찍거나 다른 사진을 선택해 주세요" : e instanceof Error ? e.message : "안내도를 읽지 못했어요");
           if (ref.current.screen === "scan") update({ scanState: "fail" });
         } finally {
           clearTimeout(timeout);
@@ -413,6 +427,21 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const leaveElevator = useCallback(() => {
     advance();
   }, [advance]);
+
+  const confirmMap = useCallback(() => {
+    const s = ref.current;
+    const g = s.mapDemo ? null : s.parsed;
+    if (s.floorMapTarget) {
+      if (!canUseFloorMap(s.floorMapTarget, g)) {
+        go("wrongFloor");
+        return;
+      }
+      update({ floorMapTarget: null });
+      navContinueAfterFloorMap();
+      return;
+    }
+    go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !s.start, landmarks: false });
+  }, [go, update, navContinueAfterFloorMap]);
 
   const scanNext = useCallback(
     (manual: boolean) => {
@@ -505,7 +534,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const endGuide = useCallback(() => {
     stopGuidance();
     navLoad(null);
-    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false, simDir: null });
+    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false, simDir: null, floorMapTarget: null });
   }, [go, stopGuidance, navLoad]);
 
   const back = useCallback(() => {
@@ -515,6 +544,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       go(s.scanFrom === "scan" ? "welcome" : s.scanFrom);
       return;
     }
+    if (s.floorMapTarget && (s.screen === "mapResult" || s.screen === "invalidMap" || s.screen === "wrongFloor")) {
+      go("floorMap");
+      return;
+    }
+    if (s.screen === "floorMap") return; // Keep guidance paused until a new plan is confirmed or the trip ends.
     if (s.screen === "offroute") {
       startGuide(s.step);
       return;
@@ -645,6 +679,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       toElevator,
       advance,
       leaveElevator,
+      confirmMap,
       openScan,
       runScan,
       readMapPhoto,
@@ -665,7 +700,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   return { state, actions };

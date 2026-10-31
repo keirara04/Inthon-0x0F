@@ -9,6 +9,7 @@ import { CaptureIntroScreen } from "./CaptureIntroScreen";
 import { CheckpointScanner } from "./CheckpointScanner";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { DemoPanel } from "./DemoPanel";
+import { FloorMapScreen } from "./FloorMapScreen";
 import { ElevatorScreen } from "./ElevatorScreen";
 import { GraphEditorScreen } from "./GraphEditorScreen";
 import { GuidanceScreen } from "./GuidanceScreen";
@@ -21,6 +22,7 @@ import { RoutePreviewScreen } from "./RoutePreviewScreen";
 import { SearchScreen } from "./SearchScreen";
 import { SettingsSheet } from "./SettingsSheet";
 import { StartLocationScreen } from "./StartLocationScreen";
+import { WrongFloorScreen } from "./WrongFloorScreen";
 import { WelcomeScreen } from "./WelcomeScreen";
 
 const SCREENS: Record<Screen, () => ReactNode> = {
@@ -29,6 +31,7 @@ const SCREENS: Record<Screen, () => ReactNode> = {
   building: BuildingScreen,
   captureIntro: CaptureIntroScreen,
   invalidMap: InvalidMapScreen,
+  wrongFloor: WrongFloorScreen,
   mapResult: MapResultScreen,
   start: StartLocationScreen,
   search: SearchScreen,
@@ -36,6 +39,7 @@ const SCREENS: Record<Screen, () => ReactNode> = {
   mode: ModeScreen,
   guide: GuidanceScreen,
   elevator: ElevatorScreen,
+  floorMap: FloorMapScreen,
   scan: CheckpointScanner,
   offroute: OffRouteScreen,
   arrive: ArrivalScreen,
