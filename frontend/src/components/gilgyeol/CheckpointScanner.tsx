@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { floorName } from "@/lib/gilgyeol/floorTransition";
 import { MAP_JPEG_QUALITY, canvasToJpeg } from "@/lib/gilgyeol/api";
 import { C, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
@@ -147,7 +148,7 @@ function MapReading({ onCancel }: { onCancel: () => void }) {
           </li>
         ))}
       </ol>
-      <p className="m-0 text-[13px] leading-normal text-muted">{t < 25 ? "보통 15–20초 걸려요. 이 화면을 켜 둔 채로 기다려 주세요." : "평소보다 오래 걸리고 있어요. 조금만 더 기다리거나 취소 후 데모 안내도로 계속할 수 있어요."}</p>
+      <p className="m-0 text-[13px] leading-normal text-muted">{t < 25 ? "보통 15–20초 걸려요. 이 화면을 켜 둔 채로 기다려 주세요." : "평소보다 오래 걸리고 있어요. 조금만 더 기다리거나 취소 후 다른 사진을 선택해 주세요."}</p>
       <button type="button" onClick={onCancel} className="h-[50px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
         취소
       </button>
@@ -301,7 +302,9 @@ export function CheckpointScanner() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
   const demo = useDemoTools();
-  const m = scanMeta(s.scanTarget, d);
+  const baseMeta = scanMeta(s.scanTarget, d);
+  const floorCapture = s.scanTarget === "map" && !!s.floorMapTarget;
+  const m = floorCapture ? { ...baseMeta, title: `${floorName(s.floorMapTarget!)} 안내도 촬영`, guide: `${floorName(s.floorMapTarget!)} 표시와 안내도 전체가 보이게 비춰주세요` } : baseMeta;
   const destFloor = `${s.dest?.floor ?? 4}층`;
   const { videoRef, on: camOn, error: camError, start: startCam, grab, torch, toggleTorch } = useCamera(() =>
     actions.update({ scanState: "denied", camDenied: true }),
@@ -390,6 +393,10 @@ export function CheckpointScanner() {
   /** Live: capture one frame (cropped to the detected sign when there is one). Otherwise: the simulated result. */
   const confirmScan = async (crop?: Box) => {
     if (!realScan) {
+      if (floorCapture) {
+        album.open();
+        return;
+      }
       actions.runScan();
       return;
     }
@@ -410,7 +417,7 @@ export function CheckpointScanner() {
   const manualOpts: { label: string; pick: () => void }[] = (() => {
     switch (s.scanTarget) {
       case "map":
-        return [{ label: "데모 안내도 불러오기", pick: () => actions.go("mapResult", { mapDemo: true }) }];
+        return floorCapture ? [{ label: "앨범에서 안내도 사진 선택", pick: album.open }] : [{ label: "데모 안내도 불러오기", pick: () => actions.go("mapResult", { mapDemo: true }) }];
       case "sign":
         return ["엘리베이터 홀", "서측 복도", "동측 복도"].map((p) => `${destFloor} ${p}`).map((l) => ({
           label: l,
@@ -419,15 +426,15 @@ export function CheckpointScanner() {
     }
   })();
   // Map scans can also fall back to picking the start point directly.
-  if (s.scanTarget === "map") START_NODES.forEach((n) => manualOpts.push({ label: `안내도 없이 1층 ${n.label}에서 시작`, pick: () => actions.go("start", { start: n.id }) }));
+  if (s.scanTarget === "map" && !floorCapture) START_NODES.forEach((n) => manualOpts.push({ label: `안내도 없이 1층 ${n.label}에서 시작`, pick: () => actions.go("start", { start: n.id }) }));
 
   const manualPair = (
     <div className="grid grid-cols-2 gap-2">
       <button type="button" onClick={() => actions.update({ scanState: "aim", manual: false })} className="h-[52px] rounded-[14px] border-none bg-ink text-[15px] font-bold text-white">
         재촬영
       </button>
-      <button type="button" onClick={() => actions.update({ manual: true })} className="h-[52px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
-        {m.manualLabel}
+      <button type="button" onClick={() => floorCapture ? album.open() : actions.update({ manual: true })} className="h-[52px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
+        {floorCapture ? "앨범에서 선택" : m.manualLabel}
       </button>
     </div>
   );
@@ -577,8 +584,10 @@ export function CheckpointScanner() {
       )}
       <div className="flex-1" />
 
+      {album.input}
+
       {/* ?demo: pick the simulated result above the shutter. */}
-      {demo && aim && !upload && !s.manual && (
+      {demo && !floorCapture && aim && !upload && !s.manual && (
         <div className="relative z-10 mx-4 mb-2 grid grid-cols-3 gap-1.5">
           {OUTCOMES.map(([k, l]) => (
             <SegButton key={k} on={s.outcome === k} onClick={() => actions.update({ outcome: k })} className="h-9 text-[13px]">
@@ -591,7 +600,6 @@ export function CheckpointScanner() {
       {/* Bottom bar: gallery | shutter | demo or manual pick. */}
       {aim && !s.manual && (
         <div className="relative z-10 bg-black/80 px-6 pt-4 pb-[calc(18px+env(safe-area-inset-bottom))]">
-          {album.input}
           {upload ? (
             <div className="grid grid-cols-2 gap-2">
               <PrimaryButton onClick={() => void readUpload(true)}>이 부분 읽기</PrimaryButton>
@@ -631,9 +639,10 @@ export function CheckpointScanner() {
                 </svg>
                 <span className="absolute inset-[9px] rounded-full bg-white transition-transform duration-100 active:scale-90" />
               </button>
-              <div className="flex flex-col items-center gap-1 justify-self-end">
+              <div className={`flex flex-col items-center gap-1 justify-self-end ${floorCapture ? "invisible" : ""}`}>
                 <button
                   type="button"
+                  disabled={floorCapture}
                   onClick={() => (isMap ? actions.go("mapResult", { mapDemo: true }) : actions.update({ manual: true }))}
                   aria-label={isMap ? "데모 안내도 불러오기" : "직접 선택"}
                   className={iconBtn}
@@ -707,10 +716,10 @@ export function CheckpointScanner() {
           <>
             <div className="flex flex-col gap-1.5">
               <div className="text-[21px] font-extrabold">카메라 권한이 꺼져 있어요</div>
-              <div className="text-[15px] leading-normal text-muted">브라우저 설정 › 사이트 권한 › 카메라에서 허용할 수 있어요. 지금은 체크포인트를 직접 골라 계속할 수 있어요.</div>
+              <div className="text-[15px] leading-normal text-muted">{floorCapture ? "브라우저에서 카메라를 허용하거나 앨범에서 이 층의 안내도 사진을 선택해 주세요." : "브라우저 설정 › 사이트 권한 › 카메라에서 허용할 수 있어요. 지금은 체크포인트를 직접 골라 계속할 수 있어요."}</div>
             </div>
-            <PrimaryButton onClick={() => actions.update({ manual: true })} className="h-[54px] rounded-2xl text-[16px]">
-              수동 체크포인트 선택
+            <PrimaryButton onClick={() => floorCapture ? album.open() : actions.update({ manual: true })} className="h-[54px] rounded-2xl text-[16px]">
+              {floorCapture ? "앨범에서 안내도 선택" : "수동 체크포인트 선택"}
             </PrimaryButton>
           </>
         )}

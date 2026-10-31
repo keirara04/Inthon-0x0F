@@ -18,7 +18,11 @@ class CheckpointModelTest extends TestCase
         $this->seed(GraphSeeder::class);
         config(['services.openrouter.key' => 'test-key', 'services.openrouter.model' => 'main-model']);
         Http::fake(['openrouter.ai/*' => Http::response([
-            'choices' => [['message' => ['content' => json_encode(['text' => '405호', 'kind' => 'room_no', 'nodes' => [], 'edges' => []])]]],
+            'choices' => [['message' => ['content' => json_encode([
+                'text' => '405호', 'kind' => 'room_no', 'is_floor_plan' => true,
+                'nodes' => [['id' => '405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5]],
+                'edges' => [],
+            ])]]],
         ])]);
     }
 

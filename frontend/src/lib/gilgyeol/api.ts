@@ -10,7 +10,7 @@ export const API_MODE: "live" | "mock" = process.env.NEXT_PUBLIC_GILGYEOL_API ==
 const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(message: string, readonly status: number, readonly code?: string) {
     super(message);
   }
 }
@@ -26,9 +26,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError("서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요", 0);
   }
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string; errors?: Record<string, string[]> } | null;
+    const body = (await res.json().catch(() => null)) as { message?: string; code?: string; errors?: Record<string, string[]> } | null;
     const firstFieldError = body?.errors ? Object.values(body.errors)[0]?.[0] : undefined;
-    throw new ApiError(firstFieldError ?? body?.message ?? `요청 실패 (${res.status})`, res.status);
+    throw new ApiError(firstFieldError ?? body?.message ?? `요청 실패 (${res.status})`, res.status, body?.code);
   }
   if (res.status === 204) return undefined as T;
   // Laravel API Resources wrap every payload in { data }.

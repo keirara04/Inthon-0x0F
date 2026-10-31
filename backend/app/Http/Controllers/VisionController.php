@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\NotFloorPlanException;
 use App\Services\CheckpointMatcher;
 use App\Services\EvacMapParser;
 use App\Services\VisionClient;
@@ -26,7 +27,14 @@ class VisionController extends Controller
             'floor' => ['required', 'string', 'regex:/^(B\d+|\d+F)$/'],
         ]);
 
-        return ['data' => $this->vision(fn () => $parser->parse($request->file('image'), $data['building'], $data['floor']))];
+        try {
+            return ['data' => $this->vision(fn () => $parser->parse($request->file('image'), $data['building'], $data['floor']))];
+        } catch (NotFloorPlanException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'code' => 'NOT_FLOOR_PLAN',
+            ], 422);
+        }
     }
 
     /** POST /api/checkpoint (multipart: image, expected_node) -> matched | mismatch | unknown */

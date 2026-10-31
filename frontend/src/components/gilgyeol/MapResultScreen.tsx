@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { BUILDING, C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
+import { floorName, canUseFloorMap } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { WrongFloorScreen } from "./WrongFloorScreen";
 import { graphFrame } from "./MapSketch";
 import { Floor3DLazy } from "./Floor3DLazy";
 import { MapViewer } from "./MapViewer";
@@ -27,12 +29,17 @@ export function MapResultScreen() {
   const badge = state.mapDemo ? "데모 안내도" : g ? "AI 초안 · 검수 전" : "샘플 결과";
   const floorText = (shown.floor || "1F").replace(/^B(\d+)$/, "지하 $1층").replace(/F$/, "층");
   // Demo graph floors are known; a parsed floor is confirmed only when the AI read it off the sign.
+  const target = state.floorMapTarget;
+  const matchesTarget = !target || canUseFloorMap(target, g);
   const floorRead = !g || g.floorSource === "map";
   const stats: [string, string, boolean][] = [
     ["호실", `${rooms}개`, rooms > 0],
-    ["층", floorText, floorRead],
+    ["층", floorRead ? floorText : "확인 못함", floorRead],
     ["현위치", current ? "찾음" : "못 찾음", !!current],
   ];
+
+  // Also handles a result already open when the app updates, and sample/demo fallbacks.
+  if (!matchesTarget) return <WrongFloorScreen />;
 
   return (
     <div className="flex h-full flex-col">
@@ -102,13 +109,17 @@ export function MapResultScreen() {
           </dl>
         )}
         <p className="m-0 text-[12px] leading-normal text-muted">
-          {g
-            ? `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${BUILDING}). 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
-            : "데모 안내도예요. 현재 위치는 다음 화면에서 확인해요."}
+          {target
+            ? floorRead
+              ? `${floorName(target)} 안내도를 확인했어요. 기존 목적지까지 안내를 계속해요.`
+              : `사진에서 층 번호를 확인하지 못했어요. 현재 계신 ${floorName(target)}의 안내도가 맞다면 계속할 수 있어요.`
+            : g
+              ? `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${BUILDING}). 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
+              : "데모 안내도예요. 현재 위치는 다음 화면에서 확인해요."}
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
-          {/* Keep the start the parse suggested; the demo/sample path starts at the 현위치 marker as before. */}
-          <PrimaryButton onClick={() => actions.go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !state.start, landmarks: false })}>이 안내도가 맞아요</PrimaryButton>
+          {/* Initial capture confirms the start; a floor-change capture resumes the paused route. */}
+          <PrimaryButton onClick={actions.confirmMap}>{target ? "이 안내도로 계속 안내" : "이 안내도가 맞아요"}</PrimaryButton>
           <SecondaryButton className="h-[58px] px-4" onClick={() => actions.openScan("map")}>
             다시 촬영
           </SecondaryButton>

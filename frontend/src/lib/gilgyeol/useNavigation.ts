@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiCheckpointResult, ApiRoute, ApiStep } from "@/types/api";
 import { fetchRoute, postCheckpoint } from "./api";
+import { routeSummary } from "./routeSummary";
+import { stepCompletion } from "./floorTransition";
 import { BUILDING } from "./data";
 import { circularMean, corrected, delta as angleDelta, dirState, headingFromEvent, offsetFor, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
 
@@ -23,13 +25,14 @@ function readOffset(): number | null {
   }
 }
 
-export type NavStatus = "idle" | "guiding" | "checking" | "offroute" | "arrived";
+export type NavStatus = "idle" | "guiding" | "checking" | "offroute" | "awaiting_map" | "arrived";
 
 export interface NavCallbacks {
   /** New step started (also the first one in start()). Speak step.text, play the turn/floor pattern. */
   onStep?: (step: ApiStep, index: number) => void;
   /** Facing away from the route for 5 s. Play the "off" pattern, offer a sign scan. */
   onOffRoute?: () => void;
+  onFloorArrival?: (step: Exclude<ApiStep, { kind: "walk" }>, index: number) => void;
   onArrive?: (route: ApiRoute) => void;
   /** Checkpoint showed the user somewhere else; a new route from there is now active. */
   onReroute?: (route: ApiRoute) => void;
@@ -85,7 +88,7 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
 
   // Compass. Runs while guiding; `?heading=120` in the URL fixes the heading for desktop testing (see start()).
   useEffect(() => {
-    if (status === "idle" || status === "arrived" || fixedHeading.current !== null) return;
+    if (status === "idle" || status === "arrived" || status === "awaiting_map" || fixedHeading.current !== null) return;
     const samples: number[] = [];
     let last = 0;
     const onOrient = (e: Event) => {
@@ -149,7 +152,12 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
   /** Call from a tap handler: iOS only grants compass access inside a user gesture. */
   const start = useCallback(async () => {
     const r = live.current.route;
-    if (!r || r.steps.length === 0) return;
+    if (!r) return;
+    if (routeSummary(r).alreadyThere) {
+      arrive();
+      return;
+    }
+    if (r.steps.length === 0) return;
     const fixed = new URLSearchParams(window.location.search).get("heading");
     fixedHeading.current = fixed === null ? null : Number(fixed);
     if (fixedHeading.current !== null) setHeading(fixedHeading.current);
@@ -162,7 +170,7 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
         // denied or unsupported: heading stays null, dir = "unstable", guidance continues by voice
       }
     }
-  }, [enter]);
+  }, [arrive, enter]);
 
   /**
    * "지금 이 방향이 맞아요": the user faces along the current walk step's corridor, so the raw compass
@@ -187,13 +195,24 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     } catch {}
   }, []);
 
-  /** Advance manually (steps with checkpoint === null have nothing to scan). */
-  const next = useCallback(() => {
-    const { route: r, stepIndex: i } = live.current;
-    if (!r) return;
-    if (i + 1 >= r.steps.length) arrive();
+  const completeStep = useCallback((mapConfirmed = false) => {
+    const { route: r, stepIndex: i, status: current } = live.current;
+    if (!r || !r.steps[i] || current === "arrived" || current === "idle") return;
+    if (current === "awaiting_map" && !mapConfirmed) return;
+    const step = r.steps[i];
+    const action = stepCompletion(step.kind, i + 1 >= r.steps.length, mapConfirmed);
+    if (action === "floorMap" && step.kind !== "walk") {
+      set({ status: "awaiting_map" });
+      cb.current.onFloorArrival?.(step, i);
+    } else if (action === "arrive") arrive();
     else enter(r, i + 1);
-  }, [arrive, enter]);
+  }, [arrive, enter, set]);
+
+  /** Manual and checkpoint completion both pause at floor changes. */
+  const next = useCallback(() => completeStep(), [completeStep]);
+  const continueAfterFloorMap = useCallback(() => {
+    if (live.current.status === "awaiting_map") completeStep(true);
+  }, [completeStep]);
 
   /** Back to guiding after an off-route warning the user dismissed. */
   const resume = useCallback(() => {
@@ -254,6 +273,7 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     load,
     start,
     next,
+    continueAfterFloorMap,
     goTo,
     resume,
     confirmCheckpoint,
