@@ -45,7 +45,7 @@ export function StartLocationScreen() {
               key={v}
               aria-selected={view === v}
               onClick={() => setView(v)}
-              className={`h-9 min-w-[52px] rounded-lg border-none px-2 text-[13px] font-bold text-ink ${view === v ? "bg-surface" : "bg-transparent"}`}
+              className={`h-11 min-w-[52px] rounded-lg border-none px-2 text-[13px] font-bold text-ink ${view === v ? "bg-surface" : "bg-transparent"}`}
             >
               {v === "2d" ? "안내도" : "3D 보기"}
             </button>

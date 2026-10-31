@@ -18,6 +18,7 @@ export interface ApiCheckpoint {
 interface ApiStepBase {
   from: string;
   to: string;
+  to_label: string; // where the step ends, e.g. "중앙 엘리베이터 홀"
   floor: string;
   checkpoint: ApiCheckpoint | null;
   text: string; // spoken-style instruction

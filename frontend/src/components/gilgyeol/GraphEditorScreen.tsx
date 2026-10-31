@@ -302,7 +302,7 @@ export function GraphEditorScreen() {
                 <span className="text-[12px] text-muted">{r.summary}</span>
               </span>
               {r.status === "none" && !cur ? (
-                <span className="flex h-9 items-center rounded-[10px] border-[1.5px] border-brand px-3 text-[13px] font-bold text-brand">업로드</span>
+                <span className="flex h-11 items-center rounded-[10px] border-[1.5px] border-brand px-3 text-[13px] font-bold text-brand">업로드</span>
               ) : (
                 <Badge tone={b.tone}>{b.label}</Badge>
               )}
@@ -443,7 +443,7 @@ export function GraphEditorScreen() {
           <div className="flex items-center gap-2.5">
             <label className="flex flex-1 items-center gap-2.5 text-[13px] font-semibold text-muted">
               원본 투명도
-              <input type="range" min="0" max="1" step="0.05" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="flex-1 accent-brand" />
+              <input type="range" min="0" max="1" step="0.05" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="h-11 flex-1 accent-brand" />
             </label>
             <button type="button" onClick={() => setZoom((z) => Math.max(1, z - 0.5))} aria-label="축소" className="size-11 rounded-xl border-[1.5px] border-edge bg-surface text-[20px] font-semibold text-ink">
               −
@@ -469,7 +469,7 @@ export function GraphEditorScreen() {
           {conn && (
             <div role="status" className="flex items-center justify-between gap-2 rounded-xl bg-[#E8F0F8] px-3 py-2.5 text-[14px] font-semibold text-[#1F4F80]">
               연결할 다른 노드를 탭하세요
-              <button type="button" onClick={() => setConn(null)} className="h-9 rounded-lg border-none bg-white px-3 text-[13px] font-bold text-[#1F4F80]">
+              <button type="button" onClick={() => setConn(null)} className="h-11 rounded-lg border-none bg-white px-3 text-[13px] font-bold text-[#1F4F80]">
                 연결 취소
               </button>
             </div>
@@ -517,7 +517,7 @@ export function GraphEditorScreen() {
                       setSel(er.nodeId);
                       setConn(null);
                     }}
-                    className="h-9 flex-none rounded-[10px] border-none bg-error px-3 text-[13px] font-bold text-white"
+                    className="h-11 flex-none rounded-[10px] border-none bg-error px-3 text-[13px] font-bold text-white"
                   >
                     보기
                   </button>

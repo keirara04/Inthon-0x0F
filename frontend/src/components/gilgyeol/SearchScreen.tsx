@@ -53,7 +53,7 @@ export function SearchScreen() {
               key={c}
               aria-pressed={on}
               onClick={() => actions.update({ cat: on ? null : c })}
-              className={cx("h-10 rounded-[20px] border-[1.5px] px-3.5 text-[14px] font-semibold", on ? "border-ink bg-ink text-white" : "border-edge bg-surface text-ink")}
+              className={cx("h-11 rounded-[20px] border-[1.5px] px-3.5 text-[14px] font-semibold", on ? "border-ink bg-ink text-white" : "border-edge bg-surface text-ink")}
             >
               {c}
             </button>
