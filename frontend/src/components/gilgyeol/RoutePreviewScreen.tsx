@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C, DEMO_1F_GRAPH, EXAMPLE_4F_GRAPH, START_NODES } from "@/lib/gilgyeol/data";
+import { floorName } from "@/lib/gilgyeol/floorTransition";
+import { routeSummary } from "@/lib/gilgyeol/routeSummary";
 import { shortestPath } from "@/lib/gilgyeol/geometry";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { StartNodeId } from "@/lib/gilgyeol/types";
@@ -55,8 +57,10 @@ export function RoutePreviewScreen() {
           : undefined,
     tone: st.kind && st.kind !== "walk" ? (s.elevUnverified ? "warn" : "ok") : st.checkpoint ? "cp" : undefined,
   }));
-  const departFloor = s.steps[0]?.floor ?? "1층";
-  const arriveFloor = s.steps[s.steps.length - 1]?.floor ?? "4층";
+  const summary = s.route ? routeSummary(s.route) : null;
+  const arriveFloor = summary ? floorName(summary.arrivalFloor) : `${s.dest?.floor ?? 1}층`;
+  const departFloor = summary ? floorName(summary.departureFloor) : s.steps[0]?.floor ?? arriveFloor;
+  const alreadyThere = summary?.alreadyThere ?? false;
   // The 2D/3D diagrams are drawn for the 1F -> 4F demo route only; hide them for any other route rather than show a wrong map.
   const showFloorMap = departFloor === "1층" && arriveFloor === "4층";
   const badgeCls = { warn: "bg-warn-tint text-warn-ink", cp: "bg-haptic-tint text-haptic-ink", ok: "bg-ok-tint text-ok-ink" };
@@ -133,8 +137,9 @@ export function RoutePreviewScreen() {
       )}
       <div className="rounded-[18px] bg-surface px-[18px] py-1.5">
       <h2 id="gg-steps-title" className="m-0 border-b border-divider pt-3 pb-2.5 text-[17px] font-bold">
-        {d}까지 {routeSteps.length}단계
+        {alreadyThere ? "이미 목적지에 있어요" : `${d}까지 ${routeSteps.length}단계`}
       </h2>
+      {alreadyThere && <p className="m-0 py-4 text-[16px] leading-normal text-muted">현재 위치가 {d}예요. 이동하거나 층을 바꿀 필요가 없어요.</p>}
       <ol className="m-0 flex list-none flex-col p-0" aria-labelledby="gg-steps-title">
         {routeSteps.map((p, i) => (
           <li key={p.t} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
@@ -152,8 +157,8 @@ export function RoutePreviewScreen() {
       <p className="m-0 text-[13px] leading-normal text-muted">
         {s.route ? `총 ${s.route.total_m}m · ` : ""}예상 시간은 아직 측정하지 않았어요.
       </p>
-      <PrimaryButton tall onClick={() => actions.go("mode")}>
-        안내 방식 선택
+      <PrimaryButton tall onClick={() => alreadyThere ? actions.beginTrip() : actions.go("mode")}>
+        {alreadyThere ? "도착 확인" : "안내 방식 선택"}
       </PrimaryButton>
     </div>
   );

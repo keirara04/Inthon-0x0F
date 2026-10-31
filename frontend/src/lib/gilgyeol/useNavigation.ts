@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiCheckpointResult, ApiRoute, ApiStep } from "@/types/api";
 import { fetchRoute, postCheckpoint } from "./api";
+import { routeSummary } from "./routeSummary";
 import { stepCompletion } from "./floorTransition";
 import { circularMean, delta as angleDelta, dirState, headingFromEvent, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
 
@@ -134,7 +135,12 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
   /** Call from a tap handler: iOS only grants compass access inside a user gesture. */
   const start = useCallback(async () => {
     const r = live.current.route;
-    if (!r || r.steps.length === 0) return;
+    if (!r) return;
+    if (routeSummary(r).alreadyThere) {
+      arrive();
+      return;
+    }
+    if (r.steps.length === 0) return;
     const fixed = new URLSearchParams(window.location.search).get("heading");
     fixedHeading.current = fixed === null ? null : Number(fixed);
     if (fixedHeading.current !== null) setHeading(fixedHeading.current);
@@ -147,7 +153,7 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
         // denied or unsupported: heading stays null, dir = "unstable", guidance continues by voice
       }
     }
-  }, [enter]);
+  }, [arrive, enter]);
 
   const completeStep = useCallback((mapConfirmed = false) => {
     const { route: r, stepIndex: i, status: current } = live.current;

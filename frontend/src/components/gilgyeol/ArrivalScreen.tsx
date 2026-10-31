@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { floorName } from "@/lib/gilgyeol/floorTransition";
+import { routeSummary } from "@/lib/gilgyeol/routeSummary";
 import { EXITS_4F } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import { Mascot } from "./Mascot";
@@ -16,8 +18,9 @@ export function ArrivalScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
   const [exitsOpen, setExitsOpen] = useState(false);
-  const from = s.steps[0]?.floor ?? "1층";
-  const to = s.steps[s.steps.length - 1]?.floor ?? `${s.dest?.floor ?? 4}층`;
+  const summary = s.route ? routeSummary(s.route) : null;
+  const to = summary ? floorName(summary.arrivalFloor) : `${s.dest?.floor ?? 1}층`;
+  const from = summary ? floorName(summary.departureFloor) : s.steps[0]?.floor ?? to;
   const stats = [
     { k: "소요 시간", v: duration(s.trip.startedAt, s.trip.arrivedAt) },
     { k: "층 이동", v: from === to ? "없음" : `${from} → ${to}` },
@@ -52,7 +55,7 @@ export function ArrivalScreen() {
           </div>
         ))}
       </dl>
-      <div className="overflow-hidden rounded-2xl bg-surface">
+      {to === "4층" && <div className="overflow-hidden rounded-2xl bg-surface">
         <button
           type="button"
           aria-expanded={exitsOpen}
@@ -75,7 +78,7 @@ export function ArrivalScreen() {
             <p className="m-0 text-[12px] leading-normal text-warn-ink">현장 확인 전 시연 데이터예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
           </div>
         )}
-      </div>
+      </div>}
       <div className="grid grid-cols-2 gap-2">
         <GhostButton className="h-[52px] rounded-2xl" onClick={actions.replay}>
           다시 듣기
