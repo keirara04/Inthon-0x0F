@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "floor_graph.schema.json",
+  "title": "FloorGraph",
+  "description": "피난안내도 한 장에서 추출한 층 그래프. 백엔드(DB 시드, Dijkstra)와 프론트(3D)가 공유하는 규격.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "building",
+    "floor",
+    "current_node_id",
+    "nodes",
+    "edges",
+    "elevators"
+  ],
+  "properties": {
+    "building": {
+      "type": "string",
+      "description": "건물 이름. 안내도에 없으면 사용자 힌트, 힌트도 없으면 빈 문자열"
+    },
+    "floor": {
+      "type": "string",
+      "description": "층 라벨 (B1, 1F, 2F ...). 안내도에 없으면 사용자 힌트, 힌트도 없으면 빈 문자열"
+    },
+    "current_node_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "안내도의 '현위치' 표시에 가장 가까운 노드 id. 못 찾으면 null"
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "label",
+          "x",
+          "y"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "<층>-<이름> 형식, 영문·숫자·하이픈, 고유값. 예: 1F-lobby, 4F-405, 1F-elev-A"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "room",
+              "junction",
+              "stairs",
+              "elevator_hall",
+              "entrance",
+              "exit",
+              "landmark"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "description": "안내도에 적힌 이름 그대로. 예: 405호, 계단, 엘리베이터 A. junction은 빈 문자열 가능"
+          },
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "이미지 너비 대비 비율, 왼쪽이 0"
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "이미지 높이 대비 비율, 위쪽이 0"
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "type",
+          "length_m",
+          "heading_deg"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "stairs",
+              "elevator"
+            ]
+          },
+          "length_m": {
+            "type": "number",
+            "minimum": 0
+          },
+          "heading_deg": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 360,
+            "description": "from→to 방향. 북쪽 0°, 시계 방향 (방위표가 없으면 안내도 위쪽을 북쪽으로 본다)"
+          }
+        }
+      }
+    },
+    "elevators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "served_floors"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "served_floors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

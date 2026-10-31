@@ -1,0 +1,12 @@
+.env
+__pycache__/
+
+# 사진은 커밋하지 않는다 (정답 JSON·설명만 커밋)
+eval/data/**/*.jpg
+eval/data/**/*.jpeg
+eval/data/**/*.png
+eval/data/**/*.webp
+eval/data/**/*.heic
+
+# 모델 원본 출력·overlay (로컬 확인용)
+eval/results/raw/

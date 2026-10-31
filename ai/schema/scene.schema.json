@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene.schema.json",
+  "title": "SceneCandidates",
+  "description": "표지가 안 보일 때 장면으로 추정한 현재 위치 후보 (최대 3개, 점수 내림차순)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["candidates"],
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id", "score", "reason"],
+        "properties": {
+          "node_id": { "type": "string" },
+          "score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "reason": { "type": "string", "description": "판단 근거가 된 시각 단서 (짧게)" }
+        }
+      }
+    }
+  }
+}
