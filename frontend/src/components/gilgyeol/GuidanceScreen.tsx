@@ -5,6 +5,7 @@ import { C, DIRECTION } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { DirectionState } from "@/lib/gilgyeol/types";
+import { LiveMap } from "./LiveMap";
 import { GhostButton, Notice, PrimaryButton, SegButton, DemoBox, StatusDot } from "./ui";
 
 /** Pulse strength shown as bars — more bars means the target heading is closer. */
@@ -178,6 +179,9 @@ export function GuidanceScreen() {
         {st.turn && <div className="self-start rounded-lg bg-haptic-tint px-2.5 py-[5px] text-[13px] font-bold text-haptic-ink">{st.turn}</div>}
       </div>
 
+      {/* Live map: you at the last confirmed point, a cone that turns with the phone, this step's path. */}
+      {s.route && <LiveMap route={s.route} stepIndex={s.step} heading={compass.heading} delta={compass.delta} />}
+
       <div className="flex flex-col gap-3 rounded-2xl bg-surface px-4 py-3.5">
         <div className="flex items-center justify-between gap-3">
           <span className="text-[15px] font-bold" style={{ color: unstable ? C.warning : C.haptic }}>
@@ -244,6 +248,8 @@ export function GuidanceScreen() {
                 </div>
               ))}
             </dl>
+          {/* Hand-drawn sketch only when the live floor map isn't available (demo / mock). */}
+          {!s.route && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-app-bg px-3.5 py-3">
             <div className="flex items-center justify-between">
               <div className="text-[14px] font-bold">{st.floor} 경로</div>
@@ -310,6 +316,7 @@ export function GuidanceScreen() {
               </div>
             )}
           </div>
+          )}
             <ol className="m-0 flex list-none flex-col p-0">
               {routeLabels.map((t, i) => (
                 <li key={t} className="flex min-h-[34px] items-center gap-3" aria-current={i === prog ? "step" : undefined}>

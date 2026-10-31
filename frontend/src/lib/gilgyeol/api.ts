@@ -98,6 +98,25 @@ export interface ParsedGraph extends FloorGraph {
 }
 
 /**
+ * A verified floor's map (rooms with outlines, corridors) for the live guidance card, cached per floor.
+ * Mock mode has no seeded graph to match the mock route's ids, so it returns null (the card hides).
+ */
+const floorCache = new Map<string, Promise<ParsedGraph | null>>();
+export function fetchFloorGraph(floor: string): Promise<ParsedGraph | null> {
+  if (API_MODE !== "live") return Promise.resolve(null);
+  if (!floorCache.has(floor)) {
+    const p = request<ApiGraph>(`/api/floors/${encodeURIComponent(floor)}/graph?building=${encodeURIComponent(BUILDING)}`)
+      .then(fromApiGraph)
+      .catch(() => {
+        floorCache.delete(floor); // let a later visit retry
+        return null;
+      });
+    floorCache.set(floor, p);
+  }
+  return floorCache.get(floor)!;
+}
+
+/**
  * Parses an evacuation-map image into a draft graph. Results always start as draft. Nothing is saved.
  * Sent at 2048px long side: the AI evals (ai/README.md) measured map reading at that size.
  */
