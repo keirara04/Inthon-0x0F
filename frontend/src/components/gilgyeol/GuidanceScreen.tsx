@@ -50,11 +50,22 @@ export function GuidanceScreen() {
 
   return (
     <div className="flex flex-col gap-3.5 px-5 pt-1.5 pb-6">
-      <div className="flex min-h-8 items-center justify-between">
-        <div className="text-[15px] font-bold">우정정보관 · {st.floor}</div>
-        <div role="status" className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: locColor }}>
-          <StatusDot color={locColor} />
-          {locText}
+      <div className="flex min-h-8 items-center justify-between gap-2">
+        <div className="min-w-0 truncate text-[15px] font-bold">우정정보관 · {st.floor}</div>
+        <div className="flex flex-none items-center gap-2">
+          <div role="status" className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: locColor }}>
+            <StatusDot color={locColor} />
+            {locText}
+          </div>
+          {/* Always-visible exit; the full "안내 종료" button also stays at the bottom. */}
+          <button
+            type="button"
+            onClick={actions.endGuide}
+            aria-label="안내 종료"
+            className="h-11 rounded-xl border-[1.5px] border-edge bg-surface px-3 text-[13px] font-bold text-ink"
+          >
+            종료
+          </button>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 rounded-[14px] bg-warm-panel py-1.5 pr-1.5 pl-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { GilgyeolProvider, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { Screen } from "@/lib/gilgyeol/types";
 import { ArrivalScreen } from "./ArrivalScreen";
@@ -40,9 +40,22 @@ const SCREENS: Record<Screen, () => ReactNode> = {
   editor: GraphEditorScreen,
 };
 
+// Flow order for transition direction: moving to a later screen slides in from the right, going back from the left.
+const ORDER = Object.keys(SCREENS) as Screen[];
+
 function Device() {
   const { state: s, scrollRef } = useGilgyeol();
   const Current = SCREENS[s.screen];
+  // Adjust-state-during-render: remember the previous screen to pick the slide direction.
+  const [shown, setShown] = useState({ screen: s.screen, back: false });
+  if (shown.screen !== s.screen) setShown({ screen: s.screen, back: ORDER.indexOf(s.screen) < ORDER.indexOf(shown.screen) });
+
+  // iOS Safari only applies :active (button press feedback) when a touch listener exists.
+  useEffect(() => {
+    const noop = () => {};
+    document.addEventListener("touchstart", noop, { passive: true });
+    return () => document.removeEventListener("touchstart", noop);
+  }, []);
   const dark = s.screen === "scan";
   return (
     <div className="gg-device">
@@ -72,7 +85,10 @@ function Device() {
           </span>
         </div>
         <main ref={scrollRef} className="gg-scroll relative flex-1 overflow-x-hidden overflow-y-auto">
-          <Current key={s.screen} />
+          {/* h-full keeps screens' min-h-full / h-full layouts working; taller content still scrolls in <main>. */}
+          <div key={s.screen} className={`h-full ${shown.back ? "gg-screen-in gg-screen-back" : "gg-screen-in"}`}>
+            <Current />
+          </div>
         </main>
         {s.cue && (
           <div
