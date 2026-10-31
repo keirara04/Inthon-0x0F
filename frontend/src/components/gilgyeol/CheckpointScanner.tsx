@@ -122,11 +122,26 @@ function useCamera(onDenied: () => void) {
   const streamRef = useRef<MediaStream | null>(null);
   const [on, setOn] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Torch: only some browsers (Android Chrome) expose it; iPhone browsers can't control it.
+  const [torch, setTorch] = useState<{ supported: boolean; on: boolean }>({ supported: false, on: false });
 
   const stop = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     setOn(false);
+    setTorch({ supported: false, on: false });
+  };
+
+  const toggleTorch = async () => {
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+    const next = !torch.on;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: next } as MediaTrackConstraintSet] });
+      setTorch({ supported: true, on: next });
+    } catch {
+      setTorch({ supported: false, on: false });
+    }
   };
 
   const start = async () => {
@@ -144,6 +159,8 @@ function useCamera(onDenied: () => void) {
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setOn(true);
+      const caps = stream.getVideoTracks()[0]?.getCapabilities?.() as (MediaTrackCapabilities & { torch?: boolean }) | undefined;
+      setTorch({ supported: !!caps?.torch, on: false });
     } catch (e) {
       if (e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError")) onDenied();
       else setError("카메라를 켜지 못했어요");
@@ -170,7 +187,7 @@ function useCamera(onDenied: () => void) {
 
   useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
 
-  return { videoRef, on, error, start, stop, grab };
+  return { videoRef, on, error, start, stop, grab, torch, toggleTorch };
 }
 
 const HOLD_MS = 1200; // how long the sign must stay put before the photo is taken
@@ -247,7 +264,20 @@ export function CheckpointScanner() {
   const demo = useDemoTools();
   const m = scanMeta(s.scanTarget, d);
   const destFloor = `${s.dest?.floor ?? 4}층`;
-  const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam, grab } = useCamera(() => actions.update({ scanState: "denied", camDenied: true }));
+  const { videoRef, on: camOn, error: camError, start: startCam, grab, torch, toggleTorch } = useCamera(() =>
+    actions.update({ scanState: "denied", camDenied: true }),
+  );
+  // Like a camera app: the preview starts by itself (the user already chose 카메라 켜기). ?demo keeps the
+  // sample picture so presenters can drive results by hand; they can still turn the camera on.
+  useEffect(() => {
+    if (demo || s.camDenied) return;
+    void (async () => {
+      await Promise.resolve();
+      await startCam();
+    })();
+    // start once per visit to this screen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [capturing, setCapturing] = useState(false);
   // Uploaded photos get the same treatment as the live camera: find the sign, frame it, then read only that part.
   const [upload, setUpload] = useState<{ file: Blob; url: string; w: number; h: number; box: Box; progress: number } | null>(null);
@@ -359,25 +389,33 @@ export function CheckpointScanner() {
     </div>
   );
 
+  const aim = s.scanState === "aim";
+  const showSheet = !aim || s.manual;
+  const guide = camError
+    ? camError
+    : upload
+      ? "사진에서 안내도를 찾았어요 · 곧 이 부분만 읽어요"
+      : tracked
+        ? tracked.progress >= 1
+          ? "촬영 중…"
+          : "가만히 들고 계세요"
+        : s.scanState === "success"
+          ? `인식: ${m.read}`
+          : aim
+            ? m.guide
+            : null;
+  const progress = tracked?.progress ?? 0;
+  const iconBtn = "flex size-[52px] items-center justify-center rounded-2xl border-[1.5px] border-white/60 bg-white/10 text-white";
+
   return (
-    <div className="flex min-h-full flex-col bg-camera">
-      <div className="flex h-[52px] items-center justify-between pr-3 pl-2 text-white">
-        <button type="button" onClick={actions.back} aria-label="닫기" className="h-11 min-w-11 border-none bg-transparent text-[15px] font-semibold text-white">
-          닫기
-        </button>
-        <h1 className="m-0 text-[15px] font-bold">{m.title}</h1>
-        {demo ? (
-          <div className="rounded border border-[#6B5530] px-1.5 py-[3px] font-mono text-[10px] font-semibold text-[#F2C37A]">데모 모드</div>
-        ) : (
-          <div aria-hidden="true" className="min-w-11" />
-        )}
-      </div>
-      <div ref={finderRef} className="gg-hatch-dark relative mx-3 h-[330px] overflow-hidden rounded-[20px]">
+    <div className="relative flex h-full min-h-[560px] flex-col overflow-hidden bg-black">
+      {/* Viewfinder: the whole screen, like a camera app. */}
+      <div ref={finderRef} className="absolute inset-0">
         <video ref={videoRef} autoPlay playsInline muted aria-hidden="true" className={`absolute inset-0 size-full object-cover ${camOn ? "" : "hidden"}`} />
-        {!camOn && s.scanTarget === "map" && !upload && <SampleEvacMap />}
+        {!camOn && isMap && !upload && <SampleEvacMap />}
         {upload && (
           // The picked photo with the sign framed, drawn in the photo's own pixels so the frame lands exactly.
-          <svg viewBox={`0 0 ${upload.w} ${upload.h}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 size-full bg-camera">
+          <svg viewBox={`0 0 ${upload.w} ${upload.h}`} preserveAspectRatio="xMidYMid meet" className="absolute inset-0 size-full bg-black">
             <image href={upload.url} width={upload.w} height={upload.h} />
             <path
               fillRule="evenodd"
@@ -396,7 +434,7 @@ export function CheckpointScanner() {
               height={upload.box.h * upload.h}
               rx={upload.box.w * upload.w * 0.02}
               fill="transparent"
-              stroke={upload.progress >= 1 ? "#4CC38A" : "#fff"}
+              stroke="#fff"
               strokeWidth={3}
               vectorEffect="non-scaling-stroke"
               className="cursor-pointer"
@@ -414,31 +452,35 @@ export function CheckpointScanner() {
         {reading && shot && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
-            <img src={shot} alt="" className="absolute inset-0 size-full bg-camera object-contain" />
+            <img src={shot} alt="" className="absolute inset-0 size-full bg-black object-contain" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(40,100,160,.10)_1px,transparent_1px),linear-gradient(90deg,rgba(40,100,160,.10)_1px,transparent_1px)] bg-[size:22px_22px]" aria-hidden="true" />
             <div aria-hidden="true" className="gg-scan pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-transparent to-[rgba(120,180,255,.35)]">
               <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#9CCBFF] shadow-[0_0_12px_2px_rgba(120,180,255,.8)]" />
             </div>
           </>
         )}
-        {!camOn && (
-          <div className="absolute top-3 left-3 font-mono text-[10px] font-semibold text-[#A8ABA5]">
-            {s.scanTarget === "map" ? "샘플 안내도 · 실제 카메라 미연결" : "후면 카메라 미리보기 자리 · 카메라를 켜면 표지를 확인해요"}
+        {/* Camera-app guides while searching: thirds grid, frame brackets, centre crosshair. */}
+        {aim && !tracked && !upload && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            {["left-1/3", "left-2/3"].map((c) => (
+              <div key={c} className={`absolute inset-y-0 w-px bg-white/20 ${c}`} />
+            ))}
+            {["top-1/3", "top-2/3"].map((c) => (
+              <div key={c} className={`absolute inset-x-0 h-px bg-white/20 ${c}`} />
+            ))}
+            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${isMap ? "aspect-[3/2] w-[84%]" : "aspect-[2/1] w-[70%]"}`}>
+              {[
+                "top-0 left-0 border-t-[3px] border-l-[3px] rounded-tl-xl",
+                "top-0 right-0 border-t-[3px] border-r-[3px] rounded-tr-xl",
+                "bottom-0 left-0 border-b-[3px] border-l-[3px] rounded-bl-xl",
+                "right-0 bottom-0 border-r-[3px] border-b-[3px] rounded-br-xl",
+              ].map((c) => (
+                <div key={c} className={`absolute size-9 ${c}`} style={{ borderColor: frameColor }} />
+              ))}
+              <div className="absolute top-1/2 left-1/2 h-5 w-px -translate-x-1/2 -translate-y-1/2 bg-white/85" />
+              <div className="absolute top-1/2 left-1/2 h-px w-5 -translate-x-1/2 -translate-y-1/2 bg-white/85" />
+            </div>
           </div>
-        )}
-        {s.scanState === "success" && (
-          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-md bg-[#4CC38A] px-2.5 py-1 text-[12px] font-bold whitespace-nowrap text-ink">
-            인식: {m.read}
-          </span>
-        )}
-        {s.scanState !== "denied" && (
-          <button
-            type="button"
-            onClick={camOn ? stopCam : startCam}
-            className="absolute top-2 right-2 h-11 rounded-xl border border-white/30 bg-black/45 px-3 text-[12px] font-semibold text-white"
-          >
-            {camOn ? "카메라 끄기" : "실제 카메라 켜기"}
-          </button>
         )}
         {tracked && (
           // The frame follows the sign. Tap it to take the photo now instead of waiting.
@@ -448,86 +490,125 @@ export function CheckpointScanner() {
             onClick={() => void confirmScan(tracked.box)}
             className="absolute rounded-lg border-[3px] bg-transparent p-0 transition-[left,top,width,height,border-color] duration-150 ease-out"
             style={{ ...tracked.rect, borderColor: tracked.progress >= 1 ? "#4CC38A" : "rgba(255,255,255,.95)", boxShadow: "0 0 0 9999px rgba(0,0,0,.28)" }}
-          >
-            <span className="absolute -top-9 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(21,23,21,.85)] px-3 py-1 text-[13px] font-bold whitespace-nowrap text-white">
-              {tracked.progress >= 1 ? "촬영 중…" : "가만히 들고 계세요"}
-            </span>
-            <span className="absolute inset-x-2 bottom-2 h-1.5 overflow-hidden rounded-full bg-white/30" aria-hidden="true">
-              <span className="block h-full rounded-full bg-[#4CC38A]" style={{ width: `${Math.round(tracked.progress * 100)}%` }} />
-            </span>
-          </button>
-        )}
-        <div
-          className={`absolute top-1/2 left-1/2 ${tracked || upload ? "hidden" : ""} ${s.scanTarget === "map" ? "-mt-[115px] -ml-[96px] h-[210px] w-[192px]" : "-mt-[65px] -ml-[100px] h-[130px] w-[200px]"}`}
-          aria-hidden="true"
-        >
-          {[
-            "top-0 left-0 border-t-4 border-l-4 rounded-tl-lg",
-            "top-0 right-0 border-t-4 border-r-4 rounded-tr-lg",
-            "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-lg",
-            "right-0 bottom-0 border-r-4 border-b-4 rounded-br-lg",
-          ].map((c) => (
-            <div key={c} className={`absolute size-7 ${c}`} style={{ borderColor: frameColor }} />
-          ))}
-          {!(s.scanTarget === "map" && !camOn) && (
-            <div className="absolute inset-0 flex items-center justify-center text-[13px] font-semibold text-[#C9CCC6] [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">찾는 표지 · {m.expect}</div>
-          )}
-        </div>
-        {s.scanState !== "success" && (
-          <div className="absolute right-3 bottom-3 left-3 flex justify-center">
-            <span className="rounded-2xl bg-[rgba(21,23,21,.82)] px-3.5 py-1.5 text-center text-[16px] leading-[1.4] font-bold text-white">
-              {upload ? "사진에서 안내도를 찾았어요 · 곧 이 부분만 읽어요" : tracked ? "안내도를 찾았어요 · 그대로 들고 있으면 자동으로 찍어요" : m.guide}
-            </span>
-          </div>
+          />
         )}
       </div>
-      {camError && <div className="mx-3 mt-2 rounded-xl bg-warn-tint px-3 py-2 text-[13px] font-semibold text-warn-ink">{camError}</div>}
 
-      <div role="status" aria-live="polite" className="mt-3.5 flex flex-1 flex-col gap-3.5 rounded-t-[26px] bg-app-bg px-5 pt-[22px] pb-6">
-        {s.scanState === "aim" && (
-          <>
-            {demo && (
-            <div className="flex flex-col gap-2">
-              <div className="font-mono text-[11px] font-semibold text-muted">데모 결과 선택</div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {OUTCOMES.map(([k, l]) => (
-                  <SegButton key={k} on={s.outcome === k} onClick={() => actions.update({ outcome: k })} className="text-[14px]">
-                    {l}
-                  </SegButton>
-                ))}
+      {/* Top bar over the picture. */}
+      <div className="relative z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent px-2 pt-1 pb-5 text-white">
+        <button type="button" onClick={actions.back} aria-label="닫기" className="flex size-11 items-center justify-center border-none bg-transparent text-white">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+            <path d="M3 3l12 12M15 3L3 15" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+        </button>
+        <h1 className="m-0 text-[15px] font-bold [text-shadow:0_1px_3px_rgba(0,0,0,.5)]">{m.title}</h1>
+        <div className="flex min-w-11 justify-end gap-1.5">
+          {demo && <div className="self-center rounded border border-[#6B5530] px-1.5 py-[3px] font-mono text-[10px] font-semibold text-[#F2C37A]">데모</div>}
+          {torch.supported ? (
+            <button
+              type="button"
+              onClick={() => void toggleTorch()}
+              aria-pressed={torch.on}
+              aria-label={torch.on ? "손전등 끄기" : "손전등 켜기"}
+              className={`flex size-11 items-center justify-center rounded-full border-none ${torch.on ? "bg-[#F2C37A] text-ink" : "bg-black/35 text-white"}`}
+            >
+              <svg width="18" height="20" viewBox="0 0 18 20" fill="currentColor" aria-hidden="true">
+                <path d="M10.5 0 2 11h6l-1.5 9L16 8h-6z" />
+              </svg>
+            </button>
+          ) : (
+            !camOn &&
+            s.scanState !== "denied" && (
+              <button type="button" onClick={() => void startCam()} className="h-9 self-center rounded-full border border-white/40 bg-black/35 px-3 text-[12px] font-semibold text-white">
+                카메라 켜기
+              </button>
+            )
+          )}
+        </div>
+      </div>
+
+      {guide && (
+        <div className="relative z-10 mx-auto max-w-[88%] rounded-full bg-[rgba(21,23,21,.72)] px-4 py-1.5 text-center text-[14px] leading-[1.4] font-bold text-white" role="status" aria-live="polite">
+          {guide}
+        </div>
+      )}
+      <div className="flex-1" />
+
+      {/* ?demo: pick the simulated result above the shutter. */}
+      {demo && aim && !upload && !s.manual && (
+        <div className="relative z-10 mx-4 mb-2 grid grid-cols-3 gap-1.5">
+          {OUTCOMES.map(([k, l]) => (
+            <SegButton key={k} on={s.outcome === k} onClick={() => actions.update({ outcome: k })} className="h-9 text-[13px]">
+              {l}
+            </SegButton>
+          ))}
+        </div>
+      )}
+
+      {/* Bottom bar: gallery | shutter | demo or manual pick. */}
+      {aim && !s.manual && (
+        <div className="relative z-10 bg-black/80 px-6 pt-4 pb-[calc(18px+env(safe-area-inset-bottom))]">
+          {album.input}
+          {upload ? (
+            <div className="grid grid-cols-2 gap-2">
+              <PrimaryButton onClick={() => void readUpload(true)}>이 부분 읽기</PrimaryButton>
+              <SecondaryButton className="h-[58px]" onClick={() => void readUpload(false)}>
+                사진 전체로
+              </SecondaryButton>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 items-center">
+              <div className="flex flex-col items-center gap-1 justify-self-start">
+                {isMap && (
+                  <>
+                    <button type="button" onClick={album.open} aria-label="앨범에서 안내도 사진 선택" className={iconBtn}>
+                      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                        <rect x="2" y="3" width="18" height="16" rx="3" />
+                        <circle cx="8" cy="9" r="1.8" />
+                        <path d="M3 17l5-5 4 4 3-3 4 4" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                    <span className="text-[11px] font-semibold text-white/80">앨범</span>
+                  </>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => void confirmScan(tracked?.box)}
+                disabled={capturing}
+                aria-label={m.runLabel}
+                className="relative size-[76px] justify-self-center rounded-full border-none bg-transparent p-0 disabled:opacity-60"
+              >
+                {/* Ring fills green while the sign is held still; the photo is taken when it closes. */}
+                <svg viewBox="0 0 76 76" className="absolute inset-0 size-full -rotate-90" aria-hidden="true">
+                  <circle cx="38" cy="38" r="35" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="4" />
+                  {progress > 0 && (
+                    <circle cx="38" cy="38" r="35" fill="none" stroke="#4CC38A" strokeWidth="4" strokeLinecap="round" pathLength={1} strokeDasharray={`${progress} 1`} />
+                  )}
+                </svg>
+                <span className="absolute inset-[9px] rounded-full bg-white transition-transform duration-100 active:scale-90" />
+              </button>
+              <div className="flex flex-col items-center gap-1 justify-self-end">
+                <button
+                  type="button"
+                  onClick={() => (isMap ? actions.go("mapResult", { mapDemo: true }) : actions.update({ manual: true }))}
+                  aria-label={isMap ? "데모 안내도 불러오기" : "직접 선택"}
+                  className={iconBtn}
+                >
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                    {isMap ? <path d="M3 5l5-2 6 2 5-2v14l-5 2-6-2-5 2zM8 3v14M14 5v14" strokeLinejoin="round" /> : <path d="M4 6h14M4 11h14M4 16h9" />}
+                  </svg>
+                </button>
+                <span className="text-[11px] font-semibold text-white/80">{isMap ? "데모" : "직접 선택"}</span>
               </div>
             </div>
-            )}
-            {upload ? (
-              <>
-                <PrimaryButton onClick={() => void readUpload(true)}>이 부분 읽기</PrimaryButton>
-                <SecondaryButton onClick={() => void readUpload(false)}>사진 전체로 읽기</SecondaryButton>
-              </>
-            ) : (
-              <PrimaryButton onClick={() => void confirmScan(tracked?.box)} disabled={capturing}>
-                {m.runLabel}
-              </PrimaryButton>
-            )}
-            {isMap && !upload && (
-              <>
-                {album.input}
-                <SecondaryButton onClick={album.open}>앨범에서 안내도 사진 선택</SecondaryButton>
-              </>
-            )}
-            <p className="m-0 text-[13px] leading-normal text-muted">
-              {realScan
-                ? isMap
-                  ? "찍은 안내도를 AI가 읽어 층 지도 초안을 만들어요. 사진은 저장하지 않아요."
-                  : "지금 찍은 프레임으로 표지 위치를 확인해요. 사진은 확인 요청에만 쓰고 저장하지 않아요."
-                : "카메라를 켜지 않으면 실제 인식 없이 선택한 결과를 보여줘요. 현장에서는 ‘실제 카메라 켜기’를 눌러주세요."}
-            </p>
-            {s.scanTarget !== "map" && (
-              <p className="m-0 text-center text-[13px] font-semibold text-muted">
-                {s.postureSensor ? "폰을 내리면 카메라가 꺼지고 진동 안내로 돌아가요" : "‘닫기’를 누르면 진동 안내로 돌아가요"}
-              </p>
-            )}
-          </>
-        )}
+          )}
+        </div>
+      )}
+
+      {/* Results, loading and errors slide up over the camera. */}
+      {showSheet && (
+      <div role="status" aria-live="polite" className="relative z-10 flex max-h-[72%] flex-col gap-3.5 overflow-y-auto rounded-t-[26px] bg-app-bg px-5 pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom))]">
         {reading && <MapReading onCancel={actions.cancelScan} />}
         {s.scanState === "analyzing" && !reading && (
           <>
@@ -591,20 +672,26 @@ export function CheckpointScanner() {
           </>
         )}
         {s.manual && (
-          <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
-            {manualOpts.map((o) => (
-              <button
-                type="button"
-                key={o.label}
-                onClick={o.pick}
-                className="min-h-[52px] border-0 border-b border-divider bg-surface px-4 text-left text-[16px] font-semibold text-ink"
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
+              {manualOpts.map((o) => (
+                <button
+                  type="button"
+                  key={o.label}
+                  onClick={o.pick}
+                  className="min-h-[52px] border-0 border-b border-divider bg-surface px-4 text-left text-[16px] font-semibold text-ink"
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => actions.update({ manual: false })} className="h-11 border-none bg-transparent text-[15px] font-semibold text-muted">
+              카메라로 돌아가기
+            </button>
+          </>
         )}
       </div>
+      )}
     </div>
   );
 }
