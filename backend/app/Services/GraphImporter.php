@@ -34,6 +34,7 @@ class GraphImporter
                 DB::table('nodes')->insert([
                     'id' => $n['id'], 'floor_id' => $floorId, 'type' => $n['type'], 'label' => $n['label'],
                     'x' => $n['x'], 'y' => $n['y'], 'ref' => $n['ref'] ?? null,
+                    'outline' => isset($n['outline']) && is_array($n['outline']) ? json_encode($n['outline']) : null,
                 ]);
 
                 $landmark = match ($n['type']) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { C, DIRECTION } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
@@ -23,16 +24,27 @@ const DIR_BTNS: [DirectionState, string][] = [
 ];
 
 export function GuidanceScreen() {
-  const { state: s, actions } = useGilgyeol();
+  const { state: s, actions, compass } = useGilgyeol();
   const d = useDestName();
   const demo = useDemoTools();
+  const [calibOpen, setCalibOpen] = useState(false);
   const steps = s.steps;
   const st = steps[s.step];
   if (!st) return null;
   const unstable = s.dir === "unstable";
   const dv = s.dir === "unstable" ? DIRECTION.far : DIRECTION[s.dir];
   const dirColor = unstable ? C.warning : dv.color;
-  const dirMsg = unstable ? `방향을 확인하기 어려워요. ${st.landmark || "표지판"}를 기준으로 이동해 주세요` : dv.msg;
+  // Live needle: the arrow is the phone, the top triangle the corridor. Turning right by `delta` means the
+  // phone points `delta` left of the target, so the arrow sits at -delta. Simulated input keeps the old tilt.
+  const live = !demo && s.simDir === null && compass.delta !== null && !unstable;
+  const needle = live ? -compass.delta! : dv.rot;
+  const turnBy = live ? Math.round(Math.abs(compass.delta!) / 5) * 5 : 0;
+  const dirMsg = unstable
+    ? `방향을 확인하기 어려워요. ${st.landmark || "표지판"}를 기준으로 이동해 주세요`
+    : live && s.dir !== "aligned"
+      ? `${compass.delta! > 0 ? "오른쪽" : "왼쪽"}으로 약 ${turnBy}° 돌리세요`
+      : dv.msg;
+  const canCalibrate = st.kind === "walk" && compass.heading !== null;
   const locColor = unstable ? C.warning : C.success;
   const locText = unstable ? "구간 추정 중" : s.step === 0 ? "출발 위치 확인됨" : `${st.floor} 진행 중`;
 
@@ -108,7 +120,7 @@ export function GuidanceScreen() {
             확인 불가
           </div>
         ) : (
-          <div className="absolute inset-0 transition-transform duration-[220ms] ease-out" style={{ transform: `rotate(${dv.rot}deg)` }} aria-hidden="true">
+          <div className="absolute inset-0 transition-transform duration-[220ms] ease-out" style={{ transform: `rotate(${needle}deg)` }} aria-hidden="true">
             <svg width="240" height="240" viewBox="0 0 240 240">
               <polygon points="120,52 152,112 133,106 133,182 107,182 107,106 88,112" fill={dirColor} />
             </svg>
@@ -122,6 +134,38 @@ export function GuidanceScreen() {
         </span>
         <span>화살표 · 내 기기 방향</span>
       </div>
+      {canCalibrate && (
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="button"
+            aria-expanded={calibOpen}
+            onClick={() => setCalibOpen((o) => !o)}
+            className="h-9 rounded-full border-[1.5px] border-edge bg-surface px-3.5 text-[13px] font-semibold text-ink"
+          >
+            {compass.calibrated ? "방향 보정됨 · 다시 맞추기" : "화살표가 엇나가나요? 방향 맞추기"}
+          </button>
+          {calibOpen && (
+            <div className="flex w-full flex-col gap-2.5 rounded-2xl bg-haptic-tint p-3.5 text-[14px] leading-normal text-haptic-ink">
+              {/* One tap fixes north for this building: the user knows which way the corridor runs. */}
+              <p className="m-0">
+                지금 걷는 복도(<b>{st.title}</b> 방향)를 정면으로 바라보고 버튼을 누르세요. 이 건물에서는 한 번만 하면 돼요.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (compass.calibrate()) {
+                    setCalibOpen(false);
+                    actions.toast("방향을 맞췄어요");
+                  } else actions.toast("나침반 값을 아직 못 받았어요. 휴대전화를 잠시 들고 있어 주세요");
+                }}
+                className="h-11 rounded-xl border-none bg-haptic text-[15px] font-bold text-white"
+              >
+                지금 이 방향이 맞아요
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div role="status" aria-live="polite" className="text-center text-[17px] font-bold" style={{ color: dirColor }}>
         {dirMsg}
       </div>
