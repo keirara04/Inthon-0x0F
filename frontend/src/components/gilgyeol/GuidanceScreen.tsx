@@ -35,10 +35,10 @@ export function GuidanceScreen() {
   const unstable = s.dir === "unstable";
   const dv = s.dir === "unstable" ? DIRECTION.far : DIRECTION[s.dir];
   const dirColor = unstable ? C.warning : dv.color;
-  // Live needle: the arrow is the phone, the top triangle the corridor. Turning right by `delta` means the
-  // phone points `delta` left of the target, so the arrow sits at -delta. Simulated input keeps the old tilt.
+  // Live needle: top triangle is the phone's forward direction (12 o'clock), and the arrow points toward
+  // the target corridor (`+delta`). Turning right reduces `delta` toward 0° so the arrow stays locked on the target in world space.
   const live = !demo && s.simDir === null && compass.delta !== null && !unstable;
-  const needle = live ? -compass.delta! : dv.rot;
+  const needle = live ? compass.delta! : dv.rot;
   const turnBy = live ? Math.round(Math.abs(compass.delta!) / 5) * 5 : 0;
   const dirMsg = unstable
     ? `방향을 확인하기 어려워요. ${st.landmark || "표지판"}를 기준으로 이동해 주세요`
@@ -131,9 +131,9 @@ export function GuidanceScreen() {
       <div className="-mt-1.5 flex justify-center gap-3.5 text-[12px] text-muted" aria-hidden="true">
         <span className="flex items-center gap-[5px]">
           <span className="h-0 w-0 border-r-[5px] border-b-8 border-l-[5px] border-r-transparent border-b-haptic border-l-transparent" />
-          목표 방향
+          내 기기 방향
         </span>
-        <span>화살표 · 내 기기 방향</span>
+        <span>화살표 · 목표 방향</span>
       </div>
       {canCalibrate && (
         <div className="flex flex-col items-center gap-2">

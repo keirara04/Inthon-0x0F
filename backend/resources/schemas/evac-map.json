@@ -45,7 +45,8 @@
           "label",
           "x",
           "y",
-          "ref"
+          "ref",
+          "outline"
         ],
         "properties": {
           "id": {
@@ -86,6 +87,35 @@
               "null"
             ],
             "description": "stairs/elevator_hall만: 층끼리 같은 계단·엘리베이터를 잇는 id (stairs-1, elev-1). 나머지는 null"
+          },
+          "outline": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "room, stairs, elevator_hall 공간의 실제 바깥 벽 모서리. 사진 전체 기준 0~1 좌표, 경계를 따라 순서대로 3~12점, 첫 점 반복 안 함. 각 공간의 서로 다른 폭과 깊이를 보존한다. 경계가 보이지 않거나 다른 노드 type이면 null.",
+            "minItems": 3,
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
           }
         }
       }

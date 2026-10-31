@@ -120,3 +120,16 @@ export function shortestPath(nodes: GraphNode[], edges: GraphEdge[], from: strin
   while (path[0] !== from) path.unshift(prev.get(path[0])!);
   return path;
 }
+
+
+/** A measured room footprint, or null when only its position is known. Never invent a room size. */
+export function roomPolygon(node: GraphNode, scale: number): { x: number; z: number }[] | null {
+  const points = node.outline;
+  if (!points || points.length < 3 || points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return null;
+  const area = points.reduce((sum, p, i) => {
+    const q = points[(i + 1) % points.length];
+    return sum + p.x * q.y - q.x * p.y;
+  }, 0);
+  if (Math.abs(area) < 1e-8) return null;
+  return points.map((p) => ({ x: p.x * scale, z: p.y * scale }));
+}

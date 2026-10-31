@@ -6,6 +6,7 @@ use App\Services\CheckpointMatcher;
 use App\Services\GraphImporter;
 use Database\Seeders\GraphSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -164,6 +165,35 @@ class VisionTest extends TestCase
         $this->assertEquals([...$sq, ['x' => 1, 'y' => 0]], $res->json('data.nodes.0.outline')); // JSON drops .0
         $this->assertArrayNotHasKey('outline', $res->json('data.nodes.1')); // junctions never carry one
         $this->assertArrayNotHasKey('outline', $res->json('data.nodes.2')); // fewer than 3 points
+    }
+
+    public function test_parse_requests_and_preserves_different_room_sizes(): void
+    {
+        Http::preventStrayRequests();
+        $classroom = [['x' => 0.1, 'y' => 0.2], ['x' => 0.5, 'y' => 0.2], ['x' => 0.5, 'y' => 0.6], ['x' => 0.1, 'y' => 0.6]];
+        $bathroom = [['x' => 0.55, 'y' => 0.2], ['x' => 0.65, 'y' => 0.2], ['x' => 0.65, 'y' => 0.35], ['x' => 0.55, 'y' => 0.35]];
+        $this->fakeVision([
+            'is_floor_plan' => true,
+            'floor' => '2F',
+            'current_node_id' => null,
+            'nodes' => [
+                ['id' => '205', 'type' => 'room', 'label' => '205호', 'x' => 0.3, 'y' => 0.4, 'ref' => null, 'outline' => $classroom],
+                ['id' => '209', 'type' => 'room', 'label' => '209호(화장실)', 'x' => 0.6, 'y' => 0.275, 'ref' => null, 'outline' => $bathroom],
+            ],
+            'edges' => [],
+        ]);
+
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '2F'])
+            ->assertOk()
+            ->assertJsonPath('data.nodes.0.outline', $classroom)
+            ->assertJsonPath('data.nodes.1.outline', $bathroom);
+
+        // Structured output must permit and request footprints, not restrict every room to a centre point.
+        Http::assertSent(function (ClientRequest $request): bool {
+            $node = $request['response_format']['json_schema']['schema']['properties']['nodes']['items'];
+
+            return array_key_exists('outline', $node['properties']) && in_array('outline', $node['required'], true);
+        });
     }
 
     public function test_parse_keeps_the_floor_read_from_the_map(): void
