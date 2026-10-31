@@ -36,7 +36,8 @@ class VisionController extends Controller
             'expected_node' => 'required|string|exists:nodes,id',
         ]);
 
-        $texts = $this->vision(fn () => $vision->json('checkpoint', $request->file('image'))['texts'] ?? []);
+        $read = $this->vision(fn () => $vision->json('checkpoint', $request->file('image')));
+        $texts = is_string($read['text'] ?? null) ? [$read['text']] : [];
 
         return ['data' => $matcher->match(array_filter((array) $texts, 'is_string'), $data['expected_node'])];
     }

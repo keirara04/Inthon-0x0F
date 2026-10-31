@@ -3,9 +3,9 @@
   "floor": "4F",
   "current_node_id": "4F-elev-A",
   "nodes": [
-    { "id": "4F-elev-A", "type": "elevator_hall", "label": "중앙 엘리베이터 홀", "x": 0.50, "y": 0.45, "ref": "elev-A" },
-    { "id": "4F-elev-B", "type": "elevator_hall", "label": "동쪽 엘리베이터 홀", "x": 0.65, "y": 0.60, "ref": "elev-B" },
-    { "id": "4F-stairs-W", "type": "stairs", "label": "서쪽 계단", "x": 0.10, "y": 0.60, "ref": "stairs-W" },
+    { "id": "4F-elev-A", "type": "elevator_hall", "label": "중앙 엘리베이터 홀", "x": 0.50, "y": 0.45, "ref": "elev-1" },
+    { "id": "4F-elev-B", "type": "elevator_hall", "label": "동쪽 엘리베이터 홀", "x": 0.65, "y": 0.60, "ref": "elev-2" },
+    { "id": "4F-stairs-W", "type": "stairs", "label": "서쪽 계단", "x": 0.10, "y": 0.60, "ref": "stairs-1" },
     { "id": "4F-junc", "type": "junction", "label": "4층 중앙 복도", "x": 0.50, "y": 0.60 },
     { "id": "4F-401", "type": "room", "label": "401호", "x": 0.80, "y": 0.60 },
     { "id": "4F-405", "type": "room", "label": "405호", "x": 0.20, "y": 0.60 }

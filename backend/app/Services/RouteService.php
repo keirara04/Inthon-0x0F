@@ -102,8 +102,12 @@ class RouteService
             $to = end($g)->to_node;
             $toNode = $nodes[$to];
             $lm = $landmarks[$to] ?? null;
+            // A floor sign only confirms something after changing floors; on a walk step you're already on that floor.
+            if ($lm && $lm->kind === 'floor_sign' && $g[0]->type === 'walk') {
+                $lm = null;
+            }
             $step = [
-                'kind' => $g[0]->type, 'from' => $from, 'to' => $to, 'floor' => $toNode->floor,
+                'kind' => $g[0]->type, 'from' => $from, 'to' => $to, 'to_label' => $toNode->label, 'floor' => $toNode->floor,
                 'checkpoint' => $lm ? ['kind' => $lm->kind, 'text' => $lm->ocr_text] : null,
             ];
 

@@ -38,6 +38,8 @@ return [
     'openrouter' => [
         'key' => env('OPENROUTER_API_KEY'),
         'model' => env('OPENROUTER_MODEL', 'google/gemini-3.8-flash'),
+        // Optional per-task override, e.g. a faster model for checkpoints. Empty = use 'model'.
+        'checkpoint_model' => env('OPENROUTER_CHECKPOINT_MODEL'),
     ],
 
     'admin_token' => env('ADMIN_TOKEN'),

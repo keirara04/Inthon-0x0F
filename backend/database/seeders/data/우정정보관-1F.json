@@ -5,9 +5,9 @@
   "nodes": [
     { "id": "1F-lobby", "type": "entrance", "label": "1층 로비", "x": 0.50, "y": 0.90 },
     { "id": "1F-junc", "type": "junction", "label": "1층 중앙 복도", "x": 0.50, "y": 0.60 },
-    { "id": "1F-elev-A", "type": "elevator_hall", "label": "중앙 엘리베이터 홀", "x": 0.50, "y": 0.45, "ref": "elev-A" },
-    { "id": "1F-elev-B", "type": "elevator_hall", "label": "동쪽 엘리베이터 홀", "x": 0.65, "y": 0.60, "ref": "elev-B" },
-    { "id": "1F-stairs-W", "type": "stairs", "label": "서쪽 계단", "x": 0.10, "y": 0.60, "ref": "stairs-W" },
+    { "id": "1F-elev-A", "type": "elevator_hall", "label": "중앙 엘리베이터 홀", "x": 0.50, "y": 0.45, "ref": "elev-1" },
+    { "id": "1F-elev-B", "type": "elevator_hall", "label": "동쪽 엘리베이터 홀", "x": 0.65, "y": 0.60, "ref": "elev-2" },
+    { "id": "1F-stairs-W", "type": "stairs", "label": "서쪽 계단", "x": 0.10, "y": 0.60, "ref": "stairs-1" },
     { "id": "1F-101", "type": "room", "label": "101호", "x": 0.50, "y": 0.75 }
   ],
   "edges": [
@@ -18,7 +18,7 @@
     { "from": "1F-junc", "to": "1F-stairs-W", "type": "walk", "length_m": 15, "heading_deg": 270 }
   ],
   "elevators": [
-    { "id": "elev-A", "name": "중앙 엘리베이터", "served_floors": ["B1", "1F", "2F", "3F", "4F", "5F"] },
-    { "id": "elev-B", "name": "동쪽 엘리베이터", "served_floors": ["1F", "3F", "5F"] }
+    { "id": "elev-1", "name": "중앙 엘리베이터", "served_floors": ["B1", "1F", "2F", "3F", "4F", "5F"] },
+    { "id": "elev-2", "name": "동쪽 엘리베이터", "served_floors": ["1F", "3F", "5F"] }
   ]
 }

@@ -1,0 +1,11 @@
+﻿image,truth_kind,truth_text,truth_node,pred_kind,pred_text,json_valid,latency_s,cost_usd,error,read_ok,status_expected_truth,false_match,n_wrong_checks,mismatch_detected,read_canonical
+none_elevator-display-6.jpg,none,,,floor_sign,6,True,3.62,0.00141075,,True,,0,9,,
+none_poster-visa-angle.jpg,none,,,none,,True,4.01,0.00166575,,True,,0,9,,
+none_poster-visa-far.jpg,none,,,none,,True,3.76,0.00161025,,True,,0,9,,
+none_wall-2F.jpg,none,,,none,,True,3.53,0.00142575,,True,,0,9,,
+none_wall-4F.jpg,none,,,none,,True,3.52,0.0013575,,True,,0,9,,
+room_405_synthetic.jpg,room_no,405호,4F-405,room_no,405,True,3.94,0.00165075,,True,matched,0,2,1.0,405
+sign_1F_board-front.jpg,floor_sign,1F,1F-elev-A,floor_sign,1F,True,7.06,0.00360825,,True,matched,0,5,1.0,1F
+sign_4F_board-angle.jpg,floor_sign,4F,4F-elev-A,floor_sign,4F,True,10.45,0.00421575,,True,matched,0,4,1.0,4F
+sign_4F_board-far.jpg,floor_sign,4F,4F-elev-A,floor_sign,4F,True,5.98,0.00243825,,True,matched,0,4,1.0,4F
+sign_4F_board-front.jpg,floor_sign,4F,4F-elev-A,floor_sign,4F,True,8.83,0.0038145,,True,matched,0,4,1.0,4F

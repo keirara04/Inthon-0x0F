@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\CheckpointMatcher;
+use App\Services\GraphImporter;
 use Database\Seeders\GraphSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -38,7 +39,11 @@ class VisionTest extends TestCase
 
     public function test_checkpoint_matched_mismatch_unknown(): void
     {
-        $this->fakeVision(['texts' => ['405호']], ['texts' => ['401 호']], ['texts' => ['화장실']]);
+        $this->fakeVision(
+            ['text' => '405호', 'kind' => 'room_no'],
+            ['text' => '401 호', 'kind' => 'room_no'],
+            ['text' => null, 'kind' => 'none'],
+        );
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
             ->assertOk()->assertJsonPath('data.status', 'matched');
 
@@ -52,7 +57,7 @@ class VisionTest extends TestCase
 
     public function test_floor_sign_matches_expected_elevator_hall(): void
     {
-        $this->fakeVision(['texts' => ['4층']]);
+        $this->fakeVision(['text' => '4층', 'kind' => 'floor_sign']);
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-elev-A'])
             ->assertOk()->assertJsonPath('data.status', 'matched');
     }
@@ -63,6 +68,53 @@ class VisionTest extends TestCase
         $this->assertSame('4F', CheckpointMatcher::canonical('4 층'));
         $this->assertSame('B1', CheckpointMatcher::canonical('지하1층'));
         $this->assertNull(CheckpointMatcher::canonical('엘리베이터'));
+        $this->assertSame('405', CheckpointMatcher::canonical('405 강의실'));
+        $this->assertSame('4F', CheckpointMatcher::canonical('4층 엘리베이터'));
+        $this->assertSame('401A', CheckpointMatcher::canonical('401A호'));
+        $this->assertSame('401A', CheckpointMatcher::canonical('401 A'));
+        $this->assertSame('401A', CheckpointMatcher::canonical('401A 강의실'));
+        $this->assertSame('B101', CheckpointMatcher::canonical('B101호'));
+        $this->assertSame('B1', CheckpointMatcher::canonical('B1'));
+        $this->assertSame('B1', CheckpointMatcher::canonical('B1F'));
+        $this->assertSame('B1', CheckpointMatcher::canonical('지하 1층'));
+        $this->assertNull(CheckpointMatcher::canonical('6')); // elevator position indicator
+    }
+
+    public function test_room_letters_are_kept_apart(): void
+    {
+        app(GraphImporter::class)->importFloor([
+            'building' => '우정정보관', 'floor' => '3F',
+            'nodes' => [
+                ['id' => '3F-j', 'type' => 'junction', 'label' => '복도', 'x' => 0.5, 'y' => 0.5],
+                ['id' => '3F-301A', 'type' => 'room', 'label' => '301A호', 'x' => 0.2, 'y' => 0.5],
+                ['id' => '3F-301B', 'type' => 'room', 'label' => '301B호', 'x' => 0.8, 'y' => 0.5],
+            ],
+            'edges' => [
+                ['from' => '3F-j', 'to' => '3F-301A', 'length_m' => 5, 'heading_deg' => 270],
+                ['from' => '3F-j', 'to' => '3F-301B', 'length_m' => 5, 'heading_deg' => 90],
+            ],
+        ]);
+
+        $this->fakeVision(
+            ['text' => '301A', 'kind' => 'room_no'],
+            ['text' => '301B호', 'kind' => 'room_no'],
+            ['text' => '301', 'kind' => 'room_no'],
+        );
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '3F-301A'])
+            ->assertJsonPath('data.status', 'matched');
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '3F-301A'])
+            ->assertJsonPath('data.status', 'mismatch')->assertJsonPath('data.node.id', '3F-301B');
+        // Bare "301" can't tell A from B: ask for another photo rather than guess.
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '3F-301A'])
+            ->assertJsonPath('data.status', 'unknown');
+    }
+
+    public function test_multiline_door_sign_matches(): void
+    {
+        // Real prod answer before this fix: "405\n강의실" came back as unknown.
+        $this->fakeVision(['text' => "405\n강의실", 'kind' => 'room_no']);
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
+            ->assertOk()->assertJsonPath('data.status', 'matched');
     }
 
     public function test_parse_cleans_llm_output_and_saves_nothing(): void
@@ -90,6 +142,35 @@ class VisionTest extends TestCase
         $this->assertSame($nodesBefore, DB::table('nodes')->count());
     }
 
+    public function test_sends_prompt_schema_and_falls_back_to_json_mode(): void
+    {
+        Http::fake(['openrouter.ai/*' => Http::sequence()
+            ->push(['error' => 'structured output not supported'], 400)
+            ->push(['choices' => [['message' => ['content' => json_encode(['text' => '405호', 'kind' => 'room_no'])]]]])]);
+
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
+            ->assertOk()->assertJsonPath('data.status', 'matched');
+
+        $sent = Http::recorded()->map(fn ($pair) => $pair[0]->data());
+        $this->assertSame('json_schema', $sent[0]['response_format']['type']);
+        $this->assertSame(['text', 'kind'], $sent[0]['response_format']['json_schema']['schema']['required']);
+        $this->assertSame('system', $sent[0]['messages'][0]['role']);
+        $this->assertSame(['effort' => 'low'], $sent[0]['reasoning']);
+        $this->assertSame('json_object', $sent[1]['response_format']['type']);
+    }
+
+    public function test_parse_replaces_unknown_floor_prefix(): void
+    {
+        $this->fakeVision([
+            'current_node_id' => null,
+            'nodes' => [['id' => 'XF-405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5, 'ref' => null]],
+            'edges' => [],
+        ]);
+
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '2F'])
+            ->assertOk()->assertJsonPath('data.nodes.0.id', '2F-405');
+    }
+
     public function test_vision_garbage_returns_502(): void
     {
         Http::fake(['openrouter.ai/*' => Http::response(['choices' => [['message' => ['content' => 'sorry, I cannot']]]])]);
@@ -103,7 +184,7 @@ class VisionTest extends TestCase
         $floor = [
             'building' => '우정정보관', 'floor' => '5F', 'status' => 'verified',
             'nodes' => [
-                ['id' => '5F-elev-A', 'type' => 'elevator_hall', 'label' => '중앙 엘리베이터 홀', 'x' => 0.5, 'y' => 0.45, 'ref' => 'elev-A'],
+                ['id' => '5F-elev-A', 'type' => 'elevator_hall', 'label' => '중앙 엘리베이터 홀', 'x' => 0.5, 'y' => 0.45, 'ref' => 'elev-1'],
                 ['id' => '5F-501', 'type' => 'room', 'label' => '501호', 'x' => 0.2, 'y' => 0.6],
             ],
             'edges' => [['from' => '5F-elev-A', 'to' => '5F-501', 'type' => 'walk', 'length_m' => 10, 'heading_deg' => 270]],

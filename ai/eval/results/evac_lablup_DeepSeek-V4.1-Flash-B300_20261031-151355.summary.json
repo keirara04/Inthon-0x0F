@@ -1,0 +1,17 @@
+{
+  "task": "evac",
+  "model": "lablup:DeepSeek-V4.1-Flash-B300",
+  "run": "20261031-151355",
+  "n_images": 3,
+  "n_with_truth": 0,
+  "json_valid": 0.6666666666666666,
+  "room_recall": null,
+  "room_precision": null,
+  "current_node_ok": null,
+  "vertical_found": null,
+  "connected": 0.5,
+  "latency_s_mean": 47.17333333333334,
+  "latency_s_max": 71.04,
+  "cost_usd_total": null,
+  "csv": "evac_lablup_DeepSeek-V4.1-Flash-B300_20261031-151355.csv"
+}

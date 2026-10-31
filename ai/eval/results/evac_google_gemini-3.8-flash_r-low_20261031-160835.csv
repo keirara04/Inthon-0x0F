@@ -1,0 +1,8 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms
+evac_1F_front.jpg,1F,False,15.34,0.00992475,json_schema,,True,,0,True,21,20,9
+evac_2F_angle.jpg,2F,False,16.06,0.01100475,json_schema,,True,,0,True,19,18,10
+evac_2F_far.jpg,2F,False,15.57,0.0099285,json_schema,,True,,0,True,21,20,10
+evac_2F_front.jpg,2F,False,11.52,0.00785475,json_schema,,True,,0,True,21,20,10
+evac_4F_angle.jpg,4F,False,17.6,0.01181475,json_schema,,True,,0,True,26,25,16
+evac_4F_far.jpg,4F,False,25.87,0.01784475,json_schema,,True,,0,True,33,32,16
+evac_4F_front.jpg,4F,False,20.67,0.0147885,json_schema,,True,,0,True,34,33,16
