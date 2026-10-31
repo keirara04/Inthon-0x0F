@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { SeekingCompass, useReveal } from "./landing-motion";
 import { Mascot } from "./Mascot";
@@ -56,6 +56,15 @@ export function LandingScreen() {
   const revealTrial = useReveal<HTMLDivElement>();
 
   const startTrial = () => actions.go("welcome");
+  const [heroCtaVisible, setHeroCtaVisible] = useState(true);
+  const heroCta = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = heroCta.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setHeroCtaVisible(e.isIntersecting), { threshold: 0.1 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
 
   const jump = (id: Sec) => {
     setMenu(false);
@@ -73,10 +82,15 @@ export function LandingScreen() {
           <span className="text-[12px] font-semibold text-muted max-[359px]:hidden">(어디로)</span>
         </div>
         <div className="flex items-center gap-1.5">
+          {/* Shown only once the hero CTA has scrolled away, so the first screen never has two of it. */}
           <button
             type="button"
             onClick={startTrial}
-            className="h-11 rounded-[14px] border-none bg-brand px-3.5 text-[14px] font-bold whitespace-nowrap text-white"
+            tabIndex={heroCtaVisible ? -1 : 0}
+            aria-hidden={heroCtaVisible}
+            className={`h-11 rounded-[14px] border-none bg-brand px-3.5 text-[14px] font-bold whitespace-nowrap text-white transition-[opacity,transform] duration-200 ${
+              heroCtaVisible ? "pointer-events-none translate-y-1 opacity-0" : "opacity-100"
+            }`}
           >
             3분 체험해보기 →
           </button>
@@ -118,10 +132,15 @@ export function LandingScreen() {
       )}
 
       <section className="flex flex-col gap-[18px] px-5 pt-5 pb-2">
-        {/* Alienie looks through the telescope while the compass finds the way */}
-        <div className="flex items-end justify-center gap-1">
-          <Mascot pose="main" height={104} motion="bob" />
-          <SeekingCompass />
+        {/* One scene: Alienie (right) looks through the telescope at the compass (left) finding the way. */}
+        <div aria-hidden="true" className="relative h-[196px] overflow-hidden rounded-[26px] bg-haptic-tint">
+          <svg viewBox="0 0 340 196" preserveAspectRatio="none" className="absolute inset-0 size-full">
+            <path d="M118 150 C 170 172, 214 172, 252 150" fill="none" stroke="#B3A9E3" strokeWidth="2.5" strokeDasharray="2 9" strokeLinecap="round" />
+          </svg>
+          <div className="absolute top-1/2 left-[6%] -translate-y-1/2 scale-[0.92]">
+            <SeekingCompass />
+          </div>
+          <Mascot pose="main" height={128} motion="bob" className="absolute right-[7%] bottom-2" />
         </div>
         <div style={d(0)} className="gl-rise inline-flex items-center gap-1.5 self-start rounded-lg bg-haptic-tint px-2.5 py-1.5 text-[13px] font-bold text-haptic-ink">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-haptic" />
@@ -135,7 +154,7 @@ export function LandingScreen() {
         <p style={d(260)} className="gl-rise m-0 text-[16px] leading-[1.6] text-pretty text-muted">
           어디路는 주변 표지와 층 정보를 바탕으로 목적지까지 길을 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
         </p>
-        <div style={d(340)} className="gl-rise flex flex-col gap-2">
+        <div ref={heroCta} style={d(340)} className="gl-rise flex flex-col gap-2">
           <PrimaryButton onClick={startTrial} className="gl-cta">3분 체험해보기 →</PrimaryButton>
           <SecondaryButton onClick={() => jump("how")}>어떻게 안내하나요?</SecondaryButton>
         </div>

@@ -9,7 +9,7 @@ export function WelcomeScreen() {
   const { actions } = useGilgyeol();
   const demo = useDemoTools();
   return (
-    <div className="flex min-h-full flex-col gap-[18px] px-6 pt-4 pb-6">
+    <div className="flex min-h-full flex-col gap-4 px-5 pt-3 pb-5">
       <div className="flex items-center justify-between">
         {demo && (
           <div className="flex items-center gap-1.5 rounded-lg bg-warn-tint px-2.5 py-1.5 text-[13px] font-semibold text-warn-ink">
@@ -26,19 +26,19 @@ export function WelcomeScreen() {
           설정
         </button>
       </div>
-      <div className="flex flex-1 flex-col justify-center gap-[18px]">
-        {/* Alienie inside the haptic rings: the brand mark */}
-        <div aria-hidden="true" className="relative flex size-[150px] items-end justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-[#DCD7F2]" />
-          <div className="absolute inset-[20px] rounded-full border-2 border-[#B3A9E3]" />
-          <Mascot pose="main" height={118} motion="bob" className="relative -mb-1" />
+      {/* The same stage as the landing hero: Alienie inside the haptic rings, filling the free space. */}
+      <div aria-hidden="true" className="relative flex min-h-[200px] flex-1 items-center justify-center overflow-hidden rounded-[26px] bg-haptic-tint">
+        <div className="absolute size-[236px] rounded-full border-2 border-[#DCD7F2]" />
+        <div className="absolute size-[176px] rounded-full border-2 border-[#C9C1EC]" />
+        <div className="absolute size-[116px] rounded-full border-2 border-[#B3A9E3]" />
+        <Mascot pose="main" height={132} motion="bob" className="relative translate-y-2" />
+      </div>
+      <div className="flex flex-col gap-2.5">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[34px] leading-none font-extrabold tracking-[-0.04em] text-brand">어디路</span>
+          <span className="text-[13px] font-semibold text-muted">(어디로)</span>
         </div>
-        <div className="text-[64px] leading-none font-extrabold tracking-[-0.05em] text-brand">어디路</div>
-        <h1 className="m-0 text-[26px] leading-[1.35] font-bold tracking-[-0.02em]">
-          보지 않고 느끼며
-          <br />
-          찾는 실내 길
-        </h1>
+        <h1 className="m-0 text-[26px] leading-[1.3] font-extrabold tracking-[-0.025em] text-pretty">보지 않고 느끼며 찾는 실내 길</h1>
         <p className="m-0 text-[16px] leading-[1.55] text-pretty text-muted">주변 표지와 진동·음성 안내로 건물 안 목적지를 찾아가요.</p>
       </div>
       <div className="flex flex-col gap-2.5">
@@ -47,22 +47,17 @@ export function WelcomeScreen() {
         </PrimaryButton>
         <div className="text-center text-[14px] text-muted">현재는 우정정보관 데모를 지원해요.</div>
       </div>
-      <div className="flex flex-col gap-2 border-t border-line pt-2.5">
-        <button
-          type="button"
-          onClick={() => actions.go("editor")}
-          className="flex h-12 items-center justify-between border-none bg-transparent p-0 text-[15px] font-semibold text-ink"
-        >
-          지도 만들기 · 관리자<span className="text-[14px] font-medium text-muted">그래프 편집</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => actions.go("landing")}
-          className="flex h-12 items-center justify-between border-t border-line bg-transparent p-0 text-[15px] font-semibold text-ink"
-        >
-          서비스 소개<span className="text-[14px] font-medium text-muted">3분 체험 안내</span>
-        </button>
-        <p className="m-0 text-[12px] leading-normal text-muted">어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex">
+          <button type="button" onClick={() => actions.go("landing")} className="h-11 flex-1 rounded-xl border-none bg-transparent text-[14px] font-semibold text-ink">
+            서비스 소개
+          </button>
+          <span aria-hidden="true" className="my-3 w-px bg-line" />
+          <button type="button" onClick={() => actions.go("editor")} className="h-11 flex-1 rounded-xl border-none bg-transparent text-[14px] font-semibold text-ink">
+            지도 만들기 (관리자)
+          </button>
+        </div>
+        <p className="m-0 text-center text-[12px] leading-normal text-muted">일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
       </div>
     </div>
   );
