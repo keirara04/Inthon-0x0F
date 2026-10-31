@@ -36,7 +36,7 @@ const FAQS = [
   },
   {
     q: "비상 대피 안내에 쓸 수 있나요?",
-    a: "아니요. 길결은 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.",
+    a: "아니요. 어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.",
   },
 ];
 
@@ -56,7 +56,10 @@ export function LandingScreen() {
   return (
     <div className="relative">
       <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-line bg-app-bg/95 py-2.5 pr-3.5 pl-5">
-        <div className="text-[24px] font-extrabold tracking-[-0.04em] text-brand">길결</div>
+        <div className="flex items-baseline gap-1">
+          <span className="text-[24px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
+          <span className="text-[12px] font-semibold text-muted">(어디로)</span>
+        </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -112,7 +115,7 @@ export function LandingScreen() {
           다음 방향이 분명하도록.
         </h1>
         <p className="m-0 text-[16px] leading-[1.6] text-pretty text-muted">
-          길결은 주변 표지와 층 정보를 바탕으로 목적지까지 길을 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
+          어디路는 주변 표지와 층 정보를 바탕으로 목적지까지 길을 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
         </p>
         <div className="flex flex-col gap-2">
           <PrimaryButton onClick={startTrial}>3분 체험해보기 →</PrimaryButton>
@@ -259,9 +262,9 @@ export function LandingScreen() {
       </section>
 
       <footer className="flex flex-col gap-2 border-t border-line px-5 pt-6 pb-8">
-        <div className="text-[20px] font-extrabold tracking-[-0.04em] text-brand">길결</div>
+        <div className="text-[20px] font-extrabold tracking-[-0.04em] text-brand">어디路</div>
         <div className="text-[12px] leading-[1.55] text-muted">
-          길결은 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.
+          어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.
         </div>
       </footer>
     </div>

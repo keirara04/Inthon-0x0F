@@ -32,7 +32,7 @@ export function WelcomeScreen() {
           <div className="absolute inset-[44px] rounded-full border-[2.5px] border-haptic" />
           <div className="absolute top-[58px] left-[58px] size-4 rounded-full bg-brand" />
         </div>
-        <div className="text-[64px] leading-none font-extrabold tracking-[-0.05em] text-brand">길결</div>
+        <div className="text-[64px] leading-none font-extrabold tracking-[-0.05em] text-brand">어디路</div>
         <h1 className="m-0 text-[26px] leading-[1.35] font-bold tracking-[-0.02em]">
           보지 않고 느끼며
           <br />
@@ -61,7 +61,7 @@ export function WelcomeScreen() {
         >
           서비스 소개<span className="text-[14px] font-medium text-muted">3분 체험 안내</span>
         </button>
-        <p className="m-0 text-[12px] leading-normal text-muted">길결은 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
+        <p className="m-0 text-[12px] leading-normal text-muted">어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
       </div>
     </div>
   );
