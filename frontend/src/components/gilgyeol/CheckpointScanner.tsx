@@ -41,9 +41,9 @@ function SampleEvacMap() {
 
 const READ_STEPS: [number, string][] = [
   [0, "안내도 테두리와 층 번호 찾기"],
-  [4, "복도와 계단 따라가기"],
-  [9, "호실 번호 읽기"],
-  [14, "길 그래프로 정리하기"],
+  [6, "복도와 계단 따라가기"],
+  [13, "호실 번호 읽기"],
+  [21, "길 그래프로 정리하기"],
 ];
 
 /** Corridor sketch that draws itself while the AI reads the map. Decorative only. */
@@ -60,7 +60,7 @@ const SKETCH_DOTS: [number, number, string][] = [
 ];
 
 /**
- * Map-parse wait screen. The AI takes ~15–20 s (ai/eval/results), so show real elapsed time,
+ * Map-parse wait screen. The AI takes ~20–35 s, so show real elapsed time,
  * steps that advance with it, and a bar that slows near the end instead of pretending to finish.
  */
 function MapReading({ onCancel }: { onCancel: () => void }) {
@@ -70,9 +70,9 @@ function MapReading({ onCancel }: { onCancel: () => void }) {
     const id = setInterval(() => setT((Date.now() - t0) / 1000), 250);
     return () => clearInterval(id);
   }, []);
-  const pct = Math.round(92 * (1 - Math.exp(-t / 9))); // ~80% at 18 s, never reaches 100 on its own
+  const pct = Math.round(92 * (1 - Math.exp(-t / 14))); // ~80% at 28 s, never reaches 100 on its own
   const step = READ_STEPS.filter(([at]) => t >= at).length - 1;
-  // Collapsible so the camera view behind stays visible during the 15–20 s read; the timer keeps running either way.
+  // Collapsible so the camera view behind stays visible during the 20–35 s read; the timer keeps running either way.
   const [open, setOpen] = useState(true);
   const bar = (
     <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="안내도 분석 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
@@ -148,7 +148,7 @@ function MapReading({ onCancel }: { onCancel: () => void }) {
           </li>
         ))}
       </ol>
-      <p className="m-0 text-[13px] leading-normal text-muted">{t < 25 ? "보통 15–20초 걸려요. 이 화면을 켜 둔 채로 기다려 주세요." : "평소보다 오래 걸리고 있어요. 조금만 더 기다리거나 취소 후 다른 사진을 선택해 주세요."}</p>
+      <p className="m-0 text-[13px] leading-normal text-muted">{t < 40 ? "보통 20–35초 걸려요. 이 화면을 켜 둔 채로 기다려 주세요." : "평소보다 오래 걸리고 있어요. 조금만 더 기다리거나 취소 후 다른 사진을 선택해 주세요."}</p>
       <button type="button" onClick={onCancel} className="h-[50px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
         취소
       </button>
@@ -335,7 +335,7 @@ export function CheckpointScanner() {
         setUpload({ file, url: URL.createObjectURL(file), w, h, box, progress: 0 });
         return;
       }
-    } catch {} // undecodable here (e.g. HEIC): let the server-side read report it
+    } catch { } // undecodable here (e.g. HEIC): let the server-side read report it
     actions.readMapPhoto(file); // no sign found: read the whole photo, as before
   };
   const readUpload = async (crop: boolean) => {
@@ -506,8 +506,10 @@ export function CheckpointScanner() {
             {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
             <img src={shot} alt="" className="absolute inset-0 size-full bg-black object-contain" />
             <div className="absolute inset-0 bg-[linear-gradient(rgba(40,100,160,.10)_1px,transparent_1px),linear-gradient(90deg,rgba(40,100,160,.10)_1px,transparent_1px)] bg-[size:22px_22px]" aria-hidden="true" />
-            <div aria-hidden="true" className="gg-scan pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-transparent to-[rgba(120,180,255,.35)]">
-              <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#9CCBFF] shadow-[0_0_12px_2px_rgba(120,180,255,.8)]" />
+            <div aria-hidden="true" data-scan-sweep className="gg-scan-full pointer-events-none absolute inset-0 h-full">
+              <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[rgba(120,180,255,.35)]">
+                <div data-scan-line className="absolute inset-x-0 bottom-0 h-[2px] bg-[#9CCBFF] shadow-[0_0_12px_2px_rgba(120,180,255,.8)]" />
+              </div>
             </div>
           </>
         )}
@@ -662,89 +664,89 @@ export function CheckpointScanner() {
 
       {/* Results, loading and errors slide up over the camera. */}
       {showSheet && (
-      <div role="status" aria-live="polite" className="relative z-10 flex max-h-[72%] flex-col gap-3.5 overflow-y-auto rounded-t-[26px] bg-app-bg px-5 pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom))]">
-        {reading && <MapReading onCancel={actions.cancelScan} />}
-        {s.scanState === "analyzing" && !reading && (
-          <>
-            <Mascot pose="lying" height={72} motion="bob" className="self-center" />
-            <div className="text-[20px] font-extrabold">{m.analyzing}</div>
-            <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="분석 중">
-              <div className="h-full w-[55%] animate-pulse rounded-[3px] bg-route" />
-            </div>
-            <button type="button" onClick={actions.cancelScan} className="h-[50px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
-              취소
-            </button>
-          </>
-        )}
-        {s.scanState === "success" && (
-          <>
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 flex-none items-center justify-center rounded-full bg-success">
-                <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
-                  <polyline points="4,11 9,16 18,6" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+        <div role="status" aria-live="polite" className="relative z-10 flex max-h-[72%] flex-col gap-3.5 overflow-y-auto rounded-t-[26px] bg-app-bg px-5 pt-[22px] pb-[calc(24px+env(safe-area-inset-bottom))]">
+          {reading && <MapReading onCancel={actions.cancelScan} />}
+          {s.scanState === "analyzing" && !reading && (
+            <>
+              <Mascot pose="lying" height={72} motion="bob" className="self-center" />
+              <div className="text-[20px] font-extrabold">{m.analyzing}</div>
+              <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="분석 중">
+                <div className="h-full w-[55%] animate-pulse rounded-[3px] bg-route" />
               </div>
-              <div className="text-[22px] leading-[1.3] font-extrabold text-ok-ink">{m.ok}</div>
-            </div>
-            {s.scanTarget !== "map" && (
-              <div className="flex flex-col gap-1 rounded-2xl border border-[#BFDCC9] bg-ok-tint px-4 py-3">
-                <p className="m-0 text-[16px] leading-normal text-ink">{m.next}</p>
-                <p className="m-0 text-[13px] font-semibold text-ok-ink">위치를 확정했어요 · 진동 짧게 1회</p>
+              <button type="button" onClick={actions.cancelScan} className="h-[50px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
+                취소
+              </button>
+            </>
+          )}
+          {s.scanState === "success" && (
+            <>
+              <div className="flex items-center gap-3">
+                <div className="flex size-11 flex-none items-center justify-center rounded-full bg-success">
+                  <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+                    <polyline points="4,11 9,16 18,6" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                <div className="text-[22px] leading-[1.3] font-extrabold text-ok-ink">{m.ok}</div>
               </div>
-            )}
-            <PrimaryButton onClick={() => actions.scanNext(false)}>{m.okCta}</PrimaryButton>
-          </>
-        )}
-        {s.scanState === "mismatch" && (
-          <>
-            <div className="flex flex-col gap-1">
-              <div className="text-[22px] font-extrabold text-warn-ink">예상한 표지와 달라요</div>
-              <div className="text-[15px] text-muted">
-                {m.mis} · 기대한 표지: {m.expect}
+              {s.scanTarget !== "map" && (
+                <div className="flex flex-col gap-1 rounded-2xl border border-[#BFDCC9] bg-ok-tint px-4 py-3">
+                  <p className="m-0 text-[16px] leading-normal text-ink">{m.next}</p>
+                  <p className="m-0 text-[13px] font-semibold text-ok-ink">위치를 확정했어요 · 진동 짧게 1회</p>
+                </div>
+              )}
+              <PrimaryButton onClick={() => actions.scanNext(false)}>{m.okCta}</PrimaryButton>
+            </>
+          )}
+          {s.scanState === "mismatch" && (
+            <>
+              <div className="flex flex-col gap-1">
+                <div className="text-[22px] font-extrabold text-warn-ink">예상한 표지와 달라요</div>
+                <div className="text-[15px] text-muted">
+                  {m.mis} · 기대한 표지: {m.expect}
+                </div>
               </div>
-            </div>
-            {manualPair}
-          </>
-        )}
-        {s.scanState === "fail" && (
-          <>
-            <div className="text-[21px] leading-[1.35] font-extrabold">
-              {isMap ? "안내도를 읽지 못했어요. 안내도 전체가 보이게 다시 찍어주세요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요"}
-            </div>
-            {manualPair}
-          </>
-        )}
-        {s.scanState === "denied" && (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <div className="text-[21px] font-extrabold">카메라 권한이 꺼져 있어요</div>
-              <div className="text-[15px] leading-normal text-muted">{floorCapture ? "브라우저에서 카메라를 허용하거나 앨범에서 이 층의 안내도 사진을 선택해 주세요." : "브라우저 설정 › 사이트 권한 › 카메라에서 허용할 수 있어요. 지금은 체크포인트를 직접 골라 계속할 수 있어요."}</div>
-            </div>
-            <PrimaryButton onClick={() => floorCapture ? album.open() : actions.update({ manual: true })} className="h-[54px] rounded-2xl text-[16px]">
-              {floorCapture ? "앨범에서 안내도 선택" : "수동 체크포인트 선택"}
-            </PrimaryButton>
-          </>
-        )}
-        {s.manual && (
-          <>
-            <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
-              {manualOpts.map((o) => (
-                <button
-                  type="button"
-                  key={o.label}
-                  onClick={o.pick}
-                  className="min-h-[52px] border-0 border-b border-divider bg-surface px-4 text-left text-[16px] font-semibold text-ink"
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            <button type="button" onClick={() => actions.update({ manual: false })} className="h-11 border-none bg-transparent text-[15px] font-semibold text-muted">
-              카메라로 돌아가기
-            </button>
-          </>
-        )}
-      </div>
+              {manualPair}
+            </>
+          )}
+          {s.scanState === "fail" && (
+            <>
+              <div className="text-[21px] leading-[1.35] font-extrabold">
+                {isMap ? "안내도를 읽지 못했어요. 안내도 전체가 보이게 다시 찍어주세요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요"}
+              </div>
+              {manualPair}
+            </>
+          )}
+          {s.scanState === "denied" && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <div className="text-[21px] font-extrabold">카메라 권한이 꺼져 있어요</div>
+                <div className="text-[15px] leading-normal text-muted">{floorCapture ? "브라우저에서 카메라를 허용하거나 앨범에서 이 층의 안내도 사진을 선택해 주세요." : "브라우저 설정 › 사이트 권한 › 카메라에서 허용할 수 있어요. 지금은 체크포인트를 직접 골라 계속할 수 있어요."}</div>
+              </div>
+              <PrimaryButton onClick={() => floorCapture ? album.open() : actions.update({ manual: true })} className="h-[54px] rounded-2xl text-[16px]">
+                {floorCapture ? "앨범에서 안내도 선택" : "수동 체크포인트 선택"}
+              </PrimaryButton>
+            </>
+          )}
+          {s.manual && (
+            <>
+              <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
+                {manualOpts.map((o) => (
+                  <button
+                    type="button"
+                    key={o.label}
+                    onClick={o.pick}
+                    className="min-h-[52px] border-0 border-b border-divider bg-surface px-4 text-left text-[16px] font-semibold text-ink"
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <button type="button" onClick={() => actions.update({ manual: false })} className="h-11 border-none bg-transparent text-[15px] font-semibold text-muted">
+                카메라로 돌아가기
+              </button>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
