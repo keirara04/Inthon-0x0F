@@ -87,6 +87,57 @@ export function snapOutlines<N extends GraphNode>(nodes: N[], tolFrac = 0.006): 
   });
 }
 
+const ROOMISH = new Set(["room", "stairs", "elevator_hall"]);
+
+/**
+ * Estimated rectangular outlines for rooms/stairs/elevators that have none (the evac-map AI no longer returns
+ * outlines, to stay well under the time limit). Width: 45% of the gap to the nearest room in the same row, so
+ * neighbours never overlap. Depth: same with the nearest room in the same column, capped at 80% of the way to the
+ * corridor point its door connects to, so a box never covers the corridor. Nodes that have an outline are kept.
+ */
+export function fallbackOutlines<N extends GraphNode>(nodes: N[], edges: GraphEdge[]): N[] {
+  const rooms = nodes.filter((n) => ROOMISH.has(n.type));
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const nearest = (n: N, axis: "x" | "y") => {
+    const other = axis === "x" ? "y" : "x";
+    const ds = rooms
+      .filter((m) => m !== n && Math.abs(m[other] - n[other]) < Math.abs(m[axis] - n[axis]))
+      .map((m) => Math.abs(m[axis] - n[axis]));
+    return ds.length ? Math.min(...ds) : null;
+  };
+  // Typical spacing, for rooms with no neighbour on an axis.
+  const spacings = rooms.flatMap((n) => [nearest(n, "x"), nearest(n, "y")]).filter((d): d is number => d !== null).sort((a, b) => a - b);
+  const typical = spacings.length ? spacings[Math.floor(spacings.length / 2)] : null;
+  if (typical === null) return nodes; // a lone room: nothing to size it against
+
+  return nodes.map((n) => {
+    if (!ROOMISH.has(n.type) || (n.outline && n.outline.length >= 3)) return n;
+    const gx = nearest(n, "x");
+    const gy = nearest(n, "y");
+    let hx = 0.45 * (gx ?? gy ?? typical);
+    let hy = 0.45 * (gy ?? gx ?? typical);
+    // Stop short of the corridor the door opens onto.
+    for (const e of edges) {
+      const otherId = e.a === n.id ? e.b : e.b === n.id ? e.a : null;
+      const d = otherId ? byId.get(otherId) : undefined;
+      if (!d || ROOMISH.has(d.type)) continue;
+      const [dx, dy] = [Math.abs(d.x - n.x), Math.abs(d.y - n.y)];
+      if (dy >= dx && dy > 0) hy = Math.min(hy, 0.8 * dy);
+      else if (dx > 0) hx = Math.min(hx, 0.8 * dx);
+    }
+    // ponytail: plain rectangles from spacing; real wall shapes need the AI outlines back (≈ +6 s per read).
+    hx = Math.min(hx, 2 * hy);
+    hy = Math.min(hy, 2 * hx);
+    const outline = [
+      { x: n.x - hx, y: n.y - hy },
+      { x: n.x + hx, y: n.y - hy },
+      { x: n.x + hx, y: n.y + hy },
+      { x: n.x - hx, y: n.y + hy },
+    ];
+    return { ...n, outline, outlineEstimated: true };
+  });
+}
+
 /** Shortest path by straight-line edge length (Dijkstra); node ids from `from` to `to`, or [] if unreachable. */
 export function shortestPath(nodes: GraphNode[], edges: GraphEdge[], from: string, to: string): string[] {
   const at = new Map(nodes.map((n) => [n.id, n]));

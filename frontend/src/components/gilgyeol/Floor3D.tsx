@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C } from "@/lib/gilgyeol/data";
-import { snapOutlines } from "@/lib/gilgyeol/geometry";
+import { fallbackOutlines, snapOutlines } from "@/lib/gilgyeol/geometry";
 import type { GraphNode } from "@/lib/gilgyeol/types";
 
 export type Floor3DLevel = {
@@ -244,8 +244,10 @@ export default function Floor3D({
     const base = elevOf(levels[0]?.g ?? ({ nodes: [] } as unknown as ParsedGraph));
     // Graphs come in arbitrary units (photo fractions), so scale each floor until a typical room is ~7 m wide.
     // That keeps desks, doors and stacked floors at one real-world size.
-    const scales = levels.map(({ g }) => {
-      const sides = g.nodes
+    // Rooms without an AI outline get an estimated rectangle first, so scale, walls and labels all work.
+    const filled = levels.map(({ g }) => fallbackOutlines(g.nodes, g.edges));
+    const scales = levels.map((_, li) => {
+      const sides = filled[li]
         .filter((n) => n.type === "room" && n.outline && n.outline.length >= 3)
         .map((n) => Math.max(Math.max(...n.outline!.map((p) => p.x)) - Math.min(...n.outline!.map((p) => p.x)), Math.max(...n.outline!.map((p) => p.y)) - Math.min(...n.outline!.map((p) => p.y))))
         .sort((a, b) => a - b);
@@ -255,7 +257,7 @@ export default function Floor3D({
 
     levels.forEach((level, li) => {
       const LS = scales[li];
-      const nodes = snapOutlines(level.g.nodes);
+      const nodes = snapOutlines(filled[li]);
       const elev = elevOf(level.g);
       const dx = base && elev ? base.x * scales[0] - elev.x * LS : 0;
       const dz = base && elev ? base.y * scales[0] - elev.y * LS : 0;
@@ -334,7 +336,8 @@ export default function Floor3D({
         (n.type === "elevator_hall" ? shafts : walls).push(...wallsWithDoor(poly, door, n.type === "elevator_hall" ? SHAFT_H : WALL_H));
         if (n.type === "stairs") steps.push(...stepsGeo(poly));
         // Desks only in the single-floor view; stacked views are about the route, and stay light.
-        const roomDesks = n.type === "room" && !restroom && levels.length === 1 ? desksGeo(poly) : [];
+        // Estimated outlines are only a size guess: no desks, so the painted name stays readable.
+        const roomDesks = n.type === "room" && !restroom && !n.outlineEstimated && levels.length === 1 ? desksGeo(poly) : [];
         desks.push(...roomDesks);
 
         const { x0, x1, z0, z1 } = bbox(poly);
