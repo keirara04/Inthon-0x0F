@@ -39,10 +39,11 @@ export function validateGraph(nodes: GraphNode[], edges: GraphEdge[], floor: num
 
 export function GraphEditorScreen() {
   const { actions } = useGilgyeol();
-  const [phase, setPhase] = useState<Phase>("empty");
+  // Opens on the 2F example draft. 4F stays the verified demo route, 3F is the empty upload example.
+  const [phase, setPhase] = useState<Phase>("draft");
   const [img, setImg] = useState<{ url: string; file: File } | null>(null);
-  const [nodes, setNodes] = useState<GraphNode[]>([]);
-  const [edges, setEdges] = useState<GraphEdge[]>([]);
+  const [nodes, setNodes] = useState<GraphNode[]>(() => structuredClone(SAMPLE_AI_GRAPH.nodes));
+  const [edges, setEdges] = useState<GraphEdge[]>(() => structuredClone(SAMPLE_AI_GRAPH.edges));
   const [hist, setHist] = useState<Snapshot[]>([]);
   const [sel, setSel] = useState<string | null>(null);
   const [conn, setConn] = useState<string | null>(null);
@@ -54,7 +55,7 @@ export function GraphEditorScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
-  const [floor, setFloor] = useState(4);
+  const [floor, setFloor] = useState(2);
   const stopsRef = useRef<HTMLInputElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; moved: boolean; sx: number; sy: number } | null>(null);
@@ -242,8 +243,7 @@ export function GraphEditorScreen() {
   };
 
   const sessionStatus: "verified" | "draft" | "none" = saved === "verified" ? "verified" : phase === "draft" ? "draft" : "none";
-  const floorRows = [...FLOOR_STATUS, { floor: 4, status: "none" as const, summary: "평면도 없음" }]
-    .map((r) =>
+  const floorRows = FLOOR_STATUS.map((r) =>
       r.floor === floor
         ? { ...r, status: sessionStatus, summary: phase === "draft" ? `노드 ${nodes.length} · 간선 ${edges.length}${touched && !saved ? " · 저장 안 됨" : ""}` : "편집 중 · 안내도 업로드 전" }
         : r,
@@ -371,7 +371,7 @@ export function GraphEditorScreen() {
                 <g opacity={Math.max(0.15, opacity)}>
                   <rect width={EDITOR_W} height={EDITOR_H} fill="url(#ggst)" />
                   <text x={EDITOR_W / 2} y="222" textAnchor="middle" fontSize="9" fontFamily="ui-monospace,Menlo,monospace" fill={C.muted}>
-                    4층 피난안내도 샘플 · 데모 이미지 자리
+                    {floor}층 피난안내도 샘플 · 데모 이미지 자리
                   </text>
                 </g>
               )}
@@ -548,6 +548,11 @@ export function GraphEditorScreen() {
                 라벨
                 <input value={selN.label} onChange={(e) => updateSel({ label: e.target.value })} className={field} />
               </label>
+              {(selN.type === "elevator_hall" || selN.type === "stairs") && (
+                <p className="m-0 text-[12px] leading-normal text-muted">
+                  층마다 같은 이름으로 입력해야 다른 층의 같은 시설과 연결돼요. (예: 중앙 엘리베이터 홀, 서쪽 계단)
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div className={labelCls}>
                   층<div className="flex h-11 items-center rounded-[10px] bg-app-bg px-2.5 text-[15px] font-medium text-ink">{floor}층</div>

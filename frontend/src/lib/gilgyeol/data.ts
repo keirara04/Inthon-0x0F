@@ -146,8 +146,9 @@ export function scanMeta(target: ScanTarget, dest: string): ScanMeta {
 export const NODE_TYPES: Record<NodeType, { short: string; desc: string; def: string }> = {
   room: { short: "방", desc: "호실", def: "새 호실" },
   junction: { short: "교", desc: "복도 교차점", def: "새 교차점" },
-  stairs: { short: "계", desc: "계단", def: "새 계단" },
-  elevator_hall: { short: "승", desc: "엘리베이터", def: "새 엘리베이터" },
+  // Elevators and stairs must carry the same label on every floor so the ref matches across floors.
+  stairs: { short: "계", desc: "계단", def: "서쪽 계단" },
+  elevator_hall: { short: "승", desc: "엘리베이터", def: "중앙 엘리베이터 홀" },
   entrance: { short: "입", desc: "출입구", def: "새 출입구" },
   exit: { short: "출", desc: "출구", def: "새 출구" },
   landmark: { short: "랜", desc: "랜드마크", def: "새 랜드마크" },
@@ -178,31 +179,32 @@ export function parseServedFloors(text: string): (string | null)[] {
     });
 }
 
-/** Simulated AI draft for the 4F evacuation map — intentionally contains errors to review. */
+/** Simulated AI draft for the 2F evacuation map — intentionally contains errors to review. */
 export const SAMPLE_AI_GRAPH: FloorGraph = {
   nodes: [
-    { id: "E1", type: "elevator_hall", label: "중앙 엘리베이터 A", x: 170, y: 120, ocr: "", servedFloors: "", src: "ai" },
+    { id: "E1", type: "elevator_hall", label: "중앙 엘리베이터 홀", x: 170, y: 120, ocr: "", servedFloors: "", src: "ai" },
     { id: "C1", type: "junction", label: "서측 교차점", x: 100, y: 120, ocr: "", servedFloors: "", src: "ai" },
     { id: "C2", type: "junction", label: "동측 교차점", x: 245, y: 120, ocr: "", servedFloors: "", src: "ai" },
-    { id: "R401", type: "room", label: "401호", x: 60, y: 58, ocr: "401", servedFloors: "", src: "ai" },
-    { id: "R405", type: "room", label: "4O5호", x: 290, y: 58, ocr: "4O5", servedFloors: "", src: "ai" },
-    { id: "S1", type: "stairs", label: "계단 A", x: 42, y: 176, ocr: "", servedFloors: "", src: "ai" },
+    { id: "R201", type: "room", label: "201호", x: 60, y: 58, ocr: "201", servedFloors: "", src: "ai" },
+    { id: "R205", type: "room", label: "2O5호", x: 290, y: 58, ocr: "2O5", servedFloors: "", src: "ai" },
+    { id: "S1", type: "stairs", label: "서쪽 계단", x: 42, y: 176, ocr: "", servedFloors: "", src: "ai" },
     { id: "C3", type: "junction", label: "교차점 3", x: 245, y: 186, ocr: "", servedFloors: "", src: "ai" },
   ],
   edges: [
     { a: "E1", b: "C1", src: "ai" },
     { a: "E1", b: "C2", src: "ai" },
-    { a: "C1", b: "R401", src: "ai" },
+    { a: "C1", b: "R201", src: "ai" },
     { a: "C1", b: "S1", src: "ai" },
-    { a: "C2", b: "R405", src: "ai" },
+    { a: "C2", b: "R205", src: "ai" },
   ],
 };
 
-/** Demo status of each floor's map data, shown in the admin floor list. 4F is the live editing session. */
+/** Demo status of each floor's map data. 2F is the example draft, 3F/5F the upload example, 4F the demo route. */
 export const FLOOR_STATUS: FloorStatus[] = [
   { floor: 1, status: "verified", summary: "노드 24 · 간선 31" },
   { floor: 2, status: "draft", summary: "AI 초안 · 수정 필요" },
   { floor: 3, status: "none", summary: "평면도 없음" },
+  { floor: 4, status: "verified", summary: "검수 완료 · 데모 경로 사용 중" },
   { floor: 5, status: "none", summary: "평면도 없음" },
 ];
 
