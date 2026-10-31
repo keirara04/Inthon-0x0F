@@ -28,8 +28,7 @@ class RouteService
             ->where('fa.status', 'verified')->where('fb.status', 'verified')
             ->get(['edges.from_node', 'edges.to_node', 'edges.type', 'edges.length_m', 'edges.heading_deg']);
 
-        $adj = $edges->groupBy('from_node');
-        $path = $this->dijkstra($adj, $start, $dest);
+        $path = $this->dijkstra($edges->groupBy('from_node'), $start, $dest);
         if ($path === null) {
             return null;
         }
@@ -41,6 +40,45 @@ class RouteService
         $landmarks = DB::table('landmarks')->whereIn('node_id', $nodeIds)->get()->keyBy('node_id');
         $elevators = DB::table('elevators')->pluck('name', 'id');
 
+        return $this->result($path, $nodeIds, $nodes, $landmarks, $elevators, $dest);
+    }
+
+    /**
+     * Same route, over one floor graph that is not in the DB (a photographed, unchecked map).
+     * Nothing is stored. Landmarks follow GraphImporter: room -> room number, elevator/stairs -> floor sign.
+     *
+     * @param  array{floor: string, nodes: list<array>, edges: list<array>}  $graph
+     */
+    public function routeOnGraph(array $graph, string $start, string $dest): ?array
+    {
+        $edges = collect($graph['edges'])->flatMap(function ($e) {
+            $heading = isset($e['heading_deg']) ? (float) $e['heading_deg'] : null;
+            $base = ['type' => 'walk', 'length_m' => (float) ($e['length_m'] ?? 0)];
+
+            return [
+                (object) ['from_node' => $e['from'], 'to_node' => $e['to'], 'heading_deg' => $heading, ...$base],
+                (object) ['from_node' => $e['to'], 'to_node' => $e['from'], 'heading_deg' => $heading === null ? null : fmod($heading + 180, 360), ...$base],
+            ];
+        });
+        $path = $this->dijkstra($edges->groupBy('from_node'), $start, $dest);
+        if ($path === null) {
+            return null;
+        }
+
+        $nodes = collect($graph['nodes'])->mapWithKeys(fn ($n) => [$n['id'] => (object) [
+            'id' => $n['id'], 'label' => $n['label'], 'ref' => $n['ref'] ?? null, 'floor' => $graph['floor'],
+        ]]);
+        $landmarks = collect($graph['nodes'])->mapWithKeys(fn ($n) => match ($n['type']) {
+            'room' => [$n['id'] => (object) ['kind' => 'room_no', 'ocr_text' => CheckpointMatcher::canonical($n['label']) ?? $n['label']]],
+            'elevator_hall', 'stairs' => [$n['id'] => (object) ['kind' => 'floor_sign', 'ocr_text' => $graph['floor']]],
+            default => [],
+        });
+
+        return $this->result($path, array_unique([$start, ...array_column($path, 'to_node')]), $nodes, $landmarks, collect(), $dest);
+    }
+
+    private function result(array $path, array $nodeIds, $nodes, $landmarks, $elevators, string $dest): array
+    {
         return [
             'total_m' => round(collect($path)->where('type', 'walk')->sum('length_m'), 1),
             'path' => array_values($nodeIds),

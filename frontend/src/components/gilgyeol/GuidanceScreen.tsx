@@ -97,7 +97,7 @@ export function GuidanceScreen() {
       <div className="flex items-center justify-between gap-2 rounded-[14px] bg-warm-panel py-1.5 pr-1.5 pl-3">
         <span className="text-[13px] font-semibold text-ink">
           {s.raised ? "폰 들음" : "폰 내림 · 카메라 꺼짐"}
-          <span className="block text-[12px] font-medium text-muted">
+          <span className="block text-[13px] font-medium text-muted">
             {s.postureSensor ? "경로를 벗어나면 폰을 들어 주변 표지를 비춰요" : "자세 감지가 꺼져 있어요"}
           </span>
         </span>
@@ -119,6 +119,7 @@ export function GuidanceScreen() {
       {compass.disturbed && (
         <Notice tone="warn">주변 철골·전선 때문에 방향이 부정확해요 (방향 부정확). 잠시 멈추거나 주변 표지를 확인해 주세요</Notice>
       )}
+      {s.route?.draft && <Notice tone="warn">AI 초안 지도 · 검수 전 — 방금 찍은 안내도로 안내 중이에요. 실제 표지를 함께 확인해 주세요</Notice>}
       {s.voice && s.koVoice === false && <Notice tone="warn">이 기기에서 한국어 음성을 찾지 못했어요. 음성이 안 들리면 화면 안내를 봐 주세요</Notice>}
 
       <div className="relative size-[240px] self-center" role="img" aria-label={`방향 표시: ${dirMsg}`}>
@@ -149,7 +150,7 @@ export function GuidanceScreen() {
           </div>
         )}
       </div>
-      <div className="-mt-1.5 flex justify-center gap-3.5 text-[12px] text-muted" aria-hidden="true">
+      <div className="-mt-1.5 flex justify-center gap-3.5 text-[13px] text-muted" aria-hidden="true">
         <span className="flex items-center gap-[5px]">
           <span className="h-0 w-0 border-r-[5px] border-b-8 border-l-[5px] border-r-transparent border-b-haptic border-l-transparent" />
           내 기기 방향
@@ -197,7 +198,6 @@ export function GuidanceScreen() {
         <div className="text-[17px] leading-[1.45] font-medium" style={{ color: st.subWarn ? "#7A4800" : C.muted }}>
           {st.sub}
         </div>
-        {st.turn && <div className="self-start rounded-lg bg-haptic-tint px-2.5 py-[5px] text-[13px] font-bold text-haptic-ink">{st.turn}</div>}
         {compass.walkedM !== null && apiStep?.kind === "walk" && (
           // Not a live region: it changes every step and would talk over the instructions.
           <div className="text-[14px] font-semibold text-muted">
@@ -224,7 +224,7 @@ export function GuidanceScreen() {
 
       <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-3.5">
         <div className="flex flex-col gap-[3px]">
-          <div className="text-[12px] font-semibold text-muted">다음 지점</div>
+          <div className="text-[13px] font-semibold text-muted">다음 지점</div>
           <div className="text-[16px] font-bold">{st.next}</div>
         </div>
         <div aria-hidden="true" className="size-3 rounded-full border-[3px] border-haptic" />
@@ -256,25 +256,12 @@ export function GuidanceScreen() {
         >
           <span>
             자세히
-            <span className="block text-[12px] font-medium text-muted">진동 패턴 · {st.floor} 지도 · 전체 경로</span>
+            <span className="block text-[13px] font-medium text-muted">현재 층 지도 · 전체 경로</span>
           </span>
           <span className="flex-none text-[13px] font-semibold text-muted">{s.routeOpen ? "접기" : "펼치기"}</span>
         </button>
         {s.routeOpen && (
           <div className="flex flex-col gap-3.5 px-4 pb-4">
-            <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px] text-muted">
-              {[
-                ["왼쪽", "짧게·짧게"],
-                ["오른쪽", "길게·길게"],
-                ["층 이동", "짧게 3번"],
-                ["도착", "길게 1 + 짧게 2"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex gap-1">
-                  <dt className="font-semibold text-ink">{k}</dt>
-                  <dd className="m-0">{v}</dd>
-                </div>
-              ))}
-            </dl>
           {/* Hand-drawn sketch only when the live floor map isn't available (demo / mock). */}
           {!s.route && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-app-bg px-3.5 py-3">
@@ -318,7 +305,7 @@ export function GuidanceScreen() {
                   />
                   <circle cx={mini.x} cy={mini.y} r="4" fill={unstable ? C.warning : C.success} />
                 </svg>
-                <div className="text-[12px] font-semibold" style={{ color: unstable ? C.warning : C.success }}>
+                <div className="text-[13px] font-semibold" style={{ color: unstable ? C.warning : C.success }}>
                   {unstable ? "추정 위치 · 표지로 확인이 필요해요" : "마지막으로 확인한 위치 기준"}
                 </div>
               </>
@@ -327,7 +314,7 @@ export function GuidanceScreen() {
                 {[5, 4, 3, 2, 1].map((f, i) => (
                   <div
                     key={f}
-                    className="absolute left-1/2 -ml-[75px] flex h-14 w-[150px] items-center justify-center rounded-md border-[1.5px] text-[12px] font-extrabold"
+                    className="absolute left-1/2 -ml-[75px] flex h-14 w-[150px] items-center justify-center rounded-md border-[1.5px] text-[13px] font-extrabold"
                     style={{
                       top: 4 + i * 22,
                       transform: "rotateX(60deg) rotateZ(-28deg)",

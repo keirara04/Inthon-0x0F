@@ -57,7 +57,7 @@ export function SettingsSheet() {
             >
               <span className="flex flex-col gap-0.5">
                 <span className="text-[16px] font-semibold text-ink">{t.label}</span>
-                <span className="text-[12px] text-muted">{t.sub}</span>
+                <span className="text-[13px] text-muted">{t.sub}</span>
               </span>
               <span className={`relative h-[30px] w-[50px] flex-none rounded-[15px] transition-colors duration-[180ms] ${t.on ? "bg-brand" : "bg-[#CFCAC0]"}`}>
                 <span
@@ -73,7 +73,7 @@ export function SettingsSheet() {
           <div className="flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-surface px-4">
             <span className="flex flex-col gap-0.5">
               <span className="text-[15px] font-semibold text-ink">방향 보정</span>
-              <span className="text-[12px] text-muted">이 기기에 저장된 건물 방향 보정값</span>
+              <span className="text-[13px] text-muted">이 기기에 저장된 건물 방향 보정값</span>
             </span>
             <button
               type="button"
@@ -94,7 +94,7 @@ export function SettingsSheet() {
               <div key={k} className="flex min-h-[54px] items-center justify-between border-b border-divider pr-2 pl-4 last:border-b-0">
                 <span className="flex flex-col gap-0.5">
                   <span className="text-[15px] font-semibold">{PATTERNS[k].name}</span>
-                  <span className="text-[12px] text-muted">{PATTERNS[k].label}</span>
+                  <span className="text-[13px] text-muted">{PATTERNS[k].label}</span>
                 </span>
                 <button
                   type="button"
@@ -122,7 +122,7 @@ export function SettingsSheet() {
           >
             <span className="flex flex-col gap-0.5">
               지도 만들기
-              <span className="text-[12px] font-normal text-muted">안내도 사진으로 층 그래프 만들기 · 검수</span>
+              <span className="text-[13px] font-normal text-muted">안내도 사진으로 층 그래프 만들기 · 검수</span>
             </span>
             <span aria-hidden="true" className="text-[18px] text-muted">›</span>
           </button>

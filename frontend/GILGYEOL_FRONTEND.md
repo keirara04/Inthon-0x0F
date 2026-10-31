@@ -58,6 +58,7 @@ frontend/src/
     ui.tsx                # 공통 UI (PrimaryButton, BackHeader, Badge, DemoBox 등)
     IsoFloor.tsx          # 3D(아이소메트릭) 층 도식, 회전 훅/버튼
     WelcomeScreen.tsx  LandingScreen.tsx  BuildingScreen.tsx  CaptureIntroScreen.tsx  MapResultScreen.tsx
+    TrialScreen.tsx  TrialGuide.tsx   # 3분 체험 진입 화면 / 실제 화면 위 가이드 오버레이
     StartLocationScreen.tsx  SearchScreen.tsx  RoutePreviewScreen.tsx  ModeScreen.tsx
     GuidanceScreen.tsx  ElevatorScreen.tsx  CheckpointScanner.tsx  OffRouteScreen.tsx
     ArrivalScreen.tsx  GraphEditorScreen.tsx  SettingsSheet.tsx  DemoPanel.tsx
@@ -76,14 +77,34 @@ frontend/src/
 라우트는 `/` 하나이고, 화면 전환은 `store.tsx`의 typed `screen` 상태로 합니다.
 
 ```text
-landing (3분 체험해보기) → welcome → building → captureIntro → scan(map) → mapResult → start(여기 계신가요?)
+landing (3분 체험해보기) → trial → welcome → building → captureIntro → scan(map) → mapResult → start(여기 계신가요?)
   → search(405호) → preview → mode → guide(step 0, 1층)
   → elevator → guide(step 1, 4층 왼쪽 복도)
   → offroute(경고) → scan(sign) → offroute(confirm) → guide(step 2, 복구)   ※ 경로 이탈 시에만
   → arrive
 ```
 
-첫 화면은 랜딩(`landing`)이고, 랜딩의 `3분 체험해보기` CTA는 실제 흐름의 시작 화면인 `welcome`으로 들어갑니다. `welcome` 하단의 `서비스 소개`로 랜딩에 다시 갈 수 있어요.
+첫 화면은 랜딩(`landing`)이고, 랜딩의 `3분 체험해보기` CTA는 체험 안내 화면(`trial`)으로 들어갑니다. `trial`의 `3분 체험 시작`은 **실제 앱 화면 위에 가이드 오버레이**를 켜고 `captureIntro`(우정정보관 안내도 사진 선택)로 바로 들어갑니다 — 별도 데모 화면을 복제하지 않고, 실제 컨트롤을 눌러야만 다음 단계로 넘어갑니다. `체험 없이 사용하기`는 실제 흐름의 첫 화면인 `welcome`으로 갑니다. `welcome` 하단의 `서비스 소개`로 랜딩에 다시 갈 수 있어요.
+
+### 3분 체험 오버레이 (`TrialGuide.tsx`)
+
+- 흐름: `captureIntro`(1/8) → `mapResult`(2/8) → `start`(3/8) → `search`(4/8) → `preview`(5/8) → `mode`(6/8) → `guide`·`elevator`(7/8) → `arrive`(8/8, 체험 종료). 실제 앱의 `scan`·`offroute`는 체험에 넣지 않았습니다(경로 이탈은 실제 센서 조건에서만 발생).
+- 각 단계는 화면의 실제 컨트롤에 붙은 `data-trial="…"` 앵커를 찾아 흰 테두리 + 흰 글로우 + 나머지 영역 딤(`box-shadow: 0 0 0 9999px`)으로 강조합니다. 오버레이 루트는 `pointer-events-none`이라 터치를 막지 않고, 설명 카드만 `pointer-events-auto`입니다.
+- 대상 컨트롤이 화면 밖으로 밀리면(예: 랜드마크 목록 열림) 900ms 간격으로 `scrollIntoView` 해 따라갑니다. 위치는 120ms 폴링 + scroll/resize로 다시 재고, 390px 폭에서 설명 카드가 강조 대상과 겹치지 않도록 위/아래 중 여유 있는 쪽에 놓습니다.
+- 다음 단계로 넘어가는 유일한 방법은 **강조된 실제 버튼/입력을 조작하는 것**입니다. 오버레이에는 장식용 가짜 진행 버튼이 없고, `체험 종료`만 예외입니다.
+- 안내도 파싱이 실패하면(`scanState === "fail"`) 오버레이를 유지한 채 "안내도를 읽지 못했어요" 카드로 `사진 다시 고르기` / `데모 안내도로 계속` / `체험 종료`를 제공합니다.
+- `actions.startTrial()` / `actions.endTrial(toLanding)`이 상태를 정리하고, 체험 중 뒤로 가기도 체험을 종료합니다(`trialOn: false`).
+
+| 단계 | 화면 | `data-trial` 앵커 | 문구 요지 |
+|---|---|---|---|
+| 1/8 | captureIntro | `capture-album` (앨범에서 선택) | 저장해 둔 안내도 사진을 고르기 (카메라 아님) |
+| 2/8 | mapResult | `map-confirm` (이 안내도가 맞아요) | AI가 읽은 안내도 확인, mock 모드면 샘플 데이터 안내 |
+| 3/8 | start | `start-landmarks` → `start-main` → `start-confirm` | 출발 위치 지정·확인 (파싱에 현위치가 있으면 `start-main`부터) |
+| 4/8 | search | `search-input` → `dest-405` | ‘405호’ 입력 후 결과 선택 |
+| 5/8 | preview | `preview-next` (안내 방식 선택) | 경로 확인 후 이동 준비 |
+| 6/8 | mode | `mode-start` (진동·음성 안내 시작) | 기본 안내 방식 그대로 시작 |
+| 7/8 | guide · elevator | `guide-next` → `elev-leave` | 방향 화면 따라 이동, 4층에서 내리기 (하위 화면이 바뀌어도 단계 번호 유지) |
+| 8/8 | arrive | `arrive-title` (도착 제목) | 405호 도착, 체험 종료 |
 
 ### 카메라 확인 시점
 
@@ -100,7 +121,8 @@ welcome → editor (관리자 · 지도 만들기)
 
 | Screen | 파일 | 핵심 기능 |
 |---|---|---|
-| `landing` | LandingScreen | 첫 화면. 히어로·경로 요약·안내 방식·하은의 3분·FAQ·CTA, `3분 체험해보기` → `welcome` |
+| `landing` | LandingScreen | 첫 화면. 히어로·경로 요약·안내 방식(AI가 안내도를 읽음)·하은의 3분·FAQ·CTA, `3분 체험해보기` → `trial` |
+| `trial` | TrialScreen | 3분 체험 안내. 하은 페르소나, 실제 8단계 오버레이 안내, `3분 체험 시작` → `captureIntro`(+`trialOn`), `체험 없이 사용하기` → `welcome` |
 | `welcome` | WelcomeScreen | 시연용 배지, 설정, 길찾기 시작, 관리자 진입, 서비스 소개(→ `landing`), 비상 시 고지 |
 | `building` | BuildingScreen | 우정정보관 선택, 정운오IT교양관 준비 중 |
 | `captureIntro` | CaptureIntroScreen | 촬영 안내·권한 이유·개인정보, 카메라 켜기 / 데모 안내도 |
@@ -116,7 +138,7 @@ welcome → editor (관리자 · 지도 만들기)
 | `arrive` | ArrivalScreen | 도착, **이동 통계**(소요 시간·층 이동·경로 재확인), **비상구 정보** |
 | `editor` | GraphEditorScreen | **층별 데이터 목록**, 이미지 업로드/샘플, AI 초안(시뮬레이션), SVG 그래프 편집, 검증, draft/verified 저장 |
 
-뒤로 가기: 화면의 뒤로 버튼과 브라우저/안드로이드 하드웨어 뒤로 가기(`popstate`)가 같은 `actions.back()`을 탑니다. 랜딩과 환영 화면은 앱의 첫 화면이라 하드웨어 뒤로 가기는 앱을 나갑니다.
+뒤로 가기: 화면의 뒤로 버튼과 브라우저/안드로이드 하드웨어 뒤로 가기(`popstate`)가 같은 `actions.back()`을 탑니다. 랜딩과 환영 화면은 앱의 첫 화면이라 하드웨어 뒤로 가기는 앱을 나갑니다. `trial`의 뒤로 가기는 `landing`입니다.
 
 ---
 
@@ -138,8 +160,9 @@ welcome → editor (관리자 · 지도 만들기)
 | 통계 | `trip: { startedAt, arrivedAt, reroutes }` |
 | 시연 대체 상태 | `simNoVibe`, `camDenied`, `elevUnverified` |
 | 오버레이 | `sheet`, `toast`, `cue` |
+| 체험 | `trialOn` (가이드 오버레이 표시 여부) |
 
-주요 액션: `go`, `back`, `beginTrip`, `startGuide`, `setDir`, `toElevator`, `openScan`, `runScan`, `cancelScan`, `scanNext`, `toOffroute`, `arrive`, `pickDest`, `endGuide`, `setMode`, `replay`, `testVibe`, `playPattern`, `toggleVoice`, `setRaised`, `enablePosture`
+주요 액션: `go`, `back`, `startTrial`, `endTrial`, `beginTrip`, `startGuide`, `setDir`, `toElevator`, `openScan`, `runScan`, `cancelScan`, `scanNext`, `toOffroute`, `arrive`, `pickDest`, `endGuide`, `setMode`, `replay`, `testVibe`, `playPattern`, `toggleVoice`, `setRaised`, `enablePosture`
 
 ---
 
@@ -252,7 +275,9 @@ welcome → editor (관리자 · 지도 만들기)
 
 - `npx tsc --noEmit`, `npx eslint src`, `npm run build` 통과
 - Edge(headless, 390×844)로 안내도 촬영 → 위치 확인(3D) → 검색 → 경로(3D) → 안내 → 엘리베이터 → 4층 → 이탈 → 주변 표지 → 복구 → 도착(비상구) → 관리자(초안·정차 층 편집) 전체 흐름 클릭 확인, 콘솔 오류 없음
+- 3분 체험: 같은 환경에서 `landing → trial → 3분 체험 시작 → captureIntro → mapResult → start → search → preview → mode → guide → elevator → guide → arrive` 8단계 오버레이를 실제 컨트롤 클릭으로 통과 확인. 사진은 숨은 `<input type="file">`에 실제 파일을 넣어 선택(카메라 화면 없음), 콘솔 오류 없음. 실패·성공 양쪽 파싱 결과와 파싱 실패 대체 카드 확인
 - 실제 휴대폰에서 진동·음성·카메라·자세 센서는 **아직 확인하지 않음**
+- 백엔드 `POST /api/evac-map/parse`가 현재 HTTP 500(약 32초 후)을 반환해, 체험판은 파싱 실패 시 데모 안내도로 이어가는 대체 경로를 제공합니다
 
 ---
 

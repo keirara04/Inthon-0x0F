@@ -571,7 +571,7 @@ export function CheckpointScanner() {
           ) : (
             !camOn &&
             s.scanState !== "denied" && (
-              <button type="button" onClick={() => void startCam()} className="h-9 self-center rounded-full border border-white/40 bg-black/35 px-3 text-[12px] font-semibold text-white">
+              <button type="button" onClick={() => void startCam()} className="h-9 self-center rounded-full border border-white/40 bg-black/35 px-3 text-[13px] font-semibold text-white">
                 카메라 켜기
               </button>
             )

@@ -15,6 +15,8 @@ Route::get('/ping', fn () => ['message' => 'pong from laravel']);
 
 Route::get('/search', [NavigationController::class, 'search']);
 Route::post('/route', [NavigationController::class, 'route']);
+// Routes over a just-photographed (unchecked) floor map; read-only, so throttled like other public reads.
+Route::post('/route/photo', [NavigationController::class, 'routePhoto'])->middleware('throttle:60,1');
 Route::get('/start-points', [NavigationController::class, 'startPoints']);
 
 // Every vision call costs money. Generous checkpoint limit: venue phones share one public IP.

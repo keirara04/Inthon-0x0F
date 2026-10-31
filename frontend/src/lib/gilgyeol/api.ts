@@ -199,7 +199,60 @@ export async function fetchRoute(startNode: string, destNode: string): Promise<A
     return request<ApiRoute>("/api/route", { method: "POST", body: JSON.stringify({ start_node: startNode, dest_node: destNode }) });
   }
   await delay(300);
-  return structuredClone(MOCK_ROUTE);
+  return mockRoute(startNode, destNode);
+}
+
+/** "4F-elev-A" -> "4F"; "405" -> "4F". Used only by the mock router below. */
+function nodeFloor(id: string): string | null {
+  const m = /^(\d)F(?:-|$)/.exec(id) ?? /^(\d)/.exec(id);
+  return m ? `${m[1]}F` : null;
+}
+
+/**
+ * Demo routing: the sample building is one canned 1F→4F trip, so requests are sliced from it.
+ * Elevator request -> stop after the ride; same-floor request -> that floor's walk legs.
+ */
+function mockRoute(startNode: string, destNode: string): ApiRoute {
+  const route = structuredClone(MOCK_ROUTE);
+  const startFloor = nodeFloor(startNode) ?? nodeFloor(destNode);
+  const destFloor = nodeFloor(destNode);
+  const total = (steps: ApiStep[]) => steps.reduce((n, s) => n + (s.kind === "walk" ? (s.length_m ?? 0) : 0), 0);
+  const build = (steps: ApiStep[], arrived: ApiRoute["arrived"]): ApiRoute => ({
+    ...route,
+    steps,
+    path: [startNode, ...steps.map((s) => s.to)],
+    total_m: total(steps),
+    arrived,
+  });
+
+  if (/elev|stair/i.test(destNode)) {
+    const i = route.steps.findIndex((s) => s.kind !== "walk");
+    const steps = i >= 0 ? route.steps.slice(0, i + 1) : route.steps;
+    return build(steps, { node: destNode, label: "엘리베이터 홀", floor: destFloor ?? "4F" });
+  }
+  if (startFloor && startFloor === destFloor) {
+    const steps = route.steps.filter((s) => s.kind === "walk" && s.floor === destFloor);
+    if (steps.length) {
+      const last = steps[steps.length - 1];
+      return build(steps, { node: destNode, label: last.to_label, floor: destFloor });
+    }
+  }
+  return route;
+}
+
+/** A photographed (unchecked) floor map in the API's shape, ids prefixed by floor; for POST /api/route/photo. */
+export function photoGraph(g: ParsedGraph): ApiGraph {
+  return toApiGraph(g, g.floor, "draft");
+}
+
+/** Route on a photographed floor map. The server routes in memory and stores nothing. */
+export async function fetchPhotoRoute(graph: ApiGraph, startNode: string, destNode: string): Promise<ApiRoute> {
+  if (API_MODE === "live") {
+    const body = { graph: { floor: graph.floor, nodes: graph.nodes, edges: graph.edges }, start_node: startNode, dest_node: destNode };
+    return request<ApiRoute>("/api/route/photo", { method: "POST", body: JSON.stringify(body) });
+  }
+  await delay(300);
+  return { ...mockRoute(startNode, destNode), draft: true };
 }
 
 /** Sends one camera frame (downscaled) to check where the user is. Frames are not stored by the backend. */
@@ -243,9 +296,9 @@ export async function startPoints(): Promise<ApiStartFloor[]> {
 }
 
 const TURN_LABEL: Record<NonNullable<Extract<ApiStep, { kind: "walk" }>["turn"]>, string> = {
-  left: "좌회전 · 진동 짧게–짧게",
-  right: "우회전 · 진동 길게–길게",
-  back: "방향 전환 · 뒤로 돌기",
+  left: "좌회전",
+  right: "우회전",
+  back: "뒤로 돌기",
   straight: "직진",
 };
 

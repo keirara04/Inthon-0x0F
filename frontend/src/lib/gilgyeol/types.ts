@@ -1,5 +1,6 @@
 export type Screen =
   | "landing"
+  | "trial"
   | "welcome"
   | "building"
   | "captureIntro"
@@ -7,6 +8,7 @@ export type Screen =
   | "wrongFloor"
   | "mapResult"
   | "start"
+  | "destFloor"
   | "search"
   | "preview"
   | "mode"

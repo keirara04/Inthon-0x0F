@@ -44,6 +44,8 @@ export interface ApiRoute {
   path: string[]; // node ids, for drawing the route line
   steps: ApiStep[];
   arrived: { node: string; label: string; floor: string };
+  /** Routed on a photographed floor map nobody has checked yet (POST /api/route/photo). */
+  draft?: boolean;
 }
 
 /** POST /api/locate: where am I, from one photo of a nearby sign (no expected node). */
