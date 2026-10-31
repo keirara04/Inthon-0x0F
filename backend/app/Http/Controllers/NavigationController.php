@@ -27,8 +27,38 @@ class NavigationController extends Controller
                 ->orWhere('buildings.name', 'like', "%{$word}%"));
         }
 
-        return SearchResultResource::collection($query->orderBy('floors.level')->orderBy('nodes.label')->limit(20)->get());
+        return SearchResultResource::collection($query->orderBy('floors.level')->orderBy('nodes.label')->limit(200)->get());
     }
+
+    /**
+     * GET /api/start-points?building=우정정보관: places someone can start from (entrances, exits, elevator halls,
+     * stairs) on verified floors, grouped by floor bottom-up. Feeds "다른 입구에 계신가요?".
+     */
+    public function startPoints(Request $request)
+    {
+        $request->validate(['building' => 'required|string|max:100']);
+
+        $rows = DB::table('nodes')
+            ->join('floors', 'floors.id', '=', 'nodes.floor_id')
+            ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+            ->where('buildings.name', $request->query('building'))
+            ->where('floors.status', 'verified')
+            ->whereIn('nodes.type', self::START_TYPES)
+            ->orderBy('floors.level')
+            ->get(['nodes.id', 'nodes.label', 'nodes.type', 'floors.label as floor']);
+
+        $data = $rows->groupBy('floor')->map(fn ($points, $floor) => [
+            'floor' => $floor,
+            'points' => $points
+                ->sortBy(fn ($p) => [array_search($p->type, self::START_TYPES), $p->label])
+                ->map(fn ($p) => ['id' => $p->id, 'label' => $p->label, 'type' => $p->type])
+                ->values(),
+        ])->values();
+
+        return ['data' => $data];
+    }
+
+    private const START_TYPES = ['entrance', 'exit', 'elevator_hall', 'stairs'];
 
     /** POST /api/route {start_node, dest_node} */
     public function route(Request $request, RouteService $routes)

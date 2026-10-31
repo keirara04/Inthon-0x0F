@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { C, EXAMPLE_4F_GRAPH, EXAMPLE_PHOTO } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { BuildingPicker } from "./BuildingPicker";
 import { MapSketch, graphFrame } from "./MapSketch";
 import { BackHeader, PrimaryButton, SecondaryButton, Title, useAlbumPick } from "./ui";
 
@@ -85,7 +86,11 @@ const TIPS: [keyof typeof TIP_ICONS, string][] = [
 
 export function CaptureIntroScreen() {
   const { actions } = useGilgyeol();
-  const album = useAlbumPick((file) => actions.readMapPhoto(file));
+  // The scanner finds the sign in the photo and frames it, like the live camera does.
+  const album = useAlbumPick((file) => {
+    actions.openScan("map");
+    actions.update({ pendingPhoto: file });
+  });
   return (
     <div className="flex min-h-full flex-col gap-4 px-5 pt-1 pb-6">
       <BackHeader label="시작 준비 · 2 / 3" onBack={actions.back} />
@@ -95,6 +100,7 @@ export function CaptureIntroScreen() {
         비춰주세요
       </Title>
       <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽의 층별 안내도를 찍으면, AI가 복도와 호실을 읽어 지도로 만들어요.</p>
+      <BuildingPicker />
       <ExampleShot />
       <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0" aria-label="촬영 팁">
         {TIPS.map(([icon, label]) => (
@@ -106,7 +112,7 @@ export function CaptureIntroScreen() {
           </li>
         ))}
       </ul>
-      <p className="m-0 text-[13px] leading-normal text-muted">카메라는 안내도와 표지를 읽을 때만 쓰고, 사진은 저장하지 않아요. 주변 사람이 찍히지 않게 안내도만 가까이 비춰주세요.</p>
+      <p className="m-0 text-[13px] leading-normal text-muted">카메라는 안내도와 표지를 읽을 때만 써요. 사진은 저장하지 않고, 읽은 지도만 이 건물을 찾는 다음 사람을 위해 저장해요. 주변 사람이 찍히지 않게 안내도만 가까이 비춰주세요.</p>
       <div className="flex-1" />
       {album.input}
       <PrimaryButton onClick={() => actions.openScan("map")}>카메라 켜기</PrimaryButton>

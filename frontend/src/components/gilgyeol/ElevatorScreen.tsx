@@ -58,7 +58,7 @@ export function ElevatorScreen() {
       </div>
       <Badge tone="haptic">층 이동 · 진동 짧게 3회</Badge>
       <p className="m-0 text-[16px] leading-normal text-ink">
-        {toFloor}층에서 내리면 아래 버튼을 눌러주세요. 다음 안내를 시작해요.
+        {toFloor}층에 도착하면 아래 버튼을 눌러주세요. 이 층의 안내도를 다시 촬영한 뒤 안내를 계속해요.
       </p>
       <DemoBox label="데모 입력 · 승강기 데이터 상태">
         <button
@@ -72,6 +72,7 @@ export function ElevatorScreen() {
       <div className="flex-1" />
       <PrimaryButton data-trial="elev-leave" onClick={actions.leaveElevator}>{stairs ? "계단 도착" : `${toFloor}층에서 내렸어요`}</PrimaryButton>
       <GhostButton onClick={actions.replay}>안내 다시 듣기</GhostButton>
+      <GhostButton onClick={actions.endGuide}>안내 종료</GhostButton>
     </div>
   );
 }

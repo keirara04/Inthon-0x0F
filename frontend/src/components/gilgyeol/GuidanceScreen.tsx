@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { C, DIRECTION } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { DirectionState } from "@/lib/gilgyeol/types";
+import { LiveMap } from "./LiveMap";
 import { GhostButton, Notice, PrimaryButton, SegButton, DemoBox, StatusDot } from "./ui";
 
 /** Pulse strength shown as bars — more bars means the target heading is closer. */
@@ -23,16 +25,28 @@ const DIR_BTNS: [DirectionState, string][] = [
 ];
 
 export function GuidanceScreen() {
-  const { state: s, actions } = useGilgyeol();
+  const { state: s, actions, compass } = useGilgyeol();
   const d = useDestName();
   const demo = useDemoTools();
+  const [calibOpen, setCalibOpen] = useState(false);
   const steps = s.steps;
   const st = steps[s.step];
   if (!st) return null;
   const unstable = s.dir === "unstable";
+  const apiStep = s.route?.steps[s.step];
   const dv = s.dir === "unstable" ? DIRECTION.far : DIRECTION[s.dir];
   const dirColor = unstable ? C.warning : dv.color;
-  const dirMsg = unstable ? `방향을 확인하기 어려워요. ${st.landmark || "표지판"}를 기준으로 이동해 주세요` : dv.msg;
+  // Live needle: top triangle is the phone's forward direction (12 o'clock), and the arrow points toward
+  // the target corridor (`+delta`). Turning right reduces `delta` toward 0° so the arrow stays locked on the target in world space.
+  const live = !demo && s.simDir === null && compass.delta !== null && !unstable;
+  const needle = live ? compass.delta! : dv.rot;
+  const turnBy = live ? Math.round(Math.abs(compass.delta!) / 5) * 5 : 0;
+  const dirMsg = unstable
+    ? `방향을 확인하기 어려워요. ${st.landmark || "표지판"}를 기준으로 이동해 주세요`
+    : live && s.dir !== "aligned"
+      ? `${compass.delta! > 0 ? "오른쪽" : "왼쪽"}으로 약 ${turnBy}° 돌리세요`
+      : dv.msg;
+  const canCalibrate = st.kind === "walk" && compass.heading !== null;
   const locColor = unstable ? C.warning : C.success;
   const locText = unstable ? "구간 추정 중" : s.step === 0 ? "출발 위치 확인됨" : `${st.floor} 진행 중`;
 
@@ -50,11 +64,22 @@ export function GuidanceScreen() {
 
   return (
     <div className="flex flex-col gap-3.5 px-5 pt-1.5 pb-6">
-      <div className="flex min-h-8 items-center justify-between">
-        <div className="text-[15px] font-bold">우정정보관 · {st.floor}</div>
-        <div role="status" className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: locColor }}>
-          <StatusDot color={locColor} />
-          {locText}
+      <div className="flex min-h-8 items-center justify-between gap-2">
+        <div className="min-w-0 truncate text-[15px] font-bold">우정정보관 · {st.floor}</div>
+        <div className="flex flex-none items-center gap-2">
+          <div role="status" className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: locColor }}>
+            <StatusDot color={locColor} />
+            {locText}
+          </div>
+          {/* Always-visible exit; the full "안내 종료" button also stays at the bottom. */}
+          <button
+            type="button"
+            onClick={actions.endGuide}
+            aria-label="안내 종료"
+            className="h-11 rounded-xl border-[1.5px] border-edge bg-surface px-3 text-[13px] font-bold text-ink"
+          >
+            종료
+          </button>
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 rounded-[14px] bg-warm-panel py-1.5 pr-1.5 pl-3">
@@ -74,7 +99,15 @@ export function GuidanceScreen() {
           {s.postureSensor ? "자세 감지 켜짐" : "자세 감지 켜기"}
         </button>
       </div>
-      {s.vibe && !actions.canVibe() && <Notice tone="warn">이 기기에서는 진동 안내를 사용할 수 없어 음성으로 안내합니다</Notice>}
+      {s.vibe && !actions.canVibe() && (
+        <Notice tone="warn">
+          {s.beep ? "진동 대신 소리(돌아야 할 쪽 귀)와 음성으로 안내해요. 무음 모드에서는 소리가 나지 않아요" : "이 기기에서는 진동 안내를 사용할 수 없어 음성으로 안내합니다"}
+        </Notice>
+      )}
+      {compass.disturbed && (
+        <Notice tone="warn">주변 철골·전선 때문에 방향이 부정확해요 (방향 부정확). 잠시 멈추거나 주변 표지를 확인해 주세요</Notice>
+      )}
+      {s.voice && s.koVoice === false && <Notice tone="warn">이 기기에서 한국어 음성을 찾지 못했어요. 음성이 안 들리면 화면 안내를 봐 주세요</Notice>}
 
       <div className="relative size-[240px] self-center" role="img" aria-label={`방향 표시: ${dirMsg}`}>
         {!unstable && (
@@ -97,7 +130,7 @@ export function GuidanceScreen() {
             확인 불가
           </div>
         ) : (
-          <div className="absolute inset-0 transition-transform duration-[220ms] ease-out" style={{ transform: `rotate(${dv.rot}deg)` }} aria-hidden="true">
+          <div className="absolute inset-0 transition-transform duration-[220ms] ease-out" style={{ transform: `rotate(${needle}deg)` }} aria-hidden="true">
             <svg width="240" height="240" viewBox="0 0 240 240">
               <polygon points="120,52 152,112 133,106 133,182 107,182 107,106 88,112" fill={dirColor} />
             </svg>
@@ -107,10 +140,42 @@ export function GuidanceScreen() {
       <div className="-mt-1.5 flex justify-center gap-3.5 text-[12px] text-muted" aria-hidden="true">
         <span className="flex items-center gap-[5px]">
           <span className="h-0 w-0 border-r-[5px] border-b-8 border-l-[5px] border-r-transparent border-b-haptic border-l-transparent" />
-          목표 방향
+          내 기기 방향
         </span>
-        <span>화살표 · 내 기기 방향</span>
+        <span>화살표 · 목표 방향</span>
       </div>
+      {canCalibrate && (
+        <div className="flex flex-col items-center gap-2">
+          <button
+            type="button"
+            aria-expanded={calibOpen}
+            onClick={() => setCalibOpen((o) => !o)}
+            className="h-9 rounded-full border-[1.5px] border-edge bg-surface px-3.5 text-[13px] font-semibold text-ink"
+          >
+            {compass.calibrated ? "방향 보정됨 · 다시 맞추기" : "화살표가 엇나가나요? 방향 맞추기"}
+          </button>
+          {calibOpen && (
+            <div className="flex w-full flex-col gap-2.5 rounded-2xl bg-haptic-tint p-3.5 text-[14px] leading-normal text-haptic-ink">
+              {/* One tap fixes north for this building: the user knows which way the corridor runs. */}
+              <p className="m-0">
+                지금 걷는 복도(<b>{st.title}</b> 방향)를 정면으로 바라보고 버튼을 누르세요. 이 건물에서는 한 번만 하면 돼요.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (compass.calibrate()) {
+                    setCalibOpen(false);
+                    actions.toast("방향을 맞췄어요");
+                  } else actions.toast("나침반 값을 아직 못 받았어요. 휴대전화를 잠시 들고 있어 주세요");
+                }}
+                className="h-11 rounded-xl border-none bg-haptic text-[15px] font-bold text-white"
+              >
+                지금 이 방향이 맞아요
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div role="status" aria-live="polite" className="text-center text-[17px] font-bold" style={{ color: dirColor }}>
         {dirMsg}
       </div>
@@ -121,7 +186,16 @@ export function GuidanceScreen() {
           {st.sub}
         </div>
         {st.turn && <div className="self-start rounded-lg bg-haptic-tint px-2.5 py-[5px] text-[13px] font-bold text-haptic-ink">{st.turn}</div>}
+        {compass.walkedM !== null && apiStep?.kind === "walk" && (
+          // Not a live region: it changes every step and would talk over the instructions.
+          <div className="text-[14px] font-semibold text-muted">
+            걸음으로 추정 · 약 {Math.round(compass.walkedM)} m / {Math.round(apiStep.length_m)} m
+          </div>
+        )}
       </div>
+
+      {/* Live map: you at the last confirmed point, a cone that turns with the phone, this step's path. */}
+      {s.route && <LiveMap route={s.route} stepIndex={s.step} heading={compass.heading} delta={compass.delta} />}
 
       <div className="flex flex-col gap-3 rounded-2xl bg-surface px-4 py-3.5">
         <div className="flex items-center justify-between gap-3">
@@ -189,6 +263,8 @@ export function GuidanceScreen() {
                 </div>
               ))}
             </dl>
+          {/* Hand-drawn sketch only when the live floor map isn't available (demo / mock). */}
+          {!s.route && (
           <div className="flex flex-col gap-2.5 rounded-xl bg-app-bg px-3.5 py-3">
             <div className="flex items-center justify-between">
               <div className="text-[14px] font-bold">{st.floor} 경로</div>
@@ -255,6 +331,7 @@ export function GuidanceScreen() {
               </div>
             )}
           </div>
+          )}
             <ol className="m-0 flex list-none flex-col p-0">
               {routeLabels.map((t, i) => (
                 <li key={t} className="flex min-h-[34px] items-center gap-3" aria-current={i === prog ? "step" : undefined}>

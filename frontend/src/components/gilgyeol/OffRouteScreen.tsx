@@ -2,6 +2,8 @@
 
 import { DETECTION_RULE, FLOORS } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
+import { Mascot } from "./Mascot";
+import { PinMap } from "./PinMap";
 import { Badge, PrimaryButton, SecondaryButton, StatusDot } from "./ui";
 
 export function OffRouteScreen() {
@@ -21,11 +23,14 @@ export function OffRouteScreen() {
       {s.offState === "alert" && (
         <>
           <div role="alert" className="flex flex-col gap-3.5 rounded-[22px] border-2 border-error bg-err-tint px-5 py-6">
-            <svg width="44" height="40" viewBox="0 0 44 40" aria-hidden="true">
-              <polygon points="22,3 42,37 2,37" fill="#B3261E" stroke="#B3261E" strokeWidth="3" strokeLinejoin="round" />
-              <rect x="20" y="14" width="4" height="12" rx="2" fill="#fff" />
-              <circle cx="22" cy="31" r="2.4" fill="#fff" />
-            </svg>
+            <div className="flex items-end justify-between">
+              <svg width="44" height="40" viewBox="0 0 44 40" aria-hidden="true">
+                <polygon points="22,3 42,37 2,37" fill="#B3261E" stroke="#B3261E" strokeWidth="3" strokeLinejoin="round" />
+                <rect x="20" y="14" width="4" height="12" rx="2" fill="#fff" />
+                <circle cx="22" cy="31" r="2.4" fill="#fff" />
+              </svg>
+              <Mascot pose="peek" height={58} motion="peek" className="-mb-1" />
+            </div>
             <h1 className="m-0 text-[28px] leading-[1.25] font-extrabold text-err-ink">경로와 다른 쪽인 것 같아요</h1>
             <div className="text-[17px] font-semibold text-ink">잠시 멈춰주세요.</div>
             <div className="flex flex-wrap gap-1.5">
@@ -41,6 +46,7 @@ export function OffRouteScreen() {
           <div className="flex-1" />
           <PrimaryButton onClick={() => actions.openScan("sign")}>주변 표지 확인</PrimaryButton>
           <SecondaryButton onClick={() => actions.update({ offState: "floor" })}>현재 층·랜드마크 직접 선택</SecondaryButton>
+          {s.route && <SecondaryButton onClick={() => actions.update({ offState: "pin" })}>지도에서 내 위치 찍기</SecondaryButton>}
           <button type="button" onClick={actions.dismissOffroute} className="h-11 border-none bg-transparent text-[15px] font-semibold text-muted underline underline-offset-4">
             무시하고 계속 안내
           </button>
@@ -75,6 +81,15 @@ export function OffRouteScreen() {
               </button>
             ))}
           </div>
+          <SecondaryButton onClick={() => actions.update({ offState: "alert" })}>돌아가기</SecondaryButton>
+        </>
+      )}
+
+      {s.offState === "pin" && (
+        <>
+          <h1 className="m-0 text-[24px] font-extrabold">지금 어디에 있나요?</h1>
+          <p className="m-0 text-[15px] leading-normal text-muted">지도에서 서 있는 곳을 누르면 가장 가까운 복도나 호실로 맞춰서 새 경로를 찾아요.</p>
+          <PinMap initialFloor={s.route?.steps[s.step]?.floor ?? "1F"} confirmLabel="여기서 새 경로로 안내" onConfirm={actions.rerouteFromPin} />
           <SecondaryButton onClick={() => actions.update({ offState: "alert" })}>돌아가기</SecondaryButton>
         </>
       )}

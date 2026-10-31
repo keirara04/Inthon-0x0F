@@ -46,6 +46,20 @@ export interface ApiRoute {
   arrived: { node: string; label: string; floor: string };
 }
 
+/** POST /api/locate: where am I, from one photo of a nearby sign (no expected node). */
+export interface ApiLocateResult {
+  status: "found" | "floor_only" | "unknown"; // floor_only: only a floor sign was read, ask for a room number
+  texts: string[];
+  node: { id: string; label: string; floor: string } | null;
+  floor: string | null;
+}
+
+/** GET /api/start-points: entrances, exits, elevator halls and stairs on verified floors, bottom floor first. */
+export interface ApiStartFloor {
+  floor: string;
+  points: { id: string; label: string; type: "entrance" | "exit" | "elevator_hall" | "stairs" }[];
+}
+
 export interface ApiCheckpointResult {
   status: "matched" | "mismatch" | "unknown";
   texts: string[];
@@ -56,9 +70,23 @@ export interface ApiCheckpointResult {
 export interface ApiGraph {
   building: string;
   floor: string;
+  /** parse only: "map" = floor read from the sign, "hint" = the floor the app sent. */
+  floor_source?: "map" | "hint";
   status: "draft" | "verified";
   current_node_id?: string | null;
-  nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string }[];
+  /** `outline`: wall outline of a room/stair/elevator, 0–1 photo coords, closing edge implicit (display only). */
+  nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string; outline?: { x: number; y: number }[] }[];
   edges: { from: string; to: string; type: "walk"; length_m?: number | null; heading_deg?: number | null }[];
   elevators?: { id: string; name: string; served_floors: string[] }[];
+  /** parse / saved map: the building it was saved under, and when (saved map only). */
+  building_id?: number;
+  saved_at?: string;
+}
+
+/** GET /api/buildings: nearest first when a location was sent, with the floors that have a saved map. */
+export interface ApiBuilding {
+  id: number;
+  name: string;
+  distance_m: number | null;
+  saved_floors: string[];
 }

@@ -6,15 +6,33 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApiCheckpointResult, ApiRoute, ApiStep } from "@/types/api";
 import { fetchRoute, postCheckpoint } from "./api";
-import { circularMean, delta as angleDelta, dirState, headingFromEvent, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
+import { routeSummary } from "./routeSummary";
+import { stepCompletion } from "./floorTransition";
+import { BUILDING } from "./data";
+import { axesFromQuaternion, circularMean, countStep, fieldDisturbed, STEP_RESET, STRIDE_M, corrected, delta as angleDelta, dirState, headingFromAxes, headingFromEvent, offsetFor, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
 
-export type NavStatus = "idle" | "guiding" | "checking" | "offroute" | "arrived";
+/**
+ * Per-building north offset: route headings are drawn with the sign's "up" as north, which rarely matches
+ * the real compass. Saved on this device after one on-site calibration.
+ */
+const NORTH_KEY = `gilgyeol-north:${BUILDING}`;
+function readOffset(): number | null {
+  try {
+    const v = typeof window === "undefined" ? null : window.localStorage.getItem(NORTH_KEY);
+    return v === null ? null : Number(v);
+  } catch {
+    return null;
+  }
+}
+
+export type NavStatus = "idle" | "guiding" | "checking" | "offroute" | "awaiting_map" | "arrived";
 
 export interface NavCallbacks {
   /** New step started (also the first one in start()). Speak step.text, play the turn/floor pattern. */
   onStep?: (step: ApiStep, index: number) => void;
   /** Facing away from the route for 5 s. Play the "off" pattern, offer a sign scan. */
   onOffRoute?: () => void;
+  onFloorArrival?: (step: Exclude<ApiStep, { kind: "walk" }>, index: number) => void;
   onArrive?: (route: ApiRoute) => void;
   /** Checkpoint showed the user somewhere else; a new route from there is now active. */
   onReroute?: (route: ApiRoute) => void;
@@ -22,6 +40,9 @@ export interface NavCallbacks {
 
 type IOSOrientation = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
 type CompassEvent = DeviceOrientationEvent & { webkitCompassHeading?: number };
+/** Generic Sensor API (Chrome on Android); not in lib.dom. */
+type OrientationSensor = EventTarget & { quaternion: number[] | null; start(): void; stop(): void; onreading: (() => void) | null; onerror: (() => void) | null };
+type OrientationSensorCtor = new (o: { frequency: number; referenceFrame: "screen" | "device" }) => OrientationSensor;
 
 const SMOOTHING = 8; // compass samples averaged
 const RENDER_MS = 150; // max heading re-render rate
@@ -30,7 +51,10 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
   const [route, setRoute] = useState<ApiRoute | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [status, setStatus] = useState<NavStatus>("idle");
-  const [heading, setHeading] = useState<number | null>(null);
+  const [rawHeading, setHeading] = useState<number | null>(null);
+  const [disturbed, setDisturbed] = useState(false); // compass disagrees with the gyro: field bent indoors
+  const [offset, setOffset] = useState<number | null>(readOffset);
+  const heading = rawHeading === null ? null : corrected(rawHeading, offset ?? 0);
 
   // Latest values for event handlers and async actions (avoids stale closures).
   const cb = useRef(callbacks);
@@ -68,11 +92,10 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
 
   // Compass. Runs while guiding; `?heading=120` in the URL fixes the heading for desktop testing (see start()).
   useEffect(() => {
-    if (status === "idle" || status === "arrived" || fixedHeading.current !== null) return;
+    if (status === "idle" || status === "arrived" || status === "awaiting_map" || fixedHeading.current !== null) return;
     const samples: number[] = [];
     let last = 0;
-    const onOrient = (e: Event) => {
-      const h = headingFromEvent(e as CompassEvent);
+    const push = (h: number | null) => {
       if (h === null) return;
       samples.push(h);
       if (samples.length > SMOOTHING) samples.shift();
@@ -81,9 +104,69 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
       last = now;
       setHeading(circularMean(samples));
     };
-    window.addEventListener("deviceorientationabsolute", onOrient);
-    window.addEventListener("deviceorientation", onOrient);
+    const onOrient = (e: Event) => push(headingFromEvent(e as CompassEvent));
+    let listening = false;
+    const listen = () => {
+      if (listening) return;
+      listening = true;
+      samples.length = 0; // never mix the two sources in one average
+      window.addEventListener("deviceorientationabsolute", onOrient);
+      window.addEventListener("deviceorientation", onOrient);
+    };
+    // Fused gyro + accelerometer + magnetometer where available (Chrome on Android): steadier than deviceorientation.
+    // Missing, blocked or failing: fall back to the events.
+    const Ctor = (window as unknown as { AbsoluteOrientationSensor?: OrientationSensorCtor }).AbsoluteOrientationSensor;
+    let sensor: OrientationSensor | null = null;
+    // Gyro-only orientation next to it: its yaw drifts but turns truthfully, so a compass turn it didn't see
+    // is the magnetic field, not the user. Flag stays up 2 s after the last mismatch so it doesn't flicker.
+    const RelCtor = (window as unknown as { RelativeOrientationSensor?: OrientationSensorCtor }).RelativeOrientationSensor;
+    let gyro: OrientationSensor | null = null;
+    let rel: number | null = null;
+    const pairs: { t: number; abs: number; rel: number }[] = [];
+    let flaggedUntil = 0;
+    let flagged = false;
+    const compare = (abs: number) => {
+      if (rel === null) return;
+      const now = Date.now();
+      pairs.push({ t: now, abs, rel });
+      while (pairs.length && now - pairs[0].t > 3000) pairs.shift();
+      if (fieldDisturbed(pairs)) flaggedUntil = now + 2000;
+      if (flagged !== now < flaggedUntil) setDisturbed((flagged = now < flaggedUntil));
+    };
+    if (Ctor) {
+      try {
+        if (RelCtor) {
+          try {
+            const g = new RelCtor({ frequency: 30, referenceFrame: "screen" });
+            g.onreading = () => g.quaternion && (rel = headingFromAxes(axesFromQuaternion(g.quaternion)));
+            g.onerror = () => g.stop(); // no gyro: no disturbance check, compass as before
+            g.start();
+            gyro = g;
+          } catch {
+            // ignore
+          }
+        }
+        const s = new Ctor({ frequency: 30, referenceFrame: "screen" });
+        s.onreading = () => {
+          if (!s.quaternion) return;
+          const h = headingFromAxes(axesFromQuaternion(s.quaternion));
+          compare(h);
+          push(h);
+        };
+        s.onerror = () => {
+          s.stop();
+          listen();
+        };
+        s.start();
+        sensor = s;
+      } catch {
+        listen();
+      }
+    } else listen();
     return () => {
+      sensor?.stop();
+      gyro?.stop();
+      setDisturbed(false);
       window.removeEventListener("deviceorientationabsolute", onOrient);
       window.removeEventListener("deviceorientation", onOrient);
     };
@@ -93,9 +176,27 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
   // Ticks every second, so a phone held still facing away still trips the 5 s timer.
   const deltaRef = useRef(delta);
   useEffect(() => {
-    deltaRef.current = delta;
+    // A disturbed compass pauses off-route detection; the needle keeps showing next to the "방향 부정확" notice.
+    deltaRef.current = disturbed ? null : delta;
   });
   const isWalk = step?.kind === "walk";
+
+  // Steps on this walk step, for a soft "약 X m" between checkpoints. Resets on every new step.
+  const [walkSteps, setWalkSteps] = useState({ index: -1, steps: 0 });
+  useEffect(() => {
+    if (status !== "guiding" || !isWalk) return;
+    let st = STEP_RESET;
+    const onMotion = (e: DeviceMotionEvent) => {
+      const a = e.accelerationIncludingGravity;
+      if (a?.x == null || a.y == null || a.z == null) return;
+      const before = st.steps;
+      st = countStep(st, e.timeStamp, Math.hypot(a.x, a.y, a.z));
+      if (st.steps !== before) setWalkSteps({ index: stepIndex, steps: st.steps });
+    };
+    window.addEventListener("devicemotion", onMotion);
+    return () => window.removeEventListener("devicemotion", onMotion);
+  }, [status, isWalk, stepIndex]);
+  const walkedM = step?.kind === "walk" && walkSteps.index === stepIndex ? Math.min(walkSteps.steps * STRIDE_M, step.length_m) : null;
   useEffect(() => {
     if (status !== "guiding" || !isWalk) return;
     const check = () => {
@@ -132,28 +233,68 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
   /** Call from a tap handler: iOS only grants compass access inside a user gesture. */
   const start = useCallback(async () => {
     const r = live.current.route;
-    if (!r || r.steps.length === 0) return;
+    if (!r) return;
+    if (routeSummary(r).alreadyThere) {
+      arrive();
+      return;
+    }
+    if (r.steps.length === 0) return;
     const fixed = new URLSearchParams(window.location.search).get("heading");
     fixedHeading.current = fixed === null ? null : Number(fixed);
     if (fixedHeading.current !== null) setHeading(fixedHeading.current);
     enter(r, 0); // first, so the first spoken step still counts as the user gesture
-    const IOS = DeviceOrientationEvent as IOSOrientation;
-    if (typeof IOS?.requestPermission === "function") {
+    // iOS asks separately for the compass and for motion (step count); both prompts come from this tap.
+    for (const Ev of [DeviceOrientationEvent, typeof DeviceMotionEvent === "undefined" ? undefined : DeviceMotionEvent] as (IOSOrientation | undefined)[]) {
+      if (typeof Ev?.requestPermission !== "function") continue;
       try {
-        await IOS.requestPermission();
+        await Ev.requestPermission();
       } catch {
-        // denied or unsupported: heading stays null, dir = "unstable", guidance continues by voice
+        // denied or unsupported: heading stays null (dir "unstable") / no step count; guidance continues by voice
       }
     }
-  }, [enter]);
-
-  /** Advance manually (steps with checkpoint === null have nothing to scan). */
-  const next = useCallback(() => {
-    const { route: r, stepIndex: i } = live.current;
-    if (!r) return;
-    if (i + 1 >= r.steps.length) arrive();
-    else enter(r, i + 1);
   }, [arrive, enter]);
+
+  /**
+   * "지금 이 방향이 맞아요": the user faces along the current walk step's corridor, so the raw compass
+   * reading there is that step's map heading. Returns false when there's no reading or no target.
+   */
+  const calibrate = useCallback((): boolean => {
+    const st = live.current.route?.steps[live.current.stepIndex];
+    const t = st?.kind === "walk" ? st.heading_deg : null;
+    if (rawHeading === null || t === null || t === undefined) return false;
+    const next = offsetFor(rawHeading, t);
+    setOffset(next);
+    try {
+      window.localStorage.setItem(NORTH_KEY, String(next));
+    } catch {} // private mode: still applies for this visit
+    return true;
+  }, [rawHeading]);
+
+  const resetCalibration = useCallback(() => {
+    setOffset(null);
+    try {
+      window.localStorage.removeItem(NORTH_KEY);
+    } catch {}
+  }, []);
+
+  const completeStep = useCallback((mapConfirmed = false) => {
+    const { route: r, stepIndex: i, status: current } = live.current;
+    if (!r || !r.steps[i] || current === "arrived" || current === "idle") return;
+    if (current === "awaiting_map" && !mapConfirmed) return;
+    const step = r.steps[i];
+    const action = stepCompletion(step.kind, i + 1 >= r.steps.length, mapConfirmed);
+    if (action === "floorMap" && step.kind !== "walk") {
+      set({ status: "awaiting_map" });
+      cb.current.onFloorArrival?.(step, i);
+    } else if (action === "arrive") arrive();
+    else enter(r, i + 1);
+  }, [arrive, enter, set]);
+
+  /** Manual and checkpoint completion both pause at floor changes. */
+  const next = useCallback(() => completeStep(), [completeStep]);
+  const continueAfterFloorMap = useCallback(() => {
+    if (live.current.status === "awaiting_map") completeStep(true);
+  }, [completeStep]);
 
   /** Back to guiding after an off-route warning the user dismissed. */
   const resume = useCallback(() => {
@@ -194,13 +335,41 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     [arrive, enter, next, set],
   );
 
+  /**
+   * The user set where they are by hand (map pin): new route from that node, like a checkpoint mismatch.
+   * Resolves false when the pin is the destination itself (arrived instead of rerouting).
+   */
+  const rerouteFrom = useCallback(
+    async (nodeId: string): Promise<boolean> => {
+      const r = live.current.route;
+      if (!r) throw new Error("경로가 없어요");
+      if (nodeId === r.arrived.node) {
+        arrive();
+        return false;
+      }
+      const fresh = await fetchRoute(nodeId, r.arrived.node);
+      enter(fresh, 0);
+      cb.current.onReroute?.(fresh);
+      return true;
+    },
+    [arrive, enter],
+  );
+
   return {
     route,
     step,
     stepIndex,
     status,
-    /** Smoothed compass heading, 0 = north. null until the first reading (or no compass). */
+    /** Smoothed compass heading after the north calibration, 0 = the map's up. null until the first reading. */
     heading,
+    /** Metres walked on this walk step (steps × stride, capped at the step's length). null = not counted yet. */
+    walkedM,
+    /** Compass and gyro disagree (magnetic disturbance indoors): direction is withheld until it clears. */
+    disturbed,
+    /** Whether this device has a saved north calibration for the building. */
+    calibrated: offset !== null,
+    calibrate,
+    resetCalibration,
     /** Target heading for this step (walk steps only). */
     target,
     /** Signed turn from heading to target, positive = turn right. */
@@ -210,8 +379,10 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     load,
     start,
     next,
+    continueAfterFloorMap,
     goTo,
     resume,
     confirmCheckpoint,
+    rerouteFrom,
   };
 }

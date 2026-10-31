@@ -11,6 +11,41 @@ use Illuminate\Validation\Rule;
 class GraphController extends Controller
 {
     /**
+     * GET /api/floors/{floor}/graph?building= — one verified floor's map for the live guidance view:
+     * nodes (with wall outlines when known) and walk edges, in the shared contract shape.
+     */
+    public function show(Request $request, string $floor)
+    {
+        $building = (string) $request->query('building', '우정정보관');
+        $floorRow = DB::table('floors')->join('buildings', 'buildings.id', '=', 'floors.building_id')
+            ->where(['buildings.name' => $building, 'floors.label' => $floor, 'floors.status' => 'verified'])
+            ->first(['floors.id']);
+        abort_unless($floorRow, 404, '검수된 층 지도가 없어요');
+
+        $nodes = DB::table('nodes')->where('floor_id', $floorRow->id)->get(['id', 'type', 'label', 'x', 'y', 'ref', 'outline']);
+        $ids = $nodes->pluck('id');
+        // Walk edges are stored both ways; send each corridor once.
+        $edges = DB::table('edges')->where('type', 'walk')->whereIn('from_node', $ids)->whereIn('to_node', $ids)
+            ->whereColumn('from_node', '<', 'to_node')->get(['from_node', 'to_node', 'length_m', 'heading_deg']);
+
+        return ['data' => [
+            'building' => $building,
+            'floor' => $floor,
+            'status' => 'verified',
+            'current_node_id' => null,
+            'nodes' => $nodes->map(fn ($n) => array_filter([
+                'id' => $n->id, 'type' => $n->type, 'label' => $n->label, 'x' => (float) $n->x, 'y' => (float) $n->y,
+                'ref' => $n->ref, 'outline' => $n->outline ? json_decode($n->outline, true) : null,
+            ], fn ($v) => $v !== null))->values(),
+            'edges' => $edges->map(fn ($e) => [
+                'from' => $e->from_node, 'to' => $e->to_node, 'type' => 'walk',
+                'length_m' => $e->length_m, 'heading_deg' => $e->heading_deg,
+            ])->values(),
+            'elevators' => [],
+        ]];
+    }
+
+    /**
      * PUT /api/graph (header X-Admin-Token) — save one floor in the shared contract shape.
      * Replaces the floor's nodes wholesale, so overwriting a verified floor needs "replace": true.
      */

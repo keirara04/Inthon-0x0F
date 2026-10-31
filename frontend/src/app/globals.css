@@ -268,6 +268,7 @@ button:disabled {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  overflow: clip; /* hidden still allows programmatic scrolling (focus, scrollIntoView), which shifted the whole screen */
   background: var(--color-app-bg);
   padding-top: env(safe-area-inset-top);
 }
@@ -277,7 +278,9 @@ button:disabled {
 }
 
 .gg-statusbar,
-.gg-aside {
+.gg-aside,
+.gg-island,
+.gg-home {
   display: none;
 }
 
@@ -288,28 +291,443 @@ button:disabled {
     justify-content: center;
     align-items: flex-start;
     gap: 40px;
-    padding: 40px 20px;
+    padding: 32px 20px; /* device height is 100dvh - 64px, so the stage fits the viewport when it can */
   }
+  /* iPhone-like device (393×852 screen). Height fits the viewport, width follows the aspect ratio. */
   .gg-device {
+    position: relative;
     flex: none;
-    width: 390px;
-    height: 844px;
-    padding: 10px;
-    border-radius: 52px;
-    background: var(--color-device);
-    box-shadow: 0 30px 60px rgba(30, 28, 20, 0.18);
+    /* Never below 740px: the screen stays >= 328px wide (layout tested down to 320). Short laptops scroll a little. */
+    height: clamp(740px, calc(100dvh - 64px), 876px);
+    aspect-ratio: 417 / 876;
+    padding: 12px;
+    border-radius: 60px;
+    background: #0b0c0b;
+    box-shadow:
+      0 0 0 1.5px #2a2c2a,
+      0 0 0 4px #9a958c,
+      0 0 0 5px #6b6862,
+      0 40px 80px rgba(30, 28, 20, 0.22),
+      0 12px 24px rgba(30, 28, 20, 0.12);
+  }
+  /* Side buttons: action + volume up/down (left), power (right). */
+  .gg-device::before,
+  .gg-device::after {
+    content: "";
+    position: absolute;
+    width: 3px;
+    border-radius: 2px;
+  }
+  .gg-device::before {
+    left: -7px;
+    top: 17%;
+    height: 22%;
+    background: linear-gradient(#8f8a81 0 15%, transparent 15% 30%, #8f8a81 30% 62%, transparent 62% 68%, #8f8a81 68% 100%);
+  }
+  .gg-device::after {
+    right: -7px;
+    top: 27%;
+    height: 11%;
+    background: #8f8a81;
   }
   .gg-screen {
-    border-radius: 42px;
+    border-radius: 48px;
     padding-top: 0;
+  }
+  /* Faint glass highlight over the screen. */
+  .gg-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.07), transparent 38%);
   }
   .gg-statusbar {
     display: flex;
+  }
+  .gg-island {
+    display: block;
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    z-index: 9;
+    width: 31%;
+    height: 34px;
+    border-radius: 20px;
+    background: #000;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .gg-home {
+    display: block;
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    z-index: 9;
+    width: 35%;
+    height: 5px;
+    border-radius: 3px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  /* Keep the haptic cue clear of the Dynamic Island. */
+  .gg-cue {
+    top: 62px;
   }
   .gg-aside {
     display: flex;
   }
   .gg-mobile-only {
     display: none;
+  }
+}
+
+/* ---------- Landing motion (LandingScreen + landing-motion.tsx) ----------
+   Motion speaks the product's language: pulses = vibration, line drawing = route, buzz = confirmation.
+   Only transform/opacity/clip-path animate. One loop runs (the hero compass); everything else plays once on reveal. */
+:root {
+  --gl-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Hero compass: one 5 s cycle (search -> faster pulses -> buzz -> check). */
+.gl-compass {
+  animation: gl-buzz 5s linear infinite;
+}
+.gl-arrow {
+  transform-box: view-box;
+  transform-origin: 84px 84px;
+  animation: gl-seek 5s var(--gl-ease) infinite;
+}
+.gl-ring-slow,
+.gl-ring-fast {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.gl-ring-slow {
+  animation: gl-ring-slow 5s ease-out infinite;
+}
+.gl-rings-fast {
+  animation: gl-fast-on 5s linear infinite;
+}
+.gl-ring-fast {
+  animation: gl-ring-fast 0.5s ease-out infinite;
+}
+.gl-ring-fast-2 {
+  animation-delay: 0.25s;
+}
+.gl-check {
+  animation: gl-check 5s var(--gl-ease) infinite;
+}
+
+@keyframes gl-seek {
+  0% { transform: rotate(-130deg); }
+  18% { transform: rotate(70deg); }
+  34% { transform: rotate(-45deg); }
+  48% { transform: rotate(22deg); }
+  58% { transform: rotate(-8deg); }
+  66%, 92% { transform: rotate(0deg); }
+  100% { transform: rotate(-130deg); }
+}
+@keyframes gl-ring-slow {
+  0% { transform: scale(0.8); opacity: 0.35; }
+  28% { transform: scale(1.25); opacity: 0; }
+  29% { transform: scale(0.8); opacity: 0.35; }
+  57% { transform: scale(1.25); opacity: 0; }
+  58%, 100% { opacity: 0; }
+}
+@keyframes gl-fast-on {
+  0%, 60% { opacity: 0; }
+  63%, 90% { opacity: 1; }
+  94%, 100% { opacity: 0; }
+}
+@keyframes gl-ring-fast {
+  from { transform: scale(0.85); opacity: 0.7; }
+  to { transform: scale(1.3); opacity: 0; }
+}
+@keyframes gl-buzz {
+  0%, 66%, 71.5%, 100% { transform: translateX(0); }
+  67% { transform: translateX(-3px); }
+  68% { transform: translateX(3px); }
+  69% { transform: translateX(-3px); }
+  70% { transform: translateX(3px); }
+}
+@keyframes gl-check {
+  0%, 70% { transform: scale(0); opacity: 0; }
+  74% { transform: scale(1.15); opacity: 1; }
+  77%, 90% { transform: scale(1); opacity: 1; }
+  95%, 100% { transform: scale(0.8); opacity: 0; }
+}
+
+/* Headline lines rise in on load, staggered with --d. */
+/* No display here: it would override the element's own flex layout (this block is unlayered). */
+.gl-rise {
+  animation: gl-rise 0.6s var(--gl-ease) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes gl-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Primary CTA: one soft haptic ring every 6 s. */
+.gl-cta {
+  position: relative;
+}
+.gl-cta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: gl-cta 6s ease-out 1.2s infinite;
+}
+@keyframes gl-cta {
+  0%, 80% { box-shadow: 0 0 0 0 rgba(122, 24, 50, 0.45); }
+  92%, 100% { box-shadow: 0 0 0 12px rgba(122, 24, 50, 0); }
+}
+
+/* Scroll reveal: children wait until the [data-reveal] parent gets data-in (useReveal). */
+[data-reveal]:not([data-in]) :is(.gl-item, .gl-node, .gl-chip) {
+  opacity: 0;
+}
+[data-reveal]:not([data-in]) .gl-seg {
+  transform: scaleY(0);
+}
+[data-in] .gl-item {
+  animation: gl-rise 0.5s var(--gl-ease) both;
+  animation-delay: var(--d, 0ms);
+}
+[data-in] .gl-node {
+  animation: gl-pop 0.42s cubic-bezier(0.2, 0.8, 0.2, 1.4) both;
+  animation-delay: var(--d, 0ms);
+}
+[data-in] .gl-seg {
+  transform-origin: top;
+  animation: gl-grow 0.5s var(--gl-ease) both;
+  animation-delay: var(--d, 0ms);
+}
+[data-in] .gl-chip {
+  animation: gl-slide 0.4s var(--gl-ease) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes gl-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes gl-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes gl-slide {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Destination node: arrival pattern (one long ring, then two short). */
+.gl-arrive {
+  position: relative;
+}
+.gl-arrive::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  border: 2px solid #7a1832;
+  opacity: 0;
+  pointer-events: none;
+}
+[data-in] .gl-arrive::after {
+  animation:
+    gl-ping 0.9s ease-out var(--d, 0ms) 1 both,
+    gl-ping 0.45s ease-out calc(var(--d, 0ms) + 0.95s) 2 both;
+}
+@keyframes gl-ping {
+  from { opacity: 0.7; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.9); }
+}
+
+/* "How" cards: typing search (one glyph at a time), elevator floor ticker, checkpoint ripple. */
+/* Hidden glyphs take no width, so the caret always sits right after the typed text. */
+.gl-char {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+[data-reveal]:not([data-in]) .gl-char {
+  max-width: 0;
+  opacity: 0;
+}
+[data-in] .gl-char {
+  animation: gl-show 0.01s linear both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes gl-show {
+  from { max-width: 0; opacity: 0; }
+  to { max-width: 2em; opacity: 1; }
+}
+.gl-caret {
+  animation: gl-blink 1s steps(1) infinite;
+}
+@keyframes gl-blink {
+  50% { opacity: 0; }
+}
+[data-in] .gl-floors {
+  animation: gl-floors 1.5s steps(3) 0.5s both;
+}
+@keyframes gl-floors {
+  from { transform: translateY(0); }
+  to { transform: translateY(-102px); }
+}
+.gl-ripple {
+  position: relative;
+}
+.gl-ripple::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 3px solid #5b4ab8;
+  opacity: 0;
+}
+[data-in] .gl-ripple::after {
+  animation: gl-ping 0.8s ease-out 0.6s 3 both;
+}
+
+/* ---------- Interaction feedback (all screens) ---------- */
+/* Every button presses in a little: instant feedback that the tap registered. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.12s var(--gl-ease),
+    filter 0.12s var(--gl-ease);
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+  filter: brightness(0.94);
+}
+
+/* Screen change: slide + fade in, from the right going forward, from the left going back (AppShell). */
+.gg-screen-in {
+  animation: gg-screen-in 0.28s var(--gl-ease) both;
+}
+.gg-screen-back {
+  animation-name: gg-screen-back;
+}
+@keyframes gg-screen-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes gg-screen-back {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Openings: dropdown menu / FAQ answer, settings sheet, ☰ ↔ ✕ morph. */
+.gl-drop {
+  transform-origin: top;
+  animation: gl-drop 0.2s var(--gl-ease) both;
+}
+@keyframes gl-drop {
+  from { opacity: 0; transform: translateY(-6px) scaleY(0.96); }
+  to { opacity: 1; transform: none; }
+}
+/* Fade the dim colour, not opacity: the sheet is a child and must stay opaque while it slides up. */
+.gl-backdrop {
+  animation: gl-dim 0.2s ease-out both;
+}
+.gl-sheet {
+  animation: gl-sheet 0.32s var(--gl-ease) both;
+}
+@keyframes gl-dim {
+  from { background-color: rgba(20, 22, 20, 0); }
+}
+@keyframes gl-sheet {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+.gl-burger {
+  transition: transform 0.2s var(--gl-ease);
+}
+
+/* Mascot (Alienie): idle float, bounce in, rise in. */
+.gl-m-bob {
+  animation: gl-m-bob 3.2s ease-in-out infinite;
+}
+.gl-m-pop {
+  animation:
+    gl-m-pop 0.6s cubic-bezier(0.2, 0.8, 0.2, 1.4) 0.1s both,
+    gl-m-bob 3.2s ease-in-out 0.8s infinite;
+}
+.gl-m-peek {
+  animation: gl-m-peek 0.5s var(--gl-ease) 0.15s both;
+}
+@keyframes gl-m-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes gl-m-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes gl-m-peek {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Welcome hero: rings ripple outward from Alienie, one every ~1.1 s, like the vibration guidance. */
+.gw-ring {
+  animation: gw-ripple 3.3s ease-out infinite;
+}
+.gw-ring-2 {
+  animation-delay: 1.1s;
+}
+.gw-ring-3 {
+  animation-delay: 2.2s;
+}
+@keyframes gw-ripple {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(2.1); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gw-ring {
+    animation: none !important;
+    opacity: 0.6;
+  }
+  .gl-m-bob,
+  .gl-m-pop,
+  .gl-m-peek,
+  .gg-screen-in,
+  .gl-drop,
+  .gl-backdrop,
+  .gl-sheet,
+  .gl-compass,
+  .gl-arrow,
+  .gl-ring-slow,
+  .gl-rise,
+  .gl-cta::after,
+  .gl-caret,
+  [data-in] :is(.gl-item, .gl-node, .gl-seg, .gl-chip, .gl-char, .gl-floors),
+  [data-in] :is(.gl-arrive, .gl-ripple)::after {
+    animation: none !important;
+  }
+  .gl-rings-fast,
+  .gl-check {
+    display: none;
+  }
+  [data-reveal] :is(.gl-item, .gl-node, .gl-chip) {
+    opacity: 1 !important;
+  }
+  [data-reveal] .gl-seg {
+    transform: none !important;
+  }
+  [data-reveal] .gl-char {
+    max-width: none !important;
+    opacity: 1 !important;
+  }
+  .gl-floors {
+    transform: translateY(-102px) !important;
   }
 }

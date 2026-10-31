@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { headingFromEvent } from "@/lib/gilgyeol/navMath";
 
 // iOS adds a permission method and a compass field that aren't in the TS DOM types.
 type IOSOrientationEvent = typeof DeviceOrientationEvent & {
@@ -38,8 +39,8 @@ export default function SensorTest() {
         if (h != null) setHeading(h);
       };
       const onAndroid = (e: Event) => {
-        const { alpha } = e as DeviceOrientationEvent;
-        if (alpha != null) setHeading((360 - alpha) % 360);
+        const h = headingFromEvent(e as DeviceOrientationEvent); // same tilt-compensated math as guidance
+        if (h != null) setHeading(h);
       };
       window.addEventListener("deviceorientation", onIOS);
       window.addEventListener("deviceorientationabsolute", onAndroid);

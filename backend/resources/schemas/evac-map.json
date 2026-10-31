@@ -6,6 +6,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "is_floor_plan",
     "building",
     "floor",
     "current_node_id",
@@ -14,6 +15,10 @@
     "elevators"
   ],
   "properties": {
+    "is_floor_plan": {
+      "type": "boolean",
+      "description": "실제 층 평면도나 피난안내도에서 벽, 방, 복도의 배치를 확인할 수 있을 때만 true. 일반 사진, 문패, 층 표지, 문서, 지도 없는 이미지이면 false. false일 때 nodes, edges, elevators는 빈 배열이고 current_node_id는 null."
+    },
     "building": {
       "type": "string",
       "description": "건물 이름. 안내도에 없으면 사용자 힌트, 힌트도 없으면 빈 문자열"
@@ -40,7 +45,8 @@
           "label",
           "x",
           "y",
-          "ref"
+          "ref",
+          "outline"
         ],
         "properties": {
           "id": {
@@ -81,6 +87,35 @@
               "null"
             ],
             "description": "stairs/elevator_hall만: 층끼리 같은 계단·엘리베이터를 잇는 id (stairs-1, elev-1). 나머지는 null"
+          },
+          "outline": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "room, stairs, elevator_hall 공간의 실제 바깥 벽 모서리. 사진 전체 기준 0~1 좌표, 경계를 따라 순서대로 3~12점, 첫 점 반복 안 함. 각 공간의 서로 다른 폭과 깊이를 보존한다. 경계가 보이지 않거나 다른 노드 type이면 null.",
+            "minItems": 3,
+            "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
           }
         }
       }

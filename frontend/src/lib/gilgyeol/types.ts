@@ -4,6 +4,8 @@ export type Screen =
   | "welcome"
   | "building"
   | "captureIntro"
+  | "invalidMap"
+  | "wrongFloor"
   | "mapResult"
   | "start"
   | "search"
@@ -11,6 +13,7 @@ export type Screen =
   | "mode"
   | "guide"
   | "elevator"
+  | "floorMap"
   | "scan"
   | "offroute"
   | "arrive"
@@ -22,7 +25,7 @@ export type DirectionState = "far" | "near" | "aligned" | "unstable";
 export type ScanTarget = "map" | "sign";
 export type ScanOutcome = "success" | "mismatch" | "fail";
 export type ScanState = "aim" | "analyzing" | ScanOutcome | "denied";
-export type OffrouteState = "alert" | "floor" | "confirm";
+export type OffrouteState = "alert" | "floor" | "pin" | "confirm";
 export type GuideStep = number;
 export type HapticPattern = "dir" | "left" | "right" | "floor" | "confirm" | "arrive" | "off";
 
@@ -63,6 +66,7 @@ export interface RouteStep {
   toFloor?: string;
   headingDeg?: number | null;
   lengthM?: number;
+  turnDir?: "left" | "right" | "back" | "straight" | null;
   checkpoint?: { kind: string; text: string } | null;
   toNode?: string;
 }
@@ -90,6 +94,10 @@ export interface GraphNode {
   src: GraphSource;
   /** Backend `ref`: links an elevator/stairs node to the same shaft on other floors. */
   ref?: string;
+  /** Wall outline of a room/stair/elevator in canvas units, closing edge implicit. Display only, never saved. */
+  outline?: { x: number; y: number }[];
+  /** Outline estimated from spacing (fallbackOutlines), not traced by the AI: no interior detail is drawn. */
+  outlineEstimated?: boolean;
 }
 
 export interface GraphEdge {
