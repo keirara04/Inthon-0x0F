@@ -59,7 +59,7 @@ export function RoutePreviewScreen() {
   return (
     <div className="flex flex-col gap-4 px-5 pt-1 pb-7">
       <BackHeader label="경로 미리보기" onBack={actions.back} />
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5 rounded-[18px] bg-surface p-[18px]">
+      <div data-trial="route-summary" className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5 rounded-[18px] bg-surface p-[18px]">
         <div className="flex flex-col gap-[3px]">
           <div className="text-[12px] font-semibold text-muted">출발</div>
           <div className="text-[16px] font-bold">{startNode?.label ?? "—"}</div>

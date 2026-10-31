@@ -84,7 +84,7 @@ export function MapResultScreen() {
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           {/* Keep the start the parse suggested; the demo/sample path starts at the 현위치 marker as before. */}
-          <PrimaryButton onClick={() => actions.go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !state.start, landmarks: false })}>이 안내도가 맞아요</PrimaryButton>
+          <PrimaryButton data-trial="map-confirm" onClick={() => actions.go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !state.start, landmarks: false })}>이 안내도가 맞아요</PrimaryButton>
           <SecondaryButton className="h-[58px] px-4" onClick={() => actions.openScan("map")}>
             다시 촬영
           </SecondaryButton>

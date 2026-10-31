@@ -110,7 +110,7 @@ export function CaptureIntroScreen() {
       <div className="flex-1" />
       {album.input}
       <PrimaryButton onClick={() => actions.openScan("map")}>카메라 켜기</PrimaryButton>
-      <SecondaryButton onClick={album.open}>앨범에서 선택</SecondaryButton>
+      <SecondaryButton data-trial="capture-album" onClick={album.open}>앨범에서 선택</SecondaryButton>
       <SecondaryButton dashed onClick={() => actions.go("mapResult", { mapDemo: true })}>
         데모 안내도 불러오기
       </SecondaryButton>

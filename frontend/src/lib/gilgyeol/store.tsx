@@ -25,6 +25,8 @@ import type {
 
 export interface AppState {
   screen: Screen;
+  /** Guided 3-minute trial: the overlay walks through the real screens until the route preview. */
+  trialOn: boolean;
   // start / location
   mapDemo: boolean;
   /** AI draft of the photographed evacuation map. Shown on the map result; routing still uses the verified graph. */
@@ -80,6 +82,7 @@ export interface AppState {
 
 const INITIAL: AppState = {
   screen: "landing",
+  trialOn: false,
   mapDemo: false,
   parsed: null,
   parsedPhoto: null,
@@ -121,6 +124,7 @@ const INITIAL: AppState = {
 };
 
 const BACK: Partial<Record<Screen, Screen>> = {
+  trial: "landing",
   building: "welcome",
   captureIntro: "building",
   mapResult: "captureIntro",
@@ -500,8 +504,82 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false, simDir: null });
   }, [go, stopGuidance, navLoad]);
 
+  /** Guided trial start: skips the marketing intro and lands on the real capture screen with 하은's photo. */
+  const startTrial = useCallback(() => {
+    if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+    navLoad(null);
+    update({
+      screen: "captureIntro",
+      trialOn: true,
+      mapDemo: false,
+      parsed: null,
+      parsedPhoto: null,
+      start: null,
+      locEdit: false,
+      landmarks: false,
+      query: "",
+      cat: null,
+      floorPick: null,
+      dest: null,
+      route: null,
+      steps: [],
+      routeLoading: false,
+      trip: { startedAt: null, arrivedAt: null, reroutes: 0 },
+      mode: "both",
+      vibe: true,
+      voice: true,
+      simDir: null,
+      sheet: false,
+      toast: null,
+      cue: null,
+    });
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [update, navLoad, scrollRef]);
+
+  /**
+   * Ends the guided overlay. `toLanding` also clears the half-finished trip so the next
+   * ordinary visit starts clean; otherwise the user keeps the real screen they reached.
+   */
+  const endTrial = useCallback(
+    (toLanding = false) => {
+      if (!toLanding) {
+        update({ trialOn: false });
+        toast("3분 체험을 마쳤어요. 실제 앱처럼 이어서 사용할 수 있어요");
+        return;
+      }
+      if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      navLoad(null);
+      update({
+        screen: "landing",
+        trialOn: false,
+        mapDemo: false,
+        parsed: null,
+        parsedPhoto: null,
+        start: "here",
+        locEdit: false,
+        landmarks: false,
+        query: "",
+        cat: null,
+        floorPick: null,
+        dest: null,
+        route: null,
+        steps: [],
+        routeLoading: false,
+        trip: { startedAt: null, arrivedAt: null, reroutes: 0 },
+        simDir: null,
+        sheet: false,
+        toast: null,
+        cue: null,
+      });
+      scrollRef.current?.scrollTo({ top: 0 });
+    },
+    [update, navLoad, scrollRef, toast],
+  );
+
   const back = useCallback(() => {
     const s = ref.current;
+    // Leaving any guided screen ends the trial; the overlay must not reappear later in the trip.
+    if (s.trialOn) update({ trialOn: false });
     if (s.screen === "scan") {
       clearTimeout(timers.current.scan);
       go(s.scanFrom === "scan" ? "welcome" : s.scanFrom);
@@ -527,7 +605,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       return;
     }
     go(BACK[s.screen] ?? "welcome");
-  }, [go, startGuide, stopGuidance]);
+  }, [go, startGuide, stopGuidance, update]);
 
   const setMode = useCallback(
     (mode: GuideMode) => {
@@ -656,8 +734,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       beginTrip,
       setRaised,
       enablePosture,
+      startTrial,
+      endTrial,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture, startTrial, endTrial],
   );
 
   return { state, actions };

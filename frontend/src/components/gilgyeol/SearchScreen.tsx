@@ -36,6 +36,7 @@ export function SearchScreen() {
         </button>
         <input
           autoFocus
+          data-trial="search-input"
           type="search"
           value={s.query}
           onChange={(e) => actions.update({ query: e.target.value })}
@@ -90,6 +91,7 @@ export function SearchScreen() {
               <li key={r.id}>
                 <button
                   type="button"
+                  data-trial={r.name.includes("405") ? "dest-405" : undefined}
                   onClick={() => actions.pickDest(r)}
                   className="flex min-h-[68px] w-full items-center justify-between border-0 border-b border-divider bg-surface px-[18px] py-3 text-left"
                 >

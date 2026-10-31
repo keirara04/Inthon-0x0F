@@ -19,7 +19,7 @@ const ROUTE_STOPS = [
   { label: "405호", kind: "목적지 · 호실", glyph: "405", radius: "50%", bg: "#7A1832", bd: "#7A1832", fg: "#fff", chip: "" },
 ];
 
-const TRIAL_STEPS = ["목적지 검색", "출발 위치 확인", "4층 정차 엘리베이터 확인", "층 표지 확인", "405호 도착"];
+const TRIAL_STEPS = ["안내도 사진 선택", "AI 안내도 확인", "출발 위치 지정", "405호 검색", "경로 확인"];
 
 const FAQS = [
   {
@@ -27,8 +27,8 @@ const FAQS = [
     a: "아니요. 로그인 없이 우정정보관 데모 경로를 바로 체험할 수 있어요.",
   },
   {
-    q: "실제 위치나 카메라를 사용하나요?",
-    a: "방향 안내는 기기의 나침반 센서로, 안내도·표지 확인 단계에서는 카메라로 확인해요. 위치·마이크 권한은 요청하지 않아요.",
+    q: "안내도 사진과 카메라를 사용하나요?",
+    a: "안내도 사진은 AI가 복도와 호실을 읽어 지도로 만드는 데 쓰고, 저장하지 않아요. 방향 안내는 나침반 센서를, 표지 확인은 카메라를 사용해요. 위치·마이크 권한은 요청하지 않아요.",
   },
   {
     q: "어느 건물을 체험할 수 있나요?",
@@ -46,7 +46,7 @@ export function LandingScreen() {
   const [faq, setFaq] = useState(-1);
   const secRefs = useRef<Record<Sec, HTMLElement | null>>({ how: null, trial: null, faq: null });
 
-  const startTrial = () => actions.go("welcome");
+  const startTrial = () => actions.go("trial");
 
   const jump = (id: Sec) => {
     setMenu(false);
@@ -115,7 +115,7 @@ export function LandingScreen() {
           다음 방향이 분명하도록.
         </h1>
         <p className="m-0 text-[16px] leading-[1.6] text-pretty text-muted">
-          어디路는 주변 표지와 층 정보를 바탕으로 목적지까지 길을 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
+          어디路는 안내도 사진을 AI로 읽어 만든 지도와 주변 표지로 목적지까지 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
         </p>
         <div className="flex flex-col gap-2">
           <PrimaryButton onClick={startTrial}>3분 체험해보기 →</PrimaryButton>
@@ -156,33 +156,48 @@ export function LandingScreen() {
       <section ref={(el) => { secRefs.current.how = el; }} data-sec="how" className="scroll-mt-[76px] px-5 pt-11 pb-2">
         <div className="flex flex-col items-center gap-2 text-center">
           <h2 className="m-0 text-[24px] font-extrabold tracking-[-0.02em]">어떻게 안내하나요?</h2>
-          <p className="m-0 text-[15px] leading-normal text-muted">찾고, 고르고, 다시 확인하는 세 순간이에요.</p>
+          <p className="m-0 text-[15px] leading-normal text-muted">읽고, 고르고, 따라가는 세 순간이에요.</p>
         </div>
         <div className="mt-3.5 flex flex-col gap-2.5">
           <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-5">
             <span className="text-[12px] font-extrabold text-muted">01</span>
-            <div className="text-[19px] font-extrabold">목적지를 찾고</div>
-            <div className="text-[15px] leading-normal text-[#3F433F]">‘405호’처럼 호실 번호나 장소명으로 검색해요.</div>
-            <div className="flex h-12 items-center gap-2.5 rounded-[14px] border-[1.5px] border-edge bg-app-bg px-3.5 text-[15px] font-semibold">
-              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-                <circle cx="7" cy="7" r="5" fill="none" stroke="#202421" strokeWidth="2" />
-                <line x1="11" y1="11" x2="15" y2="15" stroke="#202421" strokeWidth="2" strokeLinecap="round" />
+            <div className="text-[19px] font-extrabold">안내도를 찍으면</div>
+            <div className="text-[15px] leading-normal text-[#3F433F]">AI가 복도와 호실을 읽어 지도로 만들어요.</div>
+            <div aria-hidden="true" className="relative h-14 overflow-hidden rounded-[14px] border border-edge bg-app-bg">
+              <svg viewBox="0 0 300 56" className="size-full">
+                <g stroke="#EAE7DF" strokeWidth="10" strokeLinecap="round">
+                  <line x1="18" y1="30" x2="282" y2="30" />
+                  <line x1="96" y1="30" x2="96" y2="54" />
+                  <line x1="212" y1="30" x2="212" y2="6" />
+                </g>
+                <rect x="60" y="19" width="22" height="22" rx="4" fill="#2864A0" />
+                <text x="71" y="34" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff">401</text>
+                <rect x="124" y="19" width="22" height="22" rx="4" fill="#BDB8AC" />
+                <text x="135" y="34" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff">403</text>
+                <rect x="226" y="19" width="26" height="22" rx="4" fill="#5B4AB8" />
+                <text x="239" y="34" textAnchor="middle" fontSize="9" fontWeight="800" fill="#fff">EV</text>
+                <circle cx="18" cy="30" r="5" fill="#7A1832" />
               </svg>
-              405호
+              <span className="absolute top-1.5 left-2 rounded bg-white/85 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted">AI가 읽은 4층</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
               <span className="text-[12px] font-extrabold text-muted">02</span>
-              <div className="flex size-[34px] items-center justify-center rounded-lg bg-route text-[15px] font-extrabold text-white">승</div>
-              <div className="text-[17px] leading-[1.3] font-extrabold">탈 엘리베이터를 확인하고</div>
-              <div className="text-[14px] leading-normal text-[#3F433F]">목적 층에 서는 엘리베이터를 경로에 반영해요.</div>
+              <div className="flex size-[34px] items-center justify-center rounded-lg bg-route">
+                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                  <circle cx="7" cy="7" r="5" fill="none" stroke="#fff" strokeWidth="2" />
+                  <line x1="11" y1="11" x2="15" y2="15" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div className="text-[17px] leading-[1.3] font-extrabold">목적지를 고르고</div>
+              <div className="text-[14px] leading-normal text-[#3F433F]">‘405호’처럼 검색하면 경로와 엘리베이터를 확인해요.</div>
             </div>
             <div className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-[18px]">
               <span className="text-[12px] font-extrabold text-muted">03</span>
               <div aria-hidden="true" className="size-[34px] rounded-full border-[3px] border-haptic" />
-              <div className="text-[17px] leading-[1.3] font-extrabold">표지로 위치를 다시 확인하고</div>
-              <div className="text-[14px] leading-normal text-[#3F433F]">층 표지와 호실을 체크포인트로 확인해요.</div>
+              <div className="text-[17px] leading-[1.3] font-extrabold">진동·음성으로 따라가고</div>
+              <div className="text-[14px] leading-normal text-[#3F433F]">표지 체크포인트로 위치를 다시 확인해요.</div>
             </div>
           </div>
         </div>
@@ -249,7 +264,7 @@ export function LandingScreen() {
             405호까지 가볼까요?
           </div>
           <div className="text-[14px] leading-[1.55] text-[#C9CCC6]">
-            로그인 없이 시작해요. 우정정보관 데모 경로로 목적지 검색부터 도착 확인까지 실제 안내 화면을 체험해요.
+            로그인 없이 시작해요. 우정정보관 안내도를 찍어 지도로 만들고, 405호까지 실제 안내 화면으로 이동해요.
           </div>
           <button
             type="button"

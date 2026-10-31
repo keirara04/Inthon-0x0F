@@ -144,7 +144,7 @@ export function StartLocationScreen() {
         <SecondaryButton aria-pressed={s.locEdit} onClick={() => actions.update({ locEdit: !s.locEdit })}>
           {s.locEdit ? "수정 취소" : "위치 수정"}
         </SecondaryButton>
-        <SecondaryButton aria-expanded={s.landmarks} onClick={() => actions.update({ landmarks: !s.landmarks })}>
+        <SecondaryButton data-trial="start-landmarks" aria-expanded={s.landmarks} onClick={() => actions.update({ landmarks: !s.landmarks })}>
           층·랜드마크 직접 선택
         </SecondaryButton>
         {s.landmarks && (
@@ -153,6 +153,7 @@ export function StartLocationScreen() {
               <button
                 type="button"
                 key={n.id}
+                data-trial={n.id === "main" ? "start-main" : undefined}
                 aria-pressed={s.start === n.id}
                 onClick={() => actions.update({ start: n.id, locEdit: false, landmarks: false })}
                 className="flex min-h-[52px] items-center justify-between border-0 border-b border-divider bg-surface px-4 text-left text-[16px] text-ink"
@@ -164,7 +165,7 @@ export function StartLocationScreen() {
           </div>
         )}
       </div>
-      <PrimaryButton disabled={!s.start} onClick={() => s.start && actions.go("search", { query: "", cat: null, floorPick: null })}>
+      <PrimaryButton data-trial="start-confirm" disabled={!s.start} onClick={() => s.start && actions.go("search", { query: "", cat: null, floorPick: null })}>
         맞아요, 계속하기
       </PrimaryButton>
     </div>

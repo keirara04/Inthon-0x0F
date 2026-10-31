@@ -20,10 +20,13 @@ import { RoutePreviewScreen } from "./RoutePreviewScreen";
 import { SearchScreen } from "./SearchScreen";
 import { SettingsSheet } from "./SettingsSheet";
 import { StartLocationScreen } from "./StartLocationScreen";
+import { TrialGuide } from "./TrialGuide";
+import { TrialScreen } from "./TrialScreen";
 import { WelcomeScreen } from "./WelcomeScreen";
 
 const SCREENS: Record<Screen, () => ReactNode> = {
   landing: LandingScreen,
+  trial: TrialScreen,
   welcome: WelcomeScreen,
   building: BuildingScreen,
   captureIntro: CaptureIntroScreen,
@@ -60,6 +63,7 @@ function Device() {
         <main ref={scrollRef} className="gg-scroll relative flex-1 overflow-x-hidden overflow-y-auto">
           <Current key={s.screen} />
         </main>
+        <TrialGuide />
         {s.cue && (
           <div
             role="status"
