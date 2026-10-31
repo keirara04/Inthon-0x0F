@@ -4,8 +4,8 @@ import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { BackHeader, Title } from "./ui";
 
 /**
- * Branch before search: does the user need another floor? Yes → rooms on the other floors, No → this floor's rooms.
- * Either way the route comes from the picked room, so the backend plans the elevator ride.
+ * Branch before search. Yes: guide to the elevator hall; after the ride the user photographs that floor's map and
+ * picks the destination there. No: pick from this floor's rooms.
  */
 export function DestFloorScreen() {
   const { state: s, actions } = useGilgyeol();
@@ -31,11 +31,12 @@ export function DestFloorScreen() {
       <div className="flex flex-col gap-2.5">
         <button
           type="button"
+          disabled={s.routeLoading}
           onClick={() => actions.chooseFloorScope(true)}
-          className="flex min-h-[72px] flex-col justify-center gap-1 rounded-[18px] bg-brand px-5 py-3 text-left text-white"
+          className="flex min-h-[72px] flex-col justify-center gap-1 rounded-[18px] bg-brand px-5 py-3 text-left text-white disabled:opacity-70"
         >
           <span className="text-[19px] font-extrabold">예, 이동할게요</span>
-          <span className="text-[14px] font-medium text-white/85">엘리베이터부터 안내해요</span>
+          <span className="text-[14px] font-medium text-white/85">{s.routeLoading ? "엘리베이터 경로 찾는 중…" : "엘리베이터까지 안내하고, 내린 층에서 목적지를 골라요"}</span>
         </button>
         <button
           type="button"

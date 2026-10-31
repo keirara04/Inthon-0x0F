@@ -25,7 +25,7 @@ export function SearchScreen() {
     };
   }, [s.query, attempt]);
 
-  const results = load.status === "ok" ? load.rooms.filter((r) => (!s.cat || r.cat === s.cat) && (!s.floorPick || r.floor === s.floorPick) && (s.awayFrom === null || !!s.floorPick || r.floor !== s.awayFrom)) : [];
+  const results = load.status === "ok" ? load.rooms.filter((r) => (!s.cat || r.cat === s.cat) && (!s.floorPick || r.floor === s.floorPick)) : [];
 
   return (
     <div className="flex flex-col gap-4 px-5 pt-1 pb-7">
@@ -60,11 +60,6 @@ export function SearchScreen() {
             </button>
           );
         })}
-        {s.awayFrom !== null && !s.floorPick && (
-          <button type="button" onClick={() => actions.update({ awayFrom: null })} aria-label={`${s.awayFrom}층 제외 해제`} className="h-10 rounded-[20px] border-none bg-ink px-3.5 text-[14px] font-semibold text-white">
-            {s.awayFrom}층 제외 ×
-          </button>
-        )}
         {s.floorPick && (
           <button type="button" onClick={() => actions.update({ floorPick: null })} aria-label={`${s.floorPick}층 필터 해제`} className="h-10 rounded-[20px] border-none bg-ink px-3.5 text-[14px] font-semibold text-white">
             {s.floorPick}층 ×

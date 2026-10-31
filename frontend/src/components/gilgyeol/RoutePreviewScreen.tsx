@@ -75,7 +75,7 @@ export function RoutePreviewScreen() {
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5 rounded-[18px] bg-surface p-[18px]">
         <div className="flex flex-col gap-[3px]">
           <div className="text-[13px] font-semibold text-muted">출발</div>
-          <div className="text-[16px] font-bold">{startNode?.label ?? "—"}</div>
+          <div className="text-[16px] font-bold">{s.startAt?.label ?? startNode?.label ?? "—"}</div>
           <div className="text-[13px] text-muted">{departFloor}</div>
         </div>
         <svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true">
