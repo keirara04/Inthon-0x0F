@@ -249,7 +249,8 @@ export default function Floor3D({
         .filter((n) => n.type === "room" && n.outline && n.outline.length >= 3)
         .map((n) => Math.max(Math.max(...n.outline!.map((p) => p.x)) - Math.min(...n.outline!.map((p) => p.x)), Math.max(...n.outline!.map((p) => p.y)) - Math.min(...n.outline!.map((p) => p.y))))
         .sort((a, b) => a - b);
-      return sides.length ? S * Math.min(3, Math.max(0.4, 70 / sides[Math.floor(sides.length / 2)])) : S;
+      // No upper clamp: verified graphs are 0–1 photo fractions (rooms ~0.15 wide), which need ~350x.
+      return sides.length ? (S * 70) / sides[Math.floor(sides.length / 2)] : S;
     });
 
     levels.forEach((level, li) => {

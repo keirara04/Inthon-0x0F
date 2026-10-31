@@ -27,7 +27,7 @@ class NavigationController extends Controller
                 ->orWhere('buildings.name', 'like', "%{$word}%"));
         }
 
-        return SearchResultResource::collection($query->orderBy('floors.level')->orderBy('nodes.label')->limit(20)->get());
+        return SearchResultResource::collection($query->orderBy('floors.level')->orderBy('nodes.label')->limit(200)->get());
     }
 
     /**
