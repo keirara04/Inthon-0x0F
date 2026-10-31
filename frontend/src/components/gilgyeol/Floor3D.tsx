@@ -6,7 +6,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C } from "@/lib/gilgyeol/data";
-import { fallbackOutlines, snapOutlines } from "@/lib/gilgyeol/geometry";
+import { canvasTextMeasure, fitMapText, mapNodeLabel, MAP_FONT } from "@/lib/gilgyeol/mapLabels";
+import { fallbackOutlines, roomPolygon, snapOutlines } from "@/lib/gilgyeol/geometry";
 import type { GraphNode } from "@/lib/gilgyeol/types";
 
 export type Floor3DLevel = {
@@ -31,33 +32,35 @@ const FLOOR: Record<string, string> = { room: "#F3EBDD", restroom: "#D6E6F3", st
 
 /** Room number / name as a camera-facing sprite. */
 function label(text: string, color: string, bg: string | null, scale: number) {
-  const pad = 14;
-  const font = "700 44px -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
-  const c = document.createElement("canvas");
-  const ctx = c.getContext("2d")!;
-  ctx.font = font;
-  c.width = Math.ceil(ctx.measureText(text).width) + pad * 2;
-  c.height = 64;
-  ctx.font = font;
-  if (bg) {
-    ctx.fillStyle = bg;
-    ctx.beginPath();
-    ctx.roundRect(0, 0, c.width, c.height, 18);
-    ctx.fill();
-  }
-  ctx.fillStyle = color;
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, pad, c.height / 2 + 2);
+  const c = textCanvas(text, color, 44, 384, 160, 14, 10, bg);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  sprite.scale.set((c.width / c.height) * scale, scale, 1);
+  sprite.scale.set((c.width / 64) * scale, (c.height / 64) * scale, 1);
   sprite.renderOrder = 10;
   return sprite;
 }
 
-const shortLabel = (n: GraphNode) =>
-  n.type === "room" ? n.label.replace(/\s*호(?=$|\s*\()/, "").replace(/\s*\(?화장실\)?/, " 화장실").slice(0, 8) : n.type === "stairs" ? "계단" : "승강기";
+/** Bounded canvas textures retain the full label, including long Korean and English names. */
+function textCanvas(text: string, color: string, fontSize: number, maxWidth: number, maxHeight: number, paddingX: number, paddingY: number, bg: string | null = null) {
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d")!;
+  const layout = fitMapText(text, { fontSize, maxWidth, maxHeight, paddingX, paddingY, measure: canvasTextMeasure(800) });
+  c.width = Math.max(1, Math.ceil(layout.width));
+  c.height = Math.max(1, Math.ceil(layout.height));
+  ctx.font = `800 ${layout.fontSize}px ${MAP_FONT}`;
+  if (bg) {
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, c.width, c.height, Math.min(18, c.height / 4));
+    ctx.fill();
+  }
+  ctx.fillStyle = color;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  layout.lines.forEach((line, i) => ctx.fillText(line, c.width / 2, layout.paddingY + (i + 0.5) * layout.lineHeight));
+  return c;
+}
 
 /** Box between two points on the floor (a corridor strip). */
 function strip(a: THREE.Vector3, b: THREE.Vector3, width: number, mat: THREE.Material) {
@@ -145,16 +148,7 @@ function desksGeo(poly: V2[]): THREE.BufferGeometry[] {
 
 /** Text painted flat on a floor, fitted inside `maxW` × `maxH` world units. */
 function floorText(text: string, maxW: number, maxH: number, color: string) {
-  const c = document.createElement("canvas");
-  const ctx = c.getContext("2d")!;
-  const font = "800 56px -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif";
-  ctx.font = font;
-  c.width = Math.ceil(ctx.measureText(text).width) + 16;
-  c.height = 72;
-  ctx.font = font;
-  ctx.fillStyle = color;
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, 8, c.height / 2 + 3);
+  const c = textCanvas(text, color, 100, Math.min(1024, maxW * 160), Math.min(512, maxH * 160), 4, 4);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -244,11 +238,11 @@ export default function Floor3D({
     const base = elevOf(levels[0]?.g ?? ({ nodes: [] } as unknown as ParsedGraph));
     // Graphs come in arbitrary units (photo fractions), so scale each floor until a typical room is ~7 m wide.
     // That keeps desks, doors and stacked floors at one real-world size.
-    // Rooms without an AI outline get an estimated rectangle first, so scale, walls and labels all work.
+    // Real AI outline when there is one, else an estimated rectangle, so scale, walls and labels all work.
     const filled = levels.map(({ g }) => fallbackOutlines(g.nodes, g.edges));
     const scales = levels.map((_, li) => {
       const sides = filled[li]
-        .filter((n) => n.type === "room" && n.outline && n.outline.length >= 3)
+        .filter((n) => n.type === "room" && roomPolygon(n, 1) !== null)
         .map((n) => Math.max(Math.max(...n.outline!.map((p) => p.x)) - Math.min(...n.outline!.map((p) => p.x)), Math.max(...n.outline!.map((p) => p.y)) - Math.min(...n.outline!.map((p) => p.y))))
         .sort((a, b) => a - b);
       // No upper clamp: verified graphs are 0–1 photo fractions (rooms ~0.15 wide), which need ~350x.
@@ -293,11 +287,12 @@ export default function Floor3D({
       const shafts: THREE.BufferGeometry[] = [];
       const steps: THREE.BufferGeometry[] = [];
       const desks: THREE.BufferGeometry[] = [];
-      const polyOf = (n: GraphNode): V2[] =>
-        n.outline && n.outline.length >= 3
-          ? n.outline.map((p) => ({ x: p.x * LS, z: p.y * LS }))
-          : [[-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9]].map(([ox, oz]) => ({ x: n.x * LS + ox, z: n.y * LS + oz }));
-      const roomish = nodes.filter((n) => n.type === "room" || n.type === "stairs" || n.type === "elevator_hall");
+      const spaces = nodes.filter((n) => n.type === "room" || n.type === "stairs" || n.type === "elevator_hall");
+      // fallbackOutlines covers every room with neighbours; only a lone room or a degenerate outline lands here.
+      const box = (n: GraphNode): V2[] => [[-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9]].map(([ox, oz]) => ({ x: n.x * LS + ox, z: n.y * LS + oz }));
+      const polygons = new Map(spaces.map((n) => [n.id, roomPolygon(n, LS) ?? box(n)]));
+      const roomish = spaces;
+      const polyOf = (n: GraphNode): V2[] => polygons.get(n.id)!;
       // Label centres, so a name is never wider than the gap to its neighbour's name.
       const centres = roomish.map((n) => {
         const b = bbox(polyOf(n));
@@ -344,10 +339,10 @@ export default function Floor3D({
         // Tall, narrow rooms (406–402) carry the name along their long side, like a printed plan.
         const tall = z1 - z0 > (x1 - x0) * 1.4;
         const [along, across] = tall ? [z1 - z0, x1 - x0] : [x1 - x0, z1 - z0];
-        // Floors keep labels readable even in a cramped row (a tiny label is worse than a slight overlap).
-        const maxW = Math.max(0.6, Math.min(along * 0.85, gap(n.id, tall ? "z" : "x") * 0.9));
-        const maxH = Math.max(0.35, Math.min(across * (tall ? 0.6 : 0.32), gap(n.id, tall ? "x" : "z") * 0.8, 1.1));
-        const text = floorText(n.type === "room" ? shortLabel(n) : n.type === "stairs" ? "계단" : "승강기", maxW, maxH, restroom ? C.route : C.ink);
+        // Fit the full name inside the room and the gap to neighbouring labels.
+        const maxW = Math.max(0.05, Math.min(along * 0.85, gap(n.id, tall ? "z" : "x") * 0.9));
+        const maxH = Math.max(0.05, Math.min(across * (tall ? 0.6 : 0.32), gap(n.id, tall ? "x" : "z") * 0.8, 1.1));
+        const text = floorText(mapNodeLabel(n), maxW, maxH, restroom ? C.route : C.ink);
         if (tall) text.rotation.y = -Math.PI / 2; // reads bottom-to-top from the default view
         // Stairs: name above the top step. Classrooms with desks: name in the band by the top wall. Else: centre.
         text.position.set((x0 + x1) / 2, n.type === "stairs" ? 1.12 : 0.07, roomDesks.length && !tall ? z0 + 0.85 : (z0 + z1) / 2);
@@ -455,7 +450,7 @@ export default function Floor3D({
     const frameAll = () => {
       const vfov = THREE.MathUtils.degToRad(camera.fov);
       const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
-      const dist = (sphere.radius / Math.sin(Math.min(vfov, hfov) / 2)) * 0.7; // a flat floor fills far less than its bounding sphere
+      const dist = (sphere.radius / Math.sin(Math.min(vfov, hfov) / 2)) * 1.05; // keep edge rooms and their full labels inside the initial view
       camera.position.copy(sphere.center).addScaledVector(view, dist);
       controls.target.copy(sphere.center);
       controls.maxDistance = dist * 2.5;

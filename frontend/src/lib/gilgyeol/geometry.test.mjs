@@ -1,7 +1,7 @@
 // Run: node --test src/lib/gilgyeol/geometry.test.mjs   (Node 24 strips the TS types on import)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fallbackOutlines, pinNode, shortestPath, snapAxis, snapOutlines, straighten } from "./geometry.ts";
+import { fallbackOutlines, pinNode, roomPolygon, shortestPath, snapAxis, snapOutlines, straighten } from "./geometry.ts";
 
 test("straighten squares off a hand-drawn rectangle", () => {
   const out = straighten([{ x: 0, y: 0.2 }, { x: 10, y: -0.2 }, { x: 10.3, y: 5 }, { x: -0.1, y: 5.2 }]);
@@ -73,4 +73,15 @@ test("pinNode: inside a room picks it, open corridor snaps to the nearest node",
   assert.equal(pinNode(nodes, { x: 31, y: 20 }).node.id, "j2"); // landmarks never chosen (j2 at 19 beats j1 at 26)
   assert.equal(pinNode(nodes, { x: 61, y: 31 }).label, "동쪽 계단");
   assert.equal(pinNode([], { x: 0, y: 0 }), null);
+});
+
+test("room footprints retain different widths and depths at a shared 3D scale", () => {
+  const room = (outline) => ({ id: "room", type: "room", label: "room", x: 5, y: 5, ocr: "", servedFloors: "", src: "ai", outline });
+  const large = room([{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 20, y: 10 }, { x: 0, y: 10 }]);
+  const small = room([{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 4 }, { x: 0, y: 4 }]);
+  assert.deepEqual(roomPolygon(large, 0.1), [{ x: 0, z: 0 }, { x: 2, z: 0 }, { x: 2, z: 1 }, { x: 0, z: 1 }]);
+  assert.deepEqual(roomPolygon(small, 0.1), [{ x: 0, z: 0 }, { x: 0.5, z: 0 }, { x: 0.5, z: 0.4 }, { x: 0, z: 0.4 }]);
+  assert.equal(roomPolygon(room(undefined), 0.1), null, "no outline: fallbackOutlines supplies one first");
+  assert.equal(roomPolygon(room([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }]), 0.1), null, "a collapsed outline has no room area");
+  assert.equal(roomPolygon(room([{ x: NaN, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 2 }]), 0.1), null);
 });

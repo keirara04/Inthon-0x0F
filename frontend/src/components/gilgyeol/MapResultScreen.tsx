@@ -89,7 +89,7 @@ export function MapResultScreen() {
               <span className="text-[12px] font-semibold text-muted">
                 {TYPE_LABEL[picked.type] ?? "지점"} · 복도 연결 {links}곳
               </span>
-              <span className="truncate text-[18px] font-extrabold">{picked.label}</span>
+              <span className="whitespace-normal text-[18px] font-extrabold [overflow-wrap:anywhere]">{picked.label}</span>
             </div>
             <button type="button" onClick={() => setSel(null)} className="h-10 flex-none rounded-[10px] border-[1.5px] border-edge bg-surface px-3 text-[13px] font-semibold text-ink">
               닫기

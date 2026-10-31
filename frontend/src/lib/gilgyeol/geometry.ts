@@ -198,3 +198,15 @@ export function pinNode<N extends GraphNode>(nodes: N[], p: Pt): { node: N; labe
   const named = closest(usable.filter((n) => n.type !== "junction"));
   return { node, label: named ? `${named.label} 앞 복도` : "복도" };
 }
+
+/** A room's outline at `scale`, or null when it has none usable (fallbackOutlines fills those first in 3D). */
+export function roomPolygon(node: GraphNode, scale: number): { x: number; z: number }[] | null {
+  const points = node.outline;
+  if (!points || points.length < 3 || points.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y))) return null;
+  const area = points.reduce((sum, p, i) => {
+    const q = points[(i + 1) % points.length];
+    return sum + p.x * q.y - q.x * p.y;
+  }, 0);
+  if (Math.abs(area) < 1e-8) return null;
+  return points.map((p) => ({ x: p.x * scale, z: p.y * scale }));
+}
