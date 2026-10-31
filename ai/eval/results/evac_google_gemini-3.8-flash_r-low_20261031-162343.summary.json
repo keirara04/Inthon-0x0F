@@ -1,0 +1,19 @@
+{
+  "task": "evac",
+  "model": "google/gemini-3.8-flash (reasoning=low)",
+  "run": "20261031-162343",
+  "n_images": 7,
+  "n_with_truth": 7,
+  "json_valid": 1.0,
+  "room_recall": 1.0,
+  "room_precision": 1.0,
+  "current_node_ok": 1.0,
+  "vertical_found": 0.9047619047619048,
+  "connected": 1.0,
+  "corridor_axis_ok": 0.7863327149041435,
+  "completion_tokens_mean": 2409.0,
+  "latency_s_mean": 16.352857142857143,
+  "latency_s_max": 21.73,
+  "cost_usd_total": 0.0778995,
+  "csv": "evac_google_gemini-3.8-flash_r-low_20261031-162343.csv"
+}

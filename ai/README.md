@@ -31,7 +31,7 @@ Lablup은 structured output이 없어서 스키마를 프롬프트에 넣고 응
 python ai/eval/run_evac_eval.py --model lablup:DeepSeek-V4.1-Flash-B300 --overlay
 ```
 
-공통 옵션: `--model`(여러 번 지정 가능), `--limit N`, `--max-side PX`(기본: 안내도 2048, 체크포인트·장면 768).
+공통 옵션: `--model`(여러 번 지정 가능), `--reasoning low|minimal|medium|high`, `--pattern 'evac_4F_*'`(파일 고르기), `--limit N`, `--max-side PX`(기본: 안내도 2048, 체크포인트·장면 768).
 모델 id는 예시입니다. 실제 비교한 모델은 아래 "선택한 모델"에 측정 후 기록합니다.
 
 ## 데이터 넣는 법
@@ -73,8 +73,9 @@ OpenRouter `POST https://openrouter.ai/api/v1/chat/completions`:
 
 ```json
 {
-  "model": "<선택한 모델 id>",
+  "model": "google/gemini-3.8-flash",
   "temperature": 0,
+  "reasoning": { "effort": "low" },
   "messages": [
     { "role": "system", "content": "<ai/prompts/evac_map_to_graph.md 파일 전체>" },
     { "role": "user", "content": [
@@ -113,8 +114,12 @@ OpenRouter `POST https://openrouter.ai/api/v1/chat/completions`:
 
 ## 선택한 모델 · 기준값 (측정 후 기록)
 
+작업 A 응답 시간 실험 (2026-10-31, 사진 7장): 이미지 1536/1024px, reasoning minimal, 간선 속성 빼기(출력 축소)는
+정확도를 지키면서 빨라지지 않았고, `gemini-3.5-flash-lite`는 7.6s로 빠르지만 엘리베이터를 3/7만 찾아 제외했다.
+reasoning을 기본값으로 두면 품질은 같고 2.5배 느리다.
+
 | 작업 | 모델 | 기준값 | 근거 |
 |---|---|---|---|
-| A | (미정) | - | `results/summary.md` |
+| A | `google/gemini-3.8-flash`, `reasoning: {effort: "low"}`, 이미지 긴 변 2048px | - | 1F·2F·4F 사진 7장: 호실·현위치·연결 100%, 응답 약 13~22s (2026-10-31, 정답은 검수 전 초안) |
 | B | (미정) | (미정) | |
 | C | (미정) | - | |

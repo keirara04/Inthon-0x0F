@@ -1,0 +1,4 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms
+evac_4F_angle.jpg,4F,False,23.22,0.0141735,json_schema,,True,,0,True,26,25,15
+evac_4F_far.jpg,4F,False,19.62,0.01282725,json_schema,,True,,0,True,30,29,16
+evac_4F_front.jpg,4F,False,18.68,0.0130335,json_schema,,True,,0,True,29,28,16

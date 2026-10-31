@@ -1,0 +1,339 @@
+{
+  "building": "우정정보관",
+  "floor": "2F",
+  "current_node_id": "2F-current",
+  "nodes": [
+    {
+      "id": "2F-current",
+      "type": "junction",
+      "label": "현위치",
+      "x": 0.294,
+      "y": 0.395
+    },
+    {
+      "id": "2F-elev-1",
+      "type": "elevator_hall",
+      "label": "엘리베이터",
+      "x": 0.318,
+      "y": 0.39
+    },
+    {
+      "id": "2F-stairs-west",
+      "type": "stairs",
+      "label": "서측 계단",
+      "x": 0.235,
+      "y": 0.44
+    },
+    {
+      "id": "2F-stairs-east",
+      "type": "stairs",
+      "label": "동측 계단",
+      "x": 0.528,
+      "y": 0.45
+    },
+    {
+      "id": "2F-201",
+      "type": "room",
+      "label": "201호",
+      "x": 0.378,
+      "y": 0.58
+    },
+    {
+      "id": "2F-202",
+      "type": "room",
+      "label": "202호",
+      "x": 0.492,
+      "y": 0.58
+    },
+    {
+      "id": "2F-203",
+      "type": "room",
+      "label": "203호",
+      "x": 0.453,
+      "y": 0.412
+    },
+    {
+      "id": "2F-204",
+      "type": "room",
+      "label": "204호",
+      "x": 0.376,
+      "y": 0.412
+    },
+    {
+      "id": "2F-205",
+      "type": "room",
+      "label": "205호",
+      "x": 0.186,
+      "y": 0.575
+    },
+    {
+      "id": "2F-206",
+      "type": "room",
+      "label": "206호",
+      "x": 0.149,
+      "y": 0.764
+    },
+    {
+      "id": "2F-207",
+      "type": "room",
+      "label": "207호",
+      "x": 0.228,
+      "y": 0.764
+    },
+    {
+      "id": "2F-208",
+      "type": "room",
+      "label": "208호",
+      "x": 0.306,
+      "y": 0.764
+    },
+    {
+      "id": "2F-209",
+      "type": "room",
+      "label": "209호(화장실)",
+      "x": 0.315,
+      "y": 0.632
+    },
+    {
+      "id": "2F-210",
+      "type": "room",
+      "label": "210호(화장실)",
+      "x": 0.315,
+      "y": 0.55
+    },
+    {
+      "id": "2F-j-elev",
+      "type": "junction",
+      "label": "",
+      "x": 0.294,
+      "y": 0.45
+    },
+    {
+      "id": "2F-j-mid",
+      "type": "junction",
+      "label": "",
+      "x": 0.278,
+      "y": 0.498
+    },
+    {
+      "id": "2F-j-east1",
+      "type": "junction",
+      "label": "",
+      "x": 0.376,
+      "y": 0.498
+    },
+    {
+      "id": "2F-j-east2",
+      "type": "junction",
+      "label": "",
+      "x": 0.453,
+      "y": 0.498
+    },
+    {
+      "id": "2F-j-east-end",
+      "type": "junction",
+      "label": "",
+      "x": 0.505,
+      "y": 0.498
+    },
+    {
+      "id": "2F-j-west",
+      "type": "junction",
+      "label": "",
+      "x": 0.255,
+      "y": 0.498
+    },
+    {
+      "id": "2F-j-south-turn",
+      "type": "junction",
+      "label": "",
+      "x": 0.278,
+      "y": 0.675
+    },
+    {
+      "id": "2F-j-south-mid",
+      "type": "junction",
+      "label": "",
+      "x": 0.228,
+      "y": 0.675
+    },
+    {
+      "id": "2F-j-south-west",
+      "type": "junction",
+      "label": "",
+      "x": 0.118,
+      "y": 0.675
+    },
+    {
+      "id": "2F-j-south-east",
+      "type": "junction",
+      "label": "",
+      "x": 0.34,
+      "y": 0.675
+    }
+  ],
+  "edges": [
+    {
+      "from": "2F-current",
+      "to": "2F-j-elev",
+      "type": "walk",
+      "length_m": 2.6,
+      "heading_deg": 180
+    },
+    {
+      "from": "2F-elev-1",
+      "to": "2F-j-elev",
+      "type": "walk",
+      "length_m": 3.5,
+      "heading_deg": 215
+    },
+    {
+      "from": "2F-j-elev",
+      "to": "2F-j-mid",
+      "type": "walk",
+      "length_m": 2.7,
+      "heading_deg": 211
+    },
+    {
+      "from": "2F-j-mid",
+      "to": "2F-j-west",
+      "type": "walk",
+      "length_m": 2.0,
+      "heading_deg": 270
+    },
+    {
+      "from": "2F-j-west",
+      "to": "2F-stairs-west",
+      "type": "walk",
+      "length_m": 3.2,
+      "heading_deg": 329
+    },
+    {
+      "from": "2F-j-mid",
+      "to": "2F-j-east1",
+      "type": "walk",
+      "length_m": 8.3,
+      "heading_deg": 90
+    },
+    {
+      "from": "2F-j-east1",
+      "to": "2F-204",
+      "type": "walk",
+      "length_m": 4.1,
+      "heading_deg": 0
+    },
+    {
+      "from": "2F-j-east1",
+      "to": "2F-201",
+      "type": "walk",
+      "length_m": 3.9,
+      "heading_deg": 178
+    },
+    {
+      "from": "2F-j-east1",
+      "to": "2F-j-east2",
+      "type": "walk",
+      "length_m": 6.5,
+      "heading_deg": 90
+    },
+    {
+      "from": "2F-j-east2",
+      "to": "2F-203",
+      "type": "walk",
+      "length_m": 4.1,
+      "heading_deg": 0
+    },
+    {
+      "from": "2F-j-east2",
+      "to": "2F-202",
+      "type": "walk",
+      "length_m": 5.1,
+      "heading_deg": 140
+    },
+    {
+      "from": "2F-j-east2",
+      "to": "2F-j-east-end",
+      "type": "walk",
+      "length_m": 4.4,
+      "heading_deg": 90
+    },
+    {
+      "from": "2F-j-east-end",
+      "to": "2F-stairs-east",
+      "type": "walk",
+      "length_m": 3.0,
+      "heading_deg": 40
+    },
+    {
+      "from": "2F-j-mid",
+      "to": "2F-j-south-turn",
+      "type": "walk",
+      "length_m": 8.5,
+      "heading_deg": 180
+    },
+    {
+      "from": "2F-j-south-turn",
+      "to": "2F-209",
+      "type": "walk",
+      "length_m": 3.8,
+      "heading_deg": 57
+    },
+    {
+      "from": "2F-j-south-turn",
+      "to": "2F-210",
+      "type": "walk",
+      "length_m": 6.7,
+      "heading_deg": 28
+    },
+    {
+      "from": "2F-j-south-turn",
+      "to": "2F-205",
+      "type": "walk",
+      "length_m": 9.2,
+      "heading_deg": 301
+    },
+    {
+      "from": "2F-j-south-turn",
+      "to": "2F-j-south-east",
+      "type": "walk",
+      "length_m": 5.3,
+      "heading_deg": 90
+    },
+    {
+      "from": "2F-j-south-east",
+      "to": "2F-208",
+      "type": "walk",
+      "length_m": 5.1,
+      "heading_deg": 214
+    },
+    {
+      "from": "2F-j-south-turn",
+      "to": "2F-j-south-mid",
+      "type": "walk",
+      "length_m": 4.2,
+      "heading_deg": 270
+    },
+    {
+      "from": "2F-j-south-mid",
+      "to": "2F-207",
+      "type": "walk",
+      "length_m": 4.3,
+      "heading_deg": 180
+    },
+    {
+      "from": "2F-j-south-mid",
+      "to": "2F-j-south-west",
+      "type": "walk",
+      "length_m": 9.3,
+      "heading_deg": 270
+    },
+    {
+      "from": "2F-j-south-west",
+      "to": "2F-206",
+      "type": "walk",
+      "length_m": 5.0,
+      "heading_deg": 148
+    }
+  ],
+  "elevators": []
+}

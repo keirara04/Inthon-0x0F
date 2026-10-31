@@ -1,0 +1,283 @@
+{
+  "building": "우정정보관",
+  "floor": "1F",
+  "current_node_id": "1F-current",
+  "nodes": [
+    {
+      "id": "1F-current",
+      "type": "junction",
+      "label": "현위치",
+      "x": 0.334,
+      "y": 0.463
+    },
+    {
+      "id": "1F-elev-1",
+      "type": "elevator_hall",
+      "label": "엘리베이터",
+      "x": 0.354,
+      "y": 0.452
+    },
+    {
+      "id": "1F-stairs-west",
+      "type": "stairs",
+      "label": "서측 계단",
+      "x": 0.267,
+      "y": 0.485
+    },
+    {
+      "id": "1F-stairs-east",
+      "type": "stairs",
+      "label": "동측 계단",
+      "x": 0.567,
+      "y": 0.489
+    },
+    {
+      "id": "1F-entrance",
+      "type": "entrance",
+      "label": "주출입구",
+      "x": 0.336,
+      "y": 0.748
+    },
+    {
+      "id": "1F-105",
+      "type": "room",
+      "label": "105호",
+      "x": 0.455,
+      "y": 0.45
+    },
+    {
+      "id": "1F-102",
+      "type": "room",
+      "label": "102호",
+      "x": 0.458,
+      "y": 0.588
+    },
+    {
+      "id": "1F-101",
+      "type": "room",
+      "label": "101호",
+      "x": 0.458,
+      "y": 0.662
+    },
+    {
+      "id": "1F-103",
+      "type": "room",
+      "label": "103호",
+      "x": 0.505,
+      "y": 0.63
+    },
+    {
+      "id": "1F-104",
+      "type": "room",
+      "label": "104호",
+      "x": 0.57,
+      "y": 0.63
+    },
+    {
+      "id": "1F-106A",
+      "type": "room",
+      "label": "106A호",
+      "x": 0.385,
+      "y": 0.572
+    },
+    {
+      "id": "1F-106",
+      "type": "room",
+      "label": "106호(화장실)",
+      "x": 0.385,
+      "y": 0.619
+    },
+    {
+      "id": "1F-107A",
+      "type": "room",
+      "label": "107A호",
+      "x": 0.418,
+      "y": 0.572
+    },
+    {
+      "id": "1F-107",
+      "type": "room",
+      "label": "107호(화장실)",
+      "x": 0.418,
+      "y": 0.665
+    },
+    {
+      "id": "1F-j-main",
+      "type": "junction",
+      "label": "",
+      "x": 0.32,
+      "y": 0.528
+    },
+    {
+      "id": "1F-j-wstairs",
+      "type": "junction",
+      "label": "",
+      "x": 0.292,
+      "y": 0.485
+    },
+    {
+      "id": "1F-j-mid1",
+      "type": "junction",
+      "label": "",
+      "x": 0.385,
+      "y": 0.536
+    },
+    {
+      "id": "1F-j-mid2",
+      "type": "junction",
+      "label": "",
+      "x": 0.435,
+      "y": 0.536
+    },
+    {
+      "id": "1F-j-mid3",
+      "type": "junction",
+      "label": "",
+      "x": 0.505,
+      "y": 0.536
+    },
+    {
+      "id": "1F-j-estairs",
+      "type": "junction",
+      "label": "",
+      "x": 0.54,
+      "y": 0.536
+    }
+  ],
+  "edges": [
+    {
+      "from": "1F-current",
+      "to": "1F-elev-1",
+      "type": "walk",
+      "length_m": 1.6,
+      "heading_deg": 73
+    },
+    {
+      "from": "1F-current",
+      "to": "1F-j-wstairs",
+      "type": "walk",
+      "length_m": 3.3,
+      "heading_deg": 254
+    },
+    {
+      "from": "1F-j-wstairs",
+      "to": "1F-stairs-west",
+      "type": "walk",
+      "length_m": 1.9,
+      "heading_deg": 270
+    },
+    {
+      "from": "1F-j-wstairs",
+      "to": "1F-j-main",
+      "type": "walk",
+      "length_m": 2.8,
+      "heading_deg": 131
+    },
+    {
+      "from": "1F-j-main",
+      "to": "1F-entrance",
+      "type": "walk",
+      "length_m": 9.4,
+      "heading_deg": 173
+    },
+    {
+      "from": "1F-j-main",
+      "to": "1F-j-mid1",
+      "type": "walk",
+      "length_m": 4.9,
+      "heading_deg": 94
+    },
+    {
+      "from": "1F-j-mid1",
+      "to": "1F-106A",
+      "type": "walk",
+      "length_m": 1.5,
+      "heading_deg": 180
+    },
+    {
+      "from": "1F-j-mid1",
+      "to": "1F-106",
+      "type": "walk",
+      "length_m": 3.5,
+      "heading_deg": 180
+    },
+    {
+      "from": "1F-j-mid1",
+      "to": "1F-j-mid2",
+      "type": "walk",
+      "length_m": 3.8,
+      "heading_deg": 90
+    },
+    {
+      "from": "1F-j-mid2",
+      "to": "1F-105",
+      "type": "walk",
+      "length_m": 4.0,
+      "heading_deg": 22
+    },
+    {
+      "from": "1F-j-mid2",
+      "to": "1F-107A",
+      "type": "walk",
+      "length_m": 2.0,
+      "heading_deg": 220
+    },
+    {
+      "from": "1F-j-mid2",
+      "to": "1F-107",
+      "type": "walk",
+      "length_m": 5.6,
+      "heading_deg": 193
+    },
+    {
+      "from": "1F-j-mid2",
+      "to": "1F-102",
+      "type": "walk",
+      "length_m": 2.8,
+      "heading_deg": 142
+    },
+    {
+      "from": "1F-j-mid2",
+      "to": "1F-j-mid3",
+      "type": "walk",
+      "length_m": 5.3,
+      "heading_deg": 90
+    },
+    {
+      "from": "1F-j-mid3",
+      "to": "1F-101",
+      "type": "walk",
+      "length_m": 6.4,
+      "heading_deg": 214
+    },
+    {
+      "from": "1F-j-mid3",
+      "to": "1F-103",
+      "type": "walk",
+      "length_m": 4.0,
+      "heading_deg": 180
+    },
+    {
+      "from": "1F-j-mid3",
+      "to": "1F-j-estairs",
+      "type": "walk",
+      "length_m": 2.6,
+      "heading_deg": 90
+    },
+    {
+      "from": "1F-j-estairs",
+      "to": "1F-104",
+      "type": "walk",
+      "length_m": 4.6,
+      "heading_deg": 150
+    },
+    {
+      "from": "1F-j-estairs",
+      "to": "1F-stairs-east",
+      "type": "walk",
+      "length_m": 2.9,
+      "heading_deg": 46
+    }
+  ],
+  "elevators": []
+}

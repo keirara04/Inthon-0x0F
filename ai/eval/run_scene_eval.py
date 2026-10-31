@@ -86,12 +86,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="장면 인식 백업 평가")
     ap.add_argument("--model", action="append", required=True, help="OpenRouter 모델 id (여러 번 지정해 비교)")
     ap.add_argument("--limit", type=int, help="앞에서 N장만")
+    ap.add_argument("--pattern", default="*", help="파일 이름 패턴 (예: evac_4F_*)")
     ap.add_argument("--max-side", type=int, default=768, help="전송 이미지 긴 변 px")
     ap.add_argument("--reasoning", choices=["minimal", "low", "medium", "high"],
                     help="OpenRouter reasoning effort (지정 안 하면 모델 기본값)")
     args = ap.parse_args()
 
-    images = list_images(DATA_DIR / "scene")[: args.limit]
+    images = [p for p in list_images(DATA_DIR / "scene") if p.match(args.pattern)][: args.limit]
     if not images:
         raise SystemExit(f"{DATA_DIR / 'scene'}에 사진이 없습니다 (scene_<node_id>_<n>.jpg)")
     desc_path = DATA_DIR / "scene" / "descriptions.json"

@@ -162,13 +162,14 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="체크포인트 OCR 평가")
     ap.add_argument("--model", action="append", required=True, help="OpenRouter 모델 id (여러 번 지정해 비교)")
     ap.add_argument("--limit", type=int, help="앞에서 N장만")
+    ap.add_argument("--pattern", default="*", help="파일 이름 패턴 (예: evac_4F_*)")
     ap.add_argument("--max-side", type=int, default=768, help="전송 이미지 긴 변 px")
     ap.add_argument("--all-floors", action="store_true", help="예상 층만이 아니라 모든 층의 랜드마크를 준다 (더 어려움)")
     ap.add_argument("--reasoning", choices=["minimal", "low", "medium", "high"],
                     help="OpenRouter reasoning effort (지정 안 하면 모델 기본값)")
     args = ap.parse_args()
 
-    images = list_images(DATA_DIR / "checkpoint")[: args.limit]
+    images = [p for p in list_images(DATA_DIR / "checkpoint") if p.match(args.pattern)][: args.limit]
     if not images:
         raise SystemExit(f"{DATA_DIR / 'checkpoint'}에 사진이 없습니다")
     landmarks = load_landmarks()

@@ -1,0 +1,8 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,completion_tokens,reasoning_tokens,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms,corridor_axis_ok,room_recall,room_precision,rooms_missed,rooms_extra,current_dist,current_node_ok,vertical_found
+evac_1F_front.jpg,1F,True,11.63,0.007581,json_schema,,1463,0,True,,0,True,19,18,9,1.0,1.0,1.0,,,0.002,True,1.0
+evac_2F_angle.jpg,2F,True,15.74,0.011076,json_schema,,2395,0,True,,0,True,19,18,10,1.0,1.0,1.0,,,0.096,True,0.6666666666666666
+evac_2F_far.jpg,2F,True,15.86,0.0108285,json_schema,,2329,0,True,,0,True,19,18,10,0.6666666666666666,1.0,1.0,,,0.231,True,0.6666666666666666
+evac_2F_front.jpg,2F,True,12.8,0.00915975,json_schema,,1884,0,True,,0,True,25,24,10,0.9090909090909091,1.0,1.0,,,0.012,True,1.0
+evac_4F_angle.jpg,4F,True,18.42,0.01196475,json_schema,,2632,0,True,,0,True,26,26,16,0.14285714285714285,1.0,1.0,,,0.057,True,1.0
+evac_4F_far.jpg,4F,True,18.29,0.0127485,json_schema,,2841,0,True,,0,True,27,26,16,0.8571428571428571,1.0,1.0,,,0.052,True,1.0
+evac_4F_front.jpg,4F,True,21.73,0.014541,json_schema,,3319,0,True,,0,True,34,33,16,0.9285714285714286,1.0,1.0,,,0.003,True,1.0
