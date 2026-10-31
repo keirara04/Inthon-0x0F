@@ -1,6 +1,7 @@
 "use client";
 
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useDemoTools } from "@/lib/gilgyeol/demo";
 
 function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -86,6 +87,8 @@ export function Notice({ tone, children }: { tone: Tone; children: ReactNode }) 
 
 /** Dashed panel that marks controls as simulated demo input, not real sensors. */
 export function DemoBox({ label, children }: { label: string; children: ReactNode }) {
+  const demo = useDemoTools();
+  if (!demo) return null;
   return (
     <div className="flex flex-col gap-2 rounded-2xl border-[1.5px] border-dashed border-[#BDB8AC] p-3">
       <div className="font-mono text-[11px] font-semibold text-muted">{label}</div>

@@ -1,18 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
-
-const noop = () => () => {};
-
-/** Presenter tools are hidden from end users; open the app with `?demo` to show them. */
-export function useDemoTools() {
-  return useSyncExternalStore(
-    noop,
-    () => new URLSearchParams(window.location.search).has("demo"),
-    () => false,
-  );
-}
 
 /** Presenter shortcuts and fallback-state simulations. Not part of the end-user flow. */
 export function DemoPanel({ compact }: { compact?: boolean }) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { FLOORS, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
+import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { ScanOutcome } from "@/lib/gilgyeol/types";
 import { PrimaryButton, SegButton } from "./ui";
@@ -72,6 +73,7 @@ function useCamera(onDenied: () => void) {
 export function CheckpointScanner() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
+  const demo = useDemoTools();
   const m = scanMeta(s.scanTarget, d);
   const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam } = useCamera(() => actions.update({ scanState: "denied", camDenied: true }));
   const frameColor = { success: "#4CC38A", mismatch: "#F2C37A", fail: "#F2C37A" }[s.scanState as string] ?? "#FFFFFF";
@@ -172,6 +174,7 @@ export function CheckpointScanner() {
       <div role="status" aria-live="polite" className="mt-3.5 flex flex-1 flex-col gap-3.5 rounded-t-[26px] bg-app-bg px-5 pt-[22px] pb-6">
         {s.scanState === "aim" && (
           <>
+            {demo && (
             <div className="flex flex-col gap-2">
               <div className="font-mono text-[11px] font-semibold text-muted">데모 결과 선택</div>
               <div className="grid grid-cols-3 gap-1.5">
@@ -182,6 +185,7 @@ export function CheckpointScanner() {
                 ))}
               </div>
             </div>
+            )}
             <PrimaryButton onClick={actions.runScan}>{m.runLabel}</PrimaryButton>
             <p className="m-0 text-[13px] leading-normal text-muted">실제 서비스에서는 카메라를 표지 확인에만 사용해요. 지금은 실제 인식 없이 선택한 결과를 보여줘요.</p>
             {s.scanTarget !== "map" && (

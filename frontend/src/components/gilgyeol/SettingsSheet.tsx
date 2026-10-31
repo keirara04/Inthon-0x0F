@@ -5,7 +5,8 @@ import { PATTERNS } from "@/lib/gilgyeol/data";
 import { supportsSpeech, supportsVibration } from "@/lib/gilgyeol/feedback";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { HapticPattern } from "@/lib/gilgyeol/types";
-import { DemoPanel, useDemoTools } from "./DemoPanel";
+import { useDemoTools } from "@/lib/gilgyeol/demo";
+import { DemoPanel } from "./DemoPanel";
 
 export function SettingsSheet() {
   const { state: s, actions } = useGilgyeol();
