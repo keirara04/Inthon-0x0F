@@ -37,7 +37,7 @@ export function ArrivalScreen() {
             </svg>
           </div>
         </div>
-        <h1 role="status" data-trial="arrive-title" className="m-0 text-[32px] leading-[1.25] font-extrabold tracking-[-0.03em]">
+        <h1 role="status" className="m-0 text-[32px] leading-[1.25] font-extrabold tracking-[-0.03em]">
           우정정보관 {d}에
           <br />
           도착했어요

@@ -135,7 +135,7 @@ export function CaptureIntroScreen() {
       {album.input}
       {s.trialOn ? (
         <>
-          <PrimaryButton data-trial="capture-album" onClick={album.open}>
+          <PrimaryButton onClick={album.open}>
             앨범에서 선택
           </PrimaryButton>
           <SecondaryButton onClick={() => actions.openScan("map")}>카메라로 찍기</SecondaryButton>
@@ -143,7 +143,7 @@ export function CaptureIntroScreen() {
       ) : (
         <>
           <PrimaryButton onClick={() => actions.openScan("map")}>카메라 켜기</PrimaryButton>
-          <SecondaryButton data-trial="capture-album" onClick={album.open}>
+          <SecondaryButton onClick={album.open}>
             앨범에서 선택
           </SecondaryButton>
         </>

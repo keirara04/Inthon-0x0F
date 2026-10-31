@@ -5,7 +5,7 @@ import { PrimaryButton, SecondaryButton } from "./ui";
 
 /**
  * Entry page for the guided 3-minute trial. `길찾기 시작` lands on the real capture screen; from
- * there TrialGuide dims the app and points at the real control for each step.
+ * there the trial simply follows 하은's journey through the real app screens.
  */
 
 const STEPS = [
@@ -57,7 +57,7 @@ export function TrialScreen() {
           찾도록 도와주세요
         </h1>
         <p className="m-0 text-[16px] leading-[1.6] text-pretty text-muted">
-          처음 온 우정정보관에서 저장해 둔 안내도 사진부터 405호 도착까지, 실제 안내 화면을 따라가요. 화면에 뜨는 안내에 따라 실제 버튼을 눌러 주세요.
+          처음 온 우정정보관에서 저장해 둔 안내도 사진부터 405호 도착까지, 실제 안내 화면을 그대로 따라가요. 체험 순서에 따라 화면에서 직접 버튼을 눌러 주세요.
         </p>
         <div className="flex flex-wrap gap-1.5">
           {["약 3분", "12단계", "로그인 없음"].map((t) => (
@@ -66,7 +66,7 @@ export function TrialScreen() {
             </span>
           ))}
         </div>
-        <PrimaryButton data-trial="trial-start" onClick={actions.startTrial}>길찾기 시작</PrimaryButton>
+        <PrimaryButton onClick={actions.startTrial}>길찾기 시작</PrimaryButton>
         <SecondaryButton onClick={() => actions.go("welcome")}>체험 없이 사용하기</SecondaryButton>
       </div>
 

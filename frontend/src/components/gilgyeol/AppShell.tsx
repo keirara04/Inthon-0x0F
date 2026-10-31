@@ -23,7 +23,6 @@ import { RoutePreviewScreen } from "./RoutePreviewScreen";
 import { SearchScreen } from "./SearchScreen";
 import { SettingsSheet } from "./SettingsSheet";
 import { StartLocationScreen } from "./StartLocationScreen";
-import { TrialGuide } from "./TrialGuide";
 import { TrialScreen } from "./TrialScreen";
 import { WrongFloorScreen } from "./WrongFloorScreen";
 import { WelcomeScreen } from "./WelcomeScreen";
@@ -101,7 +100,6 @@ function Device() {
             <Current />
           </div>
         </main>
-        <TrialGuide />
         {s.cue && (
           <div
             role="status"

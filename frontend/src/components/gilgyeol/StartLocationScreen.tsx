@@ -191,7 +191,7 @@ export function StartLocationScreen() {
             )}
           </div>
         )}
-        <SecondaryButton data-trial="start-landmarks" aria-expanded={s.landmarks} onClick={toggleList}>
+        <SecondaryButton aria-expanded={s.landmarks} onClick={toggleList}>
           다른 입구에 계신가요?
         </SecondaryButton>
         {s.landmarks && (
@@ -231,7 +231,7 @@ export function StartLocationScreen() {
           {s.locEdit ? "수정 취소" : "위치 수정 (지도에서 누르기)"}
         </SecondaryButton>
       </div>
-      <PrimaryButton data-trial="start-confirm" disabled={!s.start && !s.startAt} onClick={() => (s.start || s.startAt) && actions.go("destFloor")}>
+      <PrimaryButton disabled={!s.start && !s.startAt} onClick={() => (s.start || s.startAt) && actions.go("destFloor")}>
         맞아요, 계속하기
       </PrimaryButton>
     </div>

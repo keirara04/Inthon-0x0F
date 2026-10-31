@@ -38,11 +38,10 @@ export function SearchScreen() {
 
       {rooms.length > 0 ? (
         <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[18px] bg-surface p-0" aria-label="목적지 목록">
-          {rooms.map((r, i) => (
+          {rooms.map((r) => (
             <li key={r.id}>
               <button
                 type="button"
-                data-trial={r.name.includes("405") ? "dest-405" : i === 0 ? "dest-room" : undefined}
                 disabled={s.routeLoading}
                 onClick={() => actions.pickDest(r)}
                 className="flex min-h-[68px] w-full items-center justify-between border-0 border-b border-divider bg-surface px-[18px] py-3 text-left disabled:opacity-70"

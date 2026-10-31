@@ -31,7 +31,6 @@ export function DestFloorScreen() {
       <div className="flex flex-col gap-2.5">
         <button
           type="button"
-          data-trial="floor-4"
           disabled={s.routeLoading}
           onClick={actions.goDifferentFloor}
           className="flex min-h-[64px] items-center justify-between gap-3 rounded-[18px] bg-brand px-[18px] text-left text-white disabled:opacity-70"
@@ -44,7 +43,6 @@ export function DestFloorScreen() {
         </button>
         <button
           type="button"
-          data-trial="floor-no"
           onClick={actions.stayOnFloor}
           className="flex min-h-[64px] items-center justify-between gap-3 rounded-[18px] border-2 border-edge bg-surface px-[18px] text-left"
         >

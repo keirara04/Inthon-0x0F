@@ -699,6 +699,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       simDir: null,
       floorMapTarget: null,
       captureFor: "current",
+      trialOn: false,
       dest: null,
       destParsed: null,
       destPhoto: null,

@@ -72,7 +72,7 @@ export function RoutePreviewScreen() {
         </ol>
       </div>
       <p className="m-0 text-[13px] leading-normal text-muted">엘리베이터를 타기 전까지의 경로예요. 이동한 뒤 새로운 층의 안내도를 고르면 목적지까지 이어서 안내해요.</p>
-      <PrimaryButton tall data-trial="preview-next" onClick={() => actions.go("mode")}>
+      <PrimaryButton tall onClick={() => actions.go("mode")}>
         안내 방식 선택
       </PrimaryButton>
     </div>

@@ -119,7 +119,7 @@ export function MapResultScreen() {
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           {/* Initial capture confirms the start; a floor-change capture resumes the paused route. */}
-          <PrimaryButton data-trial="map-confirm" onClick={actions.confirmMap}>{target ? "이 안내도로 계속 안내" : "이 안내도가 맞아요"}</PrimaryButton>
+          <PrimaryButton onClick={actions.confirmMap}>{target ? "이 안내도로 계속 안내" : "이 안내도가 맞아요"}</PrimaryButton>
           <SecondaryButton className="h-[58px] px-4" onClick={() => actions.openScan("map")}>
             다시 촬영
           </SecondaryButton>
