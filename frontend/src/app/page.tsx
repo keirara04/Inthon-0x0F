@@ -8,7 +8,8 @@ async function Ping() {
 
 export default function Home() {
   return (
-    <main className="flex flex-1 items-center justify-center">
+    <main className="flex flex-1 flex-col items-center justify-center gap-4">
+      <h1 className="text-5xl font-bold">Inthon 2026</h1>
       <p className="text-2xl font-semibold">
         Backend says: <Suspense fallback="...">
           <Ping />
