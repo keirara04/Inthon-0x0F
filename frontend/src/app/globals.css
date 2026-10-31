@@ -5,7 +5,7 @@
   --color-muted: #5e625d;
   --color-brand: #7a1832;
   --color-route: #2864a0;
-  --color-haptic: #5b4ab8;
+  --color-haptic: #2864a0;
   --color-success: #25734b;
   --color-warning: #965900;
   --color-error: #b3261e;
@@ -15,8 +15,8 @@
   --color-edge: #d9d5cb;
   --color-divider: #efede7;
   --color-warm-panel: #efede7;
-  --color-haptic-tint: #eeebfa;
-  --color-haptic-ink: #4a3ba0;
+  --color-haptic-tint: #e8f0f8;
+  --color-haptic-ink: #1f4f80;
   --color-warn-tint: #fff4e0;
   --color-warn-ink: #7a4800;
   --color-ok-tint: #e6f2ea;
@@ -588,7 +588,7 @@ button:disabled {
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  border: 3px solid #5b4ab8;
+  border: 3px solid #2864a0;
   opacity: 0;
 }
 [data-in] .gl-ripple::after {

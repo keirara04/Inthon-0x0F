@@ -1,5 +1,6 @@
 export type Screen =
   | "landing"
+  | "trial"
   | "welcome"
   | "building"
   | "captureIntro"
@@ -7,6 +8,7 @@ export type Screen =
   | "wrongFloor"
   | "mapResult"
   | "start"
+  | "destFloor"
   | "search"
   | "preview"
   | "mode"
@@ -24,7 +26,7 @@ export type DirectionState = "far" | "near" | "aligned" | "unstable";
 export type ScanTarget = "map" | "sign";
 export type ScanOutcome = "success" | "mismatch" | "fail";
 export type ScanState = "aim" | "analyzing" | ScanOutcome | "denied";
-export type OffrouteState = "alert" | "floor" | "confirm";
+export type OffrouteState = "alert" | "floor" | "pin" | "confirm";
 export type GuideStep = number;
 export type HapticPattern = "dir" | "left" | "right" | "floor" | "confirm" | "arrive" | "off";
 
@@ -65,6 +67,7 @@ export interface RouteStep {
   toFloor?: string;
   headingDeg?: number | null;
   lengthM?: number;
+  turnDir?: "left" | "right" | "back" | "straight" | null;
   checkpoint?: { kind: string; text: string } | null;
   toNode?: string;
 }
@@ -98,6 +101,8 @@ export interface GraphNode {
   door?: { x: number; y: number }[];
   /** Visible stair travel axis, perpendicular to the treads. Does not imply ascent direction. */
   stairFlight?: { x: number; y: number }[];
+  /** Outline estimated from spacing (fallbackOutlines), not traced by the AI: no interior detail is drawn. */
+  outlineEstimated?: boolean;
 }
 
 export interface GraphEdge {

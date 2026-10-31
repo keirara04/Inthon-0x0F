@@ -47,13 +47,17 @@ export function RoutePreviewScreen() {
   const startNode = START_NODES.find((n) => n.id === s.start);
   const [view, setView] = useState<"floors" | "3d">("3d");
 
-  const routeSteps: { t: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = s.steps.map((st) => ({
-    t: `${st.floor} · ${st.title}`,
+  const arrow = { left: "↰ 왼쪽", right: "↱ 오른쪽", back: "↶ 뒤로", straight: "↑ 직진" };
+  const routeSteps: { t: string; floor?: string; meta?: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = s.steps.map((st, i) => ({
+    t: st.title,
+    // Floor only where it changes, so a one-floor route isn't "1층 ·" on every row.
+    floor: i === 0 || st.floor !== s.steps[i - 1].floor ? st.floor : undefined,
+    meta: [st.turnDir ? arrow[st.turnDir] : "", st.lengthM ? `약 ${Math.max(1, Math.round(st.lengthM))}m` : ""].filter(Boolean).join(" · ") || undefined,
     badge:
       st.kind && st.kind !== "walk"
         ? (st.elevator ?? (st.kind === "stairs" ? "계단" : "층 이동"))
         : st.checkpoint
-          ? "표지 확인"
+          ? `${st.checkpoint.kind === "room_no" ? `${st.checkpoint.text}호` : st.checkpoint.text} 표지 확인`
           : undefined,
     tone: st.kind && st.kind !== "walk" ? (s.elevUnverified ? "warn" : "ok") : st.checkpoint ? "cp" : undefined,
   }));
@@ -70,8 +74,8 @@ export function RoutePreviewScreen() {
       <BackHeader label="경로 미리보기" onBack={actions.back} />
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5 rounded-[18px] bg-surface p-[18px]">
         <div className="flex flex-col gap-[3px]">
-          <div className="text-[12px] font-semibold text-muted">출발</div>
-          <div className="text-[16px] font-bold">{startNode?.label ?? "—"}</div>
+          <div className="text-[13px] font-semibold text-muted">출발</div>
+          <div className="text-[16px] font-bold">{s.startAt?.label ?? startNode?.label ?? "—"}</div>
           <div className="text-[13px] text-muted">{departFloor}</div>
         </div>
         <svg width="22" height="12" viewBox="0 0 22 12" aria-hidden="true">
@@ -79,7 +83,7 @@ export function RoutePreviewScreen() {
           <polyline points="14,1 20,6 14,11" fill="none" stroke={C.route} strokeWidth="2.2" />
         </svg>
         <div className="flex flex-col gap-[3px] text-right">
-          <div className="text-[12px] font-semibold text-muted">도착</div>
+          <div className="text-[13px] font-semibold text-muted">도착</div>
           <div className="text-[16px] font-bold text-brand">{d}</div>
           <div className="text-[13px] text-muted">{arriveFloor}</div>
         </div>
@@ -117,7 +121,7 @@ export function RoutePreviewScreen() {
             <circle cx="15" cy="75" r="6" fill={C.brand} />
             <rect x="68" y="33" width="14" height="14" rx="3" fill={C.route} />
           </svg>
-          <div className="text-[12px] text-muted">현위치 → 엘리베이터 홀</div>
+          <div className="text-[13px] text-muted">현위치 → 엘리베이터 홀</div>
         </div>
         <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
           <div className="text-[13px] font-bold">4층</div>
@@ -130,7 +134,7 @@ export function RoutePreviewScreen() {
             <circle cx="45" cy="45" r="5" fill="#fff" stroke={C.haptic} strokeWidth="2.5" />
             <circle cx="15" cy="20" r="7" fill={C.brand} />
           </svg>
-          <div className="text-[12px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
+          <div className="text-[13px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
         </div>
       </div>
         </>
@@ -142,13 +146,15 @@ export function RoutePreviewScreen() {
       {alreadyThere && <p className="m-0 py-4 text-[16px] leading-normal text-muted">현재 위치가 {d}예요. 이동하거나 층을 바꿀 필요가 없어요.</p>}
       <ol className="m-0 flex list-none flex-col p-0" aria-labelledby="gg-steps-title">
         {routeSteps.map((p, i) => (
-          <li key={p.t} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
+          <li key={i} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
             <div className="flex size-7 flex-none items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: i === routeSteps.length - 1 ? C.brand : C.route }}>
               {i + 1}
             </div>
             <div className="flex flex-col gap-1 pt-[3px]">
+              {p.floor && <div className="text-[13px] font-bold text-muted">{p.floor}</div>}
               <div className="text-[16px] font-semibold">{p.t}</div>
-              {p.badge && p.tone && <div className={`self-start rounded-md px-2 py-[3px] text-[12px] font-bold ${badgeCls[p.tone]}`}>{p.badge}</div>}
+              {p.meta && <div className="text-[13px] text-muted">{p.meta}</div>}
+              {p.badge && p.tone && <div className={`self-start rounded-md px-2 py-[3px] text-[13px] font-bold ${badgeCls[p.tone]}`}>{p.badge}</div>}
             </div>
           </li>
         ))}

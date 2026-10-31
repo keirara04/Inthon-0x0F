@@ -3,6 +3,7 @@
 import { DETECTION_RULE, FLOORS } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import { Mascot } from "./Mascot";
+import { PinMap } from "./PinMap";
 import { Badge, PrimaryButton, SecondaryButton, StatusDot } from "./ui";
 
 export function OffRouteScreen() {
@@ -40,11 +41,12 @@ export function OffRouteScreen() {
           <div className="flex flex-col gap-1.5 rounded-2xl bg-surface px-4 py-3.5">
             <div className="text-[13px] font-bold text-muted">이렇게 감지했어요</div>
             <p className="m-0 text-[15px] leading-normal text-ink">{DETECTION_RULE}</p>
-            <p className="m-0 text-[12px] font-semibold text-warn-ink">시연에서는 ‘반대 복도로 이동해 보기’ 데모 입력으로 재현했어요</p>
+            <p className="m-0 text-[13px] font-semibold text-warn-ink">시연에서는 ‘반대 복도로 이동해 보기’ 데모 입력으로 재현했어요</p>
           </div>
           <div className="flex-1" />
           <PrimaryButton onClick={() => actions.openScan("sign")}>주변 표지 확인</PrimaryButton>
           <SecondaryButton onClick={() => actions.update({ offState: "floor" })}>현재 층·랜드마크 직접 선택</SecondaryButton>
+          {s.route && <SecondaryButton onClick={() => actions.update({ offState: "pin" })}>지도에서 내 위치 찍기</SecondaryButton>}
           <button type="button" onClick={actions.dismissOffroute} className="h-11 border-none bg-transparent text-[15px] font-semibold text-muted underline underline-offset-4">
             무시하고 계속 안내
           </button>
@@ -79,6 +81,15 @@ export function OffRouteScreen() {
               </button>
             ))}
           </div>
+          <SecondaryButton onClick={() => actions.update({ offState: "alert" })}>돌아가기</SecondaryButton>
+        </>
+      )}
+
+      {s.offState === "pin" && (
+        <>
+          <h1 className="m-0 text-[24px] font-extrabold">지금 어디에 있나요?</h1>
+          <p className="m-0 text-[15px] leading-normal text-muted">지도에서 서 있는 곳을 누르면 가장 가까운 복도나 호실로 맞춰서 새 경로를 찾아요.</p>
+          <PinMap initialFloor={s.route?.steps[s.step]?.floor ?? "1F"} confirmLabel="여기서 새 경로로 안내" onConfirm={actions.rerouteFromPin} />
           <SecondaryButton onClick={() => actions.update({ offState: "alert" })}>돌아가기</SecondaryButton>
         </>
       )}

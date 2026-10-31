@@ -24,7 +24,8 @@ export function SettingsSheet() {
 
   const toggles = [
     { label: "진동 안내", sub: "방향·회전·층 이동·도착·이탈", on: s.vibe, toggle: () => actions.update({ vibe: !s.vibe }) },
-    { label: "음성 안내", sub: "한국어 음성으로 다음 행동을 읽어요", on: s.voice, toggle: actions.toggleVoice },
+    { label: "음성 안내", sub: s.koVoice === false ? "이 기기에서 한국어 음성을 찾지 못했어요" : "한국어 음성으로 다음 행동을 읽어요", on: s.voice, toggle: actions.toggleVoice },
+    { label: "방향 소리", sub: "돌아야 할 쪽 귀에서 짧은 소리 · 이어폰 권장", on: s.beep, toggle: () => actions.update({ beep: !s.beep }) },
   ];
 
   return (
@@ -56,7 +57,7 @@ export function SettingsSheet() {
             >
               <span className="flex flex-col gap-0.5">
                 <span className="text-[16px] font-semibold text-ink">{t.label}</span>
-                <span className="text-[12px] text-muted">{t.sub}</span>
+                <span className="text-[13px] text-muted">{t.sub}</span>
               </span>
               <span className={`relative h-[30px] w-[50px] flex-none rounded-[15px] transition-colors duration-[180ms] ${t.on ? "bg-brand" : "bg-[#CFCAC0]"}`}>
                 <span
@@ -72,7 +73,7 @@ export function SettingsSheet() {
           <div className="flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-surface px-4">
             <span className="flex flex-col gap-0.5">
               <span className="text-[15px] font-semibold text-ink">방향 보정</span>
-              <span className="text-[12px] text-muted">이 기기에 저장된 건물 방향 보정값</span>
+              <span className="text-[13px] text-muted">이 기기에 저장된 건물 방향 보정값</span>
             </span>
             <button
               type="button"
@@ -93,7 +94,7 @@ export function SettingsSheet() {
               <div key={k} className="flex min-h-[54px] items-center justify-between border-b border-divider pr-2 pl-4 last:border-b-0">
                 <span className="flex flex-col gap-0.5">
                   <span className="text-[15px] font-semibold">{PATTERNS[k].name}</span>
-                  <span className="text-[12px] text-muted">{PATTERNS[k].label}</span>
+                  <span className="text-[13px] text-muted">{PATTERNS[k].label}</span>
                 </span>
                 <button
                   type="button"
@@ -121,7 +122,7 @@ export function SettingsSheet() {
           >
             <span className="flex flex-col gap-0.5">
               지도 만들기
-              <span className="text-[12px] font-normal text-muted">안내도 사진으로 층 그래프 만들기 · 검수</span>
+              <span className="text-[13px] font-normal text-muted">안내도 사진으로 층 그래프 만들기 · 검수</span>
             </span>
             <span aria-hidden="true" className="text-[18px] text-muted">›</span>
           </button>

@@ -306,13 +306,14 @@ export function CheckpointScanner() {
   const floorCapture = s.scanTarget === "map" && !!s.floorMapTarget;
   const m = floorCapture ? { ...baseMeta, title: `${floorName(s.floorMapTarget!)} 안내도 촬영`, guide: `${floorName(s.floorMapTarget!)} 표시와 안내도 전체가 보이게 비춰주세요` } : baseMeta;
   const destFloor = `${s.dest?.floor ?? 4}층`;
-  const { videoRef, on: camOn, error: camError, start: startCam, grab, torch, toggleTorch } = useCamera(() =>
+  const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam, grab, torch, toggleTorch } = useCamera(() =>
     actions.update({ scanState: "denied", camDenied: true }),
   );
   // Like a camera app: the preview starts by itself (the user already chose 카메라 켜기). ?demo keeps the
   // sample picture so presenters can drive results by hand; they can still turn the camera on.
+  // Arriving with an album photo (앨범에서 선택) means the user chose a photo, not the camera.
   useEffect(() => {
-    if (demo || s.camDenied) return;
+    if (demo || s.camDenied || s.pendingPhoto) return;
     void (async () => {
       await Promise.resolve();
       await startCam();
@@ -324,6 +325,7 @@ export function CheckpointScanner() {
   // Uploaded photos get the same treatment as the live camera: find the sign, frame it, then read only that part.
   const [upload, setUpload] = useState<{ file: Blob; url: string; w: number; h: number; box: Box; progress: number } | null>(null);
   const pickPhoto = async (file: Blob) => {
+    stopCam(); // the photo replaces the live preview, so the sign tracker can't shoot a camera frame instead
     try {
       const bmp = await createImageBitmap(file);
       const box = detectSignIn(bmp, bmp.width, bmp.height);
@@ -412,7 +414,7 @@ export function CheckpointScanner() {
   };
 
   // Map scans with the camera on: follow the sign, and take the photo once it has been held still.
-  const tracked = useSignTracker(videoRef, finderRef, camOn && isMap && s.scanState === "aim" && !capturing, (box) => void confirmScan(box));
+  const tracked = useSignTracker(videoRef, finderRef, camOn && isMap && s.scanState === "aim" && !capturing && !upload, (box) => void confirmScan(box));
 
   const manualOpts: { label: string; pick: () => void }[] = (() => {
     switch (s.scanTarget) {
@@ -569,7 +571,7 @@ export function CheckpointScanner() {
           ) : (
             !camOn &&
             s.scanState !== "denied" && (
-              <button type="button" onClick={() => void startCam()} className="h-9 self-center rounded-full border border-white/40 bg-black/35 px-3 text-[12px] font-semibold text-white">
+              <button type="button" onClick={() => void startCam()} className="h-9 self-center rounded-full border border-white/40 bg-black/35 px-3 text-[13px] font-semibold text-white">
                 카메라 켜기
               </button>
             )

@@ -1,7 +1,7 @@
 // API adapter. Screens call these functions instead of fetching directly.
 // Mock mode is the default; set NEXT_PUBLIC_GILGYEOL_API=live to call the Laravel API at NEXT_PUBLIC_API_URL.
 // Live responses are converted to the UI types here, so screens don't care which mode is on.
-import type { ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
+import type { ApiBuilding, ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
 import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
 import { facilityGraph } from "./facilityGeometry";
@@ -96,6 +96,16 @@ export interface ParsedGraph extends FloorGraph {
   /** Node the evacuation map marked as "현위치" — the default start node. */
   current_node_id: string | null;
   elevators: NonNullable<ApiGraph["elevators"]>;
+  buildingId?: number;
+  /** Set when this map was loaded from the server instead of read from a photo. */
+  savedAt?: string;
+}
+
+/** Which building the user is in (picked or typed), and the phone's location if they allowed it. */
+export interface Place {
+  id: number | null;
+  name: string;
+  coords: { lat: number; lng: number } | null;
 }
 
 /**
@@ -118,16 +128,21 @@ export function fetchFloorGraph(floor: string): Promise<ParsedGraph | null> {
 }
 
 /**
- * Parses an evacuation-map image into a draft graph. Results always start as draft. Nothing is saved.
+ * Parses an evacuation-map image into a draft graph. Results always start as draft. The backend keeps a good read
+ * (the map, not the photo) under the building so the next visitor can load it; it never becomes routable.
  * Sent at 2048px long side: the AI evals (ai/README.md) measured map reading at that size.
  */
-export async function parseEvacMap(image: Blob | null, floor: number = 4, signal?: AbortSignal): Promise<ParsedGraph> {
+export async function parseEvacMap(image: Blob | null, floor: number = 4, signal?: AbortSignal, place?: Place): Promise<ParsedGraph> {
   if (API_MODE === "live") {
     if (!image) throw new Error("피난안내도 이미지를 먼저 선택해 주세요");
     const body = new FormData();
     body.append("image", await downscale(image, 2048, MAP_JPEG_QUALITY));
-    body.append("building", BUILDING);
+    body.append("building", place?.name || BUILDING);
     body.append("floor", floorLabel(floor));
+    if (place?.coords) {
+      body.append("lat", String(place.coords.lat));
+      body.append("lng", String(place.coords.lng));
+    }
     return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
   }
   await delay(1500);
@@ -168,12 +183,77 @@ export async function saveFloorGraph(floor: number, graph: FloorGraph, status: "
   await delay(400);
 }
 
+/** Buildings matching `q` (all when empty), nearest first when `coords` is given. Mock mode: the demo building only. */
+export async function fetchBuildings(q: string, coords: Place["coords"]): Promise<ApiBuilding[]> {
+  if (API_MODE !== "live") return [{ id: 1, name: BUILDING, distance_m: null, saved_floors: [] }];
+  const p = new URLSearchParams({ q, ...(coords ? { lat: String(coords.lat), lng: String(coords.lng) } : {}) });
+  return request<ApiBuilding[]>(`/api/buildings?${p}`);
+}
+
+/** The latest map someone saved for this building's floor. */
+export async function fetchSavedMap(buildingId: number, floor: string): Promise<ParsedGraph> {
+  return fromApiGraph(await request<ApiGraph>(`/api/evac-map/saved?building_id=${buildingId}&floor=${encodeURIComponent(floor)}`));
+}
+
 export async function fetchRoute(startNode: string, destNode: string): Promise<ApiRoute> {
   if (API_MODE === "live") {
     return request<ApiRoute>("/api/route", { method: "POST", body: JSON.stringify({ start_node: startNode, dest_node: destNode }) });
   }
   await delay(300);
-  return structuredClone(MOCK_ROUTE);
+  return mockRoute(startNode, destNode);
+}
+
+/** "4F-elev-A" -> "4F"; "405" -> "4F". Used only by the mock router below. */
+function nodeFloor(id: string): string | null {
+  const m = /^(\d)F(?:-|$)/.exec(id) ?? /^(\d)/.exec(id);
+  return m ? `${m[1]}F` : null;
+}
+
+/**
+ * Demo routing: the sample building is one canned 1F→4F trip, so requests are sliced from it.
+ * Elevator request -> stop after the ride; same-floor request -> that floor's walk legs.
+ */
+function mockRoute(startNode: string, destNode: string): ApiRoute {
+  const route = structuredClone(MOCK_ROUTE);
+  const startFloor = nodeFloor(startNode) ?? nodeFloor(destNode);
+  const destFloor = nodeFloor(destNode);
+  const total = (steps: ApiStep[]) => steps.reduce((n, s) => n + (s.kind === "walk" ? (s.length_m ?? 0) : 0), 0);
+  const build = (steps: ApiStep[], arrived: ApiRoute["arrived"]): ApiRoute => ({
+    ...route,
+    steps,
+    path: [startNode, ...steps.map((s) => s.to)],
+    total_m: total(steps),
+    arrived,
+  });
+
+  if (/elev|stair/i.test(destNode)) {
+    const i = route.steps.findIndex((s) => s.kind !== "walk");
+    const steps = i >= 0 ? route.steps.slice(0, i + 1) : route.steps;
+    return build(steps, { node: destNode, label: "엘리베이터 홀", floor: destFloor ?? "4F" });
+  }
+  if (startFloor && startFloor === destFloor) {
+    const steps = route.steps.filter((s) => s.kind === "walk" && s.floor === destFloor);
+    if (steps.length) {
+      const last = steps[steps.length - 1];
+      return build(steps, { node: destNode, label: last.to_label, floor: destFloor });
+    }
+  }
+  return route;
+}
+
+/** A photographed (unchecked) floor map in the API's shape, ids prefixed by floor; for POST /api/route/photo. */
+export function photoGraph(g: ParsedGraph): ApiGraph {
+  return toApiGraph(g, g.floor, "draft");
+}
+
+/** Route on a photographed floor map. The server routes in memory and stores nothing. */
+export async function fetchPhotoRoute(graph: ApiGraph, startNode: string, destNode: string): Promise<ApiRoute> {
+  if (API_MODE === "live") {
+    const body = { graph: { floor: graph.floor, nodes: graph.nodes, edges: graph.edges }, start_node: startNode, dest_node: destNode };
+    return request<ApiRoute>("/api/route/photo", { method: "POST", body: JSON.stringify(body) });
+  }
+  await delay(300);
+  return { ...mockRoute(startNode, destNode), draft: true };
 }
 
 /** Sends one camera frame (downscaled) to check where the user is. Frames are not stored by the backend. */
@@ -217,9 +297,9 @@ export async function startPoints(): Promise<ApiStartFloor[]> {
 }
 
 const TURN_LABEL: Record<NonNullable<Extract<ApiStep, { kind: "walk" }>["turn"]>, string> = {
-  left: "좌회전 · 진동 짧게–짧게",
-  right: "우회전 · 진동 길게–길게",
-  back: "방향 전환 · 뒤로 돌기",
+  left: "좌회전",
+  right: "우회전",
+  back: "뒤로 돌기",
   straight: "직진",
 };
 
@@ -244,6 +324,7 @@ export function toRouteStep(step: ApiStep): RouteStep {
     toFloor: step.kind === "walk" ? undefined : step.to_floor,
     headingDeg: step.kind === "walk" ? step.heading_deg : null,
     lengthM: step.kind === "walk" ? step.length_m : undefined,
+    turnDir: step.kind === "walk" ? step.turn : null,
     checkpoint: step.checkpoint,
     toNode: step.to,
   };
@@ -319,6 +400,8 @@ function fromApiGraph(g: ApiGraph): ParsedGraph {
     building: g.building,
     floor: g.floor,
     floorSource: g.floor_source,
+    buildingId: g.building_id,
+    savedAt: g.saved_at,
     current_node_id: g.current_node_id ?? null,
     elevators,
     nodes: g.nodes.map((n) => ({

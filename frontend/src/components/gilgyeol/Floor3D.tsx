@@ -8,7 +8,7 @@ import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C } from "@/lib/gilgyeol/data";
 import { canvasTextMeasure, fitMapText, mapNodeLabel, MAP_FONT } from "@/lib/gilgyeol/mapLabels";
 import { corridorSegments, facilityGraph, portalSegment, stairTreads, visibleSegment } from "@/lib/gilgyeol/facilityGeometry";
-import { roomPolygon, snapOutlines } from "@/lib/gilgyeol/geometry";
+import { fallbackOutlines, roomPolygon, snapOutlines } from "@/lib/gilgyeol/geometry";
 import type { GraphNode } from "@/lib/gilgyeol/types";
 
 export type Floor3DLevel = {
@@ -235,8 +235,10 @@ export default function Floor3D({
     const base = elevOf(levels[0]?.g ?? ({ nodes: [] } as unknown as ParsedGraph));
     // Graphs come in arbitrary units (photo fractions), so scale each floor until a typical room is ~7 m wide.
     // That keeps desks, doors and stacked floors at one real-world size.
-    const scales = levels.map(({ g }) => {
-      const sides = g.nodes
+    // Real AI outline when there is one, else an estimated rectangle, so scale, walls and labels all work.
+    const filled = levels.map(({ g }) => fallbackOutlines(g.nodes, g.edges));
+    const scales = levels.map((_, li) => {
+      const sides = filled[li]
         .filter((n) => n.type === "room" && roomPolygon(n, 1) !== null)
         .map((n) => Math.max(Math.max(...n.outline!.map((p) => p.x)) - Math.min(...n.outline!.map((p) => p.x)), Math.max(...n.outline!.map((p) => p.y)) - Math.min(...n.outline!.map((p) => p.y))))
         .sort((a, b) => a - b);
@@ -246,7 +248,7 @@ export default function Floor3D({
 
     levels.forEach((level, li) => {
       const LS = scales[li];
-      const graph = facilityGraph({ ...level.g, nodes: snapOutlines(level.g.nodes) });
+      const graph = facilityGraph({ ...level.g, nodes: snapOutlines(filled[li]) });
       const nodes = graph.nodes;
       const elev = elevOf(level.g);
       const dx = base && elev ? base.x * scales[0] - elev.x * LS : 0;
@@ -281,21 +283,11 @@ export default function Floor3D({
       const steps: THREE.BufferGeometry[] = [];
       const desks: THREE.BufferGeometry[] = [];
       const spaces = nodes.filter((n) => n.type === "room" || n.type === "stairs" || n.type === "elevator_hall");
-      const polygons = new Map(spaces.map((n) => [n.id, roomPolygon(n, LS)]));
-      const roomish = spaces.filter((n) => polygons.get(n.id) !== null);
+      // fallbackOutlines covers every room with neighbours; only a lone room or a degenerate outline lands here.
+      const box = (n: GraphNode): V2[] => [[-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9]].map(([ox, oz]) => ({ x: n.x * LS + ox, z: n.y * LS + oz }));
+      const polygons = new Map(spaces.map((n) => [n.id, roomPolygon(n, LS) ?? box(n)]));
+      const roomish = spaces;
       const polyOf = (n: GraphNode): V2[] => polygons.get(n.id)!;
-      // A point without wall geometry is a location marker, not an equal-sized replacement room.
-      for (const n of spaces.filter((n) => polygons.get(n.id) === null)) {
-        const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 16), mat(C.route));
-        marker.position.copy(v(n, 0.08));
-        marker.userData.id = n.id;
-        group.add(marker);
-        pickable.push(marker);
-        meshes.current.set(n.id, marker);
-        const name = label(mapNodeLabel(n), C.ink, "#ffffff", 0.75);
-        name.position.copy(v(n, 0.65));
-        group.add(name);
-      }
       // Label centres, so a name is never wider than the gap to its neighbour's name.
       const centres = roomish.map((n) => {
         const b = bbox(polyOf(n));
@@ -348,7 +340,8 @@ export default function Floor3D({
         }
         if (n.type === "stairs") steps.push(...stepsGeo(n, poly, LS));
         // Desks only in the single-floor view; stacked views are about the route, and stay light.
-        const roomDesks = n.type === "room" && !restroom && levels.length === 1 ? desksGeo(poly) : [];
+        // Estimated outlines are only a size guess: no desks, so the painted name stays readable.
+        const roomDesks = n.type === "room" && !restroom && !n.outlineEstimated && levels.length === 1 ? desksGeo(poly) : [];
         desks.push(...roomDesks);
 
         const { x0, x1, z0, z1 } = bbox(poly);
@@ -516,7 +509,8 @@ export default function Floor3D({
       } else {
         const t0 = performance.now();
         const tick = (t: number) => {
-          dot!.position.copy(curve!.getPointAt(((t - t0) / 6000) % 1));
+          // The first frame's timestamp can predate t0; a negative u makes getPointAt return null.
+          dot!.position.copy(curve!.getPointAt((Math.max(0, t - t0) / 6000) % 1));
           render();
           raf = requestAnimationFrame(tick);
         };
@@ -584,12 +578,10 @@ export default function Floor3D({
   }, [heading, levels]);
 
   if (failed) return <>{fallback}</>;
-  const missingSizes = levels.some(({ g }) => g.nodes.some((n) => ["room", "stairs", "elevator_hall"].includes(n.type) && roomPolygon(n, 1) === null));
   return (
     <div className="relative size-full">
       <div ref={box} className="absolute inset-0" role="img" aria-label="3D 층 지도. 한 손가락으로 돌리고 두 손가락으로 확대해요" />
       <div className="pointer-events-none absolute top-3 left-3 rounded-lg bg-white/90 px-2.5 py-1.5 text-[12px] font-semibold text-muted">{hint}</div>
-      {missingSizes && <p role="status" className="pointer-events-none absolute right-3 bottom-3 left-3 m-0 rounded-lg bg-white/95 px-3 py-2 text-[12px] leading-normal text-muted">크기를 읽지 못한 공간은 위치만 표시해요. 벽이 선명하게 보이도록 안내도를 다시 촬영해 주세요.</p>}
     </div>
   );
 }

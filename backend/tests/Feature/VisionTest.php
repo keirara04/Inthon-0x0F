@@ -118,7 +118,7 @@ class VisionTest extends TestCase
             ->assertOk()->assertJsonPath('data.status', 'matched');
     }
 
-    public function test_parse_cleans_llm_output_and_saves_nothing(): void
+    public function test_parse_cleans_llm_output_and_never_touches_routable_nodes(): void
     {
         $this->fakeVision([
             'is_floor_plan' => true,

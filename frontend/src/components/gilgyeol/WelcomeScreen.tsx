@@ -15,11 +15,17 @@ export function WelcomeScreen() {
     <div className="flex min-h-full flex-col gap-4 px-5 pt-2 pb-5">
       {/* Same header pattern as the landing: mark + wordmark, settings as an icon. */}
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+        {/* Logo = home: back to the landing. */}
+        <button
+          type="button"
+          onClick={() => actions.go("landing")}
+          aria-label="어디路 홈"
+          className="flex min-h-11 items-center gap-1.5 border-none bg-transparent p-0"
+        >
           {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
           <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} />
           <span className="text-[22px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
-        </div>
+        </button>
         <button
           type="button"
           onClick={() => actions.update({ sheet: true })}
@@ -42,9 +48,9 @@ export function WelcomeScreen() {
       {/* Hero: Alienie inside haptic rings that pulse outward like the vibration guidance. */}
       <div aria-hidden="true" className="relative flex min-h-[210px] max-h-[300px] flex-1 items-center justify-center overflow-hidden rounded-[26px] bg-haptic-tint">
         <div className="absolute size-[210px] rounded-full border-2 border-[#DCD7F2]" />
-        <div className="gw-ring absolute size-[120px] rounded-full border-2 border-[#B3A9E3]" />
-        <div className="gw-ring gw-ring-2 absolute size-[120px] rounded-full border-2 border-[#B3A9E3]" />
-        <div className="gw-ring gw-ring-3 absolute size-[120px] rounded-full border-2 border-[#B3A9E3]" />
+        <div className="gw-ring absolute size-[120px] rounded-full border-2 border-[#A9C3DE]" />
+        <div className="gw-ring gw-ring-2 absolute size-[120px] rounded-full border-2 border-[#A9C3DE]" />
+        <div className="gw-ring gw-ring-3 absolute size-[120px] rounded-full border-2 border-[#A9C3DE]" />
         <Mascot pose="main" height={150} motion="bob" className="relative translate-y-2" />
       </div>
 
@@ -68,7 +74,7 @@ export function WelcomeScreen() {
         </button>
       </div>
 
-      <p className="m-0 flex items-start justify-center gap-1.5 text-center text-[12px] leading-normal text-muted">
+      <p className="m-0 flex items-start justify-center gap-1.5 text-center text-[13px] leading-normal text-muted">
         <span aria-hidden="true">ⓘ</span>
         일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.
       </p>

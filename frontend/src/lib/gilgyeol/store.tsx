@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import type { ApiRoute } from "@/types/api";
-import { ApiError, fetchRoute, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
-import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
+import type { ApiGraph, ApiRoute } from "@/types/api";
+import { API_MODE, ApiError, fetchFloorGraph, fetchPhotoRoute, fetchRoute, photoGraph, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
+import { BUILDING, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
-import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
+import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
 import { floorName, canUseFloorMap } from "./floorTransition";
 import { useNavigation } from "./useNavigation";
 import type {
@@ -26,10 +26,14 @@ import type {
 
 export interface AppState {
   screen: Screen;
+  /** Guided 3-minute trial: the overlay walks through the real screens until the route preview. */
+  trialOn: boolean;
   // start / location
   mapDemo: boolean;
   /** Destination floor awaiting a fresh plan; the active route stays paused. */
   floorMapTarget: string | null;
+  /** Building the evac maps are saved under and loaded from. */
+  place: Place;
   /** AI draft of the photographed evacuation map. Shown on the map result; routing still uses the verified graph. */
   parsed: ParsedGraph | null;
   /** The photo `parsed` was read from (object URL + pixel size), drawn under the graph. */
@@ -38,9 +42,16 @@ export interface AppState {
   pendingPhoto: Blob | null;
   start: StartNodeId | null;
   /** Real start node from a sign scan or the entrance list; overrides START_NODE_IDS[start] when set. */
-  startAt: { id: string; label: string; floor: string; via: "scan" | "list" } | null;
+  startAt: { id: string; label: string; floor: string; via: "scan" | "list" | "pin" } | null;
   locEdit: boolean;
   landmarks: boolean;
+  /**
+   * "다른 층으로 이동": guide to this floor's elevator hall, then the user rides to any floor, photographs
+   * that floor's map, and picks the destination there. Cleared once that destination is picked.
+   */
+  rideMode: boolean;
+  /** The photographed map of an unchecked floor reached in ride mode; destinations and the route come from it. */
+  photoMap: ApiGraph | null;
   // search
   query: string;
   cat: RoomCategory | null;
@@ -50,6 +61,10 @@ export interface AppState {
   mode: GuideMode;
   vibe: boolean;
   voice: boolean;
+  /** Stereo beep from the side to turn to (iPhone has no vibration). */
+  beep: boolean;
+  /** Korean TTS voice found on this device: true / false (notice shown, speech still tried) / null (unknown yet). */
+  koVoice: boolean | null;
   view: "2d" | "3d";
   dir: DirectionState;
   step: GuideStep;
@@ -87,8 +102,10 @@ export interface AppState {
 
 const INITIAL: AppState = {
   screen: "landing",
+  trialOn: false,
   mapDemo: false,
   floorMapTarget: null,
+  place: { id: null, name: BUILDING, coords: null },
   parsed: null,
   parsedPhoto: null,
   pendingPhoto: null,
@@ -96,6 +113,8 @@ const INITIAL: AppState = {
   startAt: null,
   locEdit: false,
   landmarks: false,
+  rideMode: false,
+  photoMap: null,
   query: "",
   cat: null,
   floorPick: null,
@@ -103,6 +122,8 @@ const INITIAL: AppState = {
   mode: "both",
   vibe: true,
   voice: true,
+  beep: true,
+  koVoice: null,
   view: "2d",
   dir: "far",
   step: 0,
@@ -131,12 +152,14 @@ const INITIAL: AppState = {
 };
 
 const BACK: Partial<Record<Screen, Screen>> = {
+  trial: "landing",
   building: "welcome",
   captureIntro: "welcome", // building screen is skipped while there is only one building
   invalidMap: "captureIntro",
   mapResult: "captureIntro",
   start: "mapResult",
-  search: "start",
+  destFloor: "start",
+  search: "destFloor",
   preview: "search",
   mode: "preview",
   editor: "welcome",
@@ -148,6 +171,18 @@ function startFromParsed(g: ParsedGraph): StartNodeId | null {
   const cur = g.nodes.find((n) => n.id === g.current_node_id);
   if (!cur) return null;
   return cur.type === "elevator_hall" ? "hall" : cur.type === "stairs" ? "stair" : cur.type === "entrance" ? "main" : "here";
+}
+
+/**
+ * A verified floor's elevator hall (a DB node id, so /api/route accepts it); null when the floor has no checked map.
+ * Mock mode has no floor graphs, so it uses the sample's `{floor}-elev-A`.
+ * ponytail: takes the floor's first hall; match halls by `ref` once a building has more than one elevator.
+ */
+async function elevatorHall(floor: string): Promise<{ id: string; label: string } | null> {
+  const g = await fetchFloorGraph(floor);
+  if (!g) return API_MODE === "live" ? null : { id: `${floor}-elev-A`, label: "엘리베이터 홀" };
+  const hall = g.nodes.find((n) => n.type === "elevator_hall");
+  return hall ? { id: hall.id, label: hall.label } : null;
 }
 
 function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
@@ -215,6 +250,13 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const arrive = useCallback(
     () => {
+      if (ref.current.rideMode) {
+        // Reached the elevator hall: the floor is the user's choice, so the next step is that floor's map.
+        go("floorMap", { floorMapTarget: null, routeOpen: false, raised: false });
+        cue("floor");
+        say("엘리베이터 홀에 도착했어요. 가려는 층에서 내린 뒤 그 층의 안내도를 찍어주세요");
+        return;
+      }
       go("arrive", { trip: { ...ref.current.trip, arrivedAt: Date.now() } });
       cue("arrive");
       say(`우정정보관 ${ref.current.route?.arrived.label ?? destName()}에 도착했어요`);
@@ -255,7 +297,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       update({ route: r, steps: r.steps.map(toRouteStep), step: 0, dir: ref.current.simDir ?? "far" });
     },
   });
-  const { dir: navDir, load: navLoad, start: navStart, next: navNext, continueAfterFloorMap: navContinueAfterFloorMap, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm } = nav;
+  const { dir: navDir, load: navLoad, start: navStart, next: navNext, continueAfterFloorMap: navContinueAfterFloorMap, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm, rerouteFrom: navRerouteFrom } = nav;
 
   /** "무시하고 계속": clear the engine's off-route state and go back to the current step. */
   const dismissOffroute = useCallback(() => {
@@ -265,6 +307,18 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     go(st && st.kind && st.kind !== "walk" ? "elevator" : "guide");
     say("계속 안내할게요");
   }, [navResume, go, say]);
+
+  /** Off-route, pinned on the map: new route from that spot (the engine then emits onStep / onReroute). */
+  const rerouteFromPin = useCallback(
+    async (spot: { id: string; label: string }) => {
+      try {
+        if (await navRerouteFrom(spot.id)) say(`${spot.label}에서 새 경로로 안내할게요`);
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "새 경로를 찾지 못했어요");
+      }
+    },
+    [navRerouteFrom, say, toast],
+  );
 
   // The compass drives `dir`; ?demo can still override it from the presenter panel.
   useEffect(() => {
@@ -326,6 +380,21 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [go, ensureDest, destName, say],
   );
 
+  /** A freshly read or saved map: wrong floor while switching floors, else the result screen. */
+  const showParsed = useCallback(
+    (g: ParsedGraph, spoken: string) => {
+      const target = ref.current.floorMapTarget;
+      if (target && !canUseFloorMap(target, g)) {
+        go("wrongFloor", { mapDemo: false, parsed: g });
+        say(`${floorName(g.floor)} 안내도예요. ${floorName(target)} 안내도를 다시 찍어주세요`);
+        return;
+      }
+      say(spoken);
+      go("mapResult", { mapDemo: false, parsed: g, ...(target || ref.current.rideMode ? {} : { start: startFromParsed(g) }) });
+    },
+    [go, say],
+  );
+
   /**
    * Checkpoint scan. With a camera frame the engine sends it to POST /api/checkpoint and owns the result;
    * without one (demo panel, map flow, desktop without a camera) the old simulated outcome is used.
@@ -337,21 +406,19 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         const ctl = new AbortController();
         parseCtl.current = ctl;
         const timeout = setTimeout(() => ctl.abort(), 70_000); // backend gives the model 60 s
+        // ponytail: the floor the user rode to is unknown until the AI reads it; DEST_FLOOR is only the fallback
+        // hint (and the mock's answer). mapResult shows the floor it read so a wrong hint can be retaken.
+        const rideHint = DEST_FLOOR;
         try {
-          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : 1, ctl.signal);
+          const place = ref.current.place;
+          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : ref.current.rideMode ? rideHint : 1, ctl.signal, place);
           if (parseCtl.current !== ctl || ref.current.screen !== "scan") return;
-          const target = ref.current.floorMapTarget;
-          if (target && !canUseFloorMap(target, g)) {
-            go("wrongFloor", { mapDemo: false, parsed: g });
-            say(`${floorName(g.floor)} 안내도예요. ${floorName(target)} 안내도를 다시 찍어주세요`);
-            return;
-          }
-          say("안내도를 읽었어요. 결과를 확인해 주세요");
-          go("mapResult", { mapDemo: false, parsed: g, ...(target ? {} : { start: startFromParsed(g) }) });
+          if (g.buildingId) update({ place: { ...place, id: g.buildingId, name: g.building } });
+          showParsed(g, "안내도를 읽었어요. 결과를 확인해 주세요");
         } catch (e) {
           if (parseCtl.current !== ctl) return; // cancelled by the user
           if (ref.current.screen === "scan" && e instanceof ApiError && e.code === "NOT_FLOOR_PLAN") {
-            go("invalidMap", { parsed: null, pendingPhoto: null, mapDemo: false, ...(ref.current.floorMapTarget ? {} : { start: null }), scanState: "aim" });
+            go("invalidMap", { parsed: null, pendingPhoto: null, mapDemo: false, ...(ref.current.floorMapTarget || ref.current.rideMode ? {} : { start: null }), scanState: "aim" });
             return;
           }
           toast(ctl.signal.aborted ? "안내도를 읽는 데 너무 오래 걸려요. 다시 찍거나 다른 사진을 선택해 주세요" : e instanceof Error ? e.message : "안내도를 읽지 못했어요");
@@ -388,7 +455,24 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         say(o === "success" ? m.ok : o === "mismatch" ? "예상한 표지와 달라요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요");
       }, 1300);
     },
-    [update, go, navConfirm, cue, say, toast, destName],
+    [update, go, navConfirm, cue, say, toast, destName, showParsed],
+  );
+
+  /** Someone already photographed this floor: use their map, no camera or AI read. */
+  const loadSavedMap = useCallback(
+    async (floor: string, buildingId?: number) => {
+      const id = buildingId ?? ref.current.place.id;
+      if (id === null) return;
+      try {
+        const g = await fetchSavedMap(id, floor);
+        if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+        update({ parsedPhoto: null }); // the photo isn't stored, only the map
+        showParsed(g, "저장된 안내도를 불러왔어요. 결과를 확인해 주세요");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "저장된 안내도를 불러오지 못했어요");
+      }
+    },
+    [update, showParsed, toast],
   );
 
   const cancelScan = useCallback(() => {
@@ -431,9 +515,35 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     advance();
   }, [advance]);
 
-  const confirmMap = useCallback(() => {
+  const confirmMap = useCallback(async () => {
     const s = ref.current;
     const g = s.mapDemo ? null : s.parsed;
+    if (s.rideMode && !s.floorMapTarget) {
+      // The photographed map says which floor the user got off on; its rooms come from that floor's checked map.
+      const floor = g?.floor ?? floorLabel(DEST_FLOOR);
+      const hall = await elevatorHall(floor);
+      if (!hall) {
+        // No checked map for this floor: route on the photographed one (AI draft). The user is standing at the
+        // map they just photographed, so its 현위치 is the start; else its elevator hall, else stairs.
+        const map = g ? photoGraph(g) : null;
+        const here = g?.current_node_id ? (g.current_node_id.startsWith(`${floor}-`) ? g.current_node_id : `${floor}-${g.current_node_id}`) : null;
+        const photoHall =
+          map?.nodes.find((n) => n.id === here) ?? map?.nodes.find((n) => n.type === "elevator_hall") ?? map?.nodes.find((n) => n.type === "stairs");
+        if (!map || !photoHall) {
+          toast(map ? "안내도에서 현위치나 엘리베이터를 찾지 못했어요. 다시 찍어주세요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+          say(map ? "안내도에서 현위치를 찾지 못했어요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+          return;
+        }
+        update({ startAt: { id: photoHall.id, label: photoHall.label, floor, via: "list" }, start: null, photoMap: map });
+        say(`${floorName(floor)} 안내도예요. 검수 전 AI 지도로 안내해요. 목적지를 골라주세요`);
+        go("search", { floorPick: floorNumber(floor), query: "", cat: null });
+        return;
+      }
+      update({ startAt: { id: hall.id, label: hall.label, floor, via: "list" }, start: null, photoMap: null });
+      say(`${floorName(floor)} 안내도예요. 목적지를 골라주세요`);
+      go("search", { floorPick: floorNumber(floor), query: "", cat: null });
+      return;
+    }
     if (s.floorMapTarget) {
       if (!canUseFloorMap(s.floorMapTarget, g)) {
         go("wrongFloor");
@@ -444,7 +554,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       return;
     }
     go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !s.start, landmarks: false });
-  }, [go, update, navContinueAfterFloorMap]);
+  }, [go, update, navContinueAfterFloorMap, toast, say]);
 
   const scanNext = useCallback(
     (manual: boolean) => {
@@ -460,7 +570,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const beginTrip = useCallback(() => {
     update({ trip: { startedAt: Date.now(), arrivedAt: null, reroutes: 0 }, simDir: null });
-    // Must run inside the tap handler so iOS grants compass access.
+    // Must run inside the tap handler so iOS grants compass access and starts audio for the direction beep.
+    unlockAudio();
     if (ref.current.route) navStart();
     else toast("경로를 먼저 선택해 주세요");
   }, [update, navStart, toast]);
@@ -517,9 +628,13 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       if (ref.current.routeLoading) return;
       update({ routeLoading: true });
       try {
-        const route = await fetchRoute(ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        // One route from the start to the room: the backend plans the elevator ride between floors.
+        // After a ride to an unchecked floor, the route runs on that floor's photographed map instead.
+        const from = ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"];
+        const photo = ref.current.photoMap;
+        const route = photo ? await fetchPhotoRoute(photo, from, room.id) : await fetchRoute(from, room.id);
         navLoad(route);
-        update({ route, steps: route.steps.map(toRouteStep), routeLoading: false });
+        update({ route, steps: route.steps.map(toRouteStep), routeLoading: false, rideMode: false });
         go("preview", { dest: room, step: 0, dir: "far" });
       } catch (e) {
         update({ routeLoading: false });
@@ -527,6 +642,45 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       }
     },
     [go, toast, update, navLoad],
+  );
+
+  /**
+   * "다른 층으로 이동하시나요?". 아니요: this floor's rooms. 예: walk to this floor's elevator hall first; the floor
+   * and the destination are picked after the ride, from that floor's map (see arrive and confirmMap).
+   */
+  const chooseFloorScope = useCallback(
+    async (otherFloor: boolean) => {
+      const s = ref.current;
+      const floor = s.startAt?.floor ?? s.parsed?.floor ?? "1F";
+      if (!otherFloor) {
+        go("search", { rideMode: false, photoMap: null, floorPick: floorNumber(floor), query: "", cat: null });
+        return;
+      }
+      if (s.routeLoading) return;
+      update({ routeLoading: true });
+      try {
+        const hall = await elevatorHall(floor);
+        if (!hall) throw new Error(`${floorName(floor)} 엘리베이터 홀을 찾지 못했어요`);
+        const from = s.startAt?.id ?? START_NODE_IDS[s.start ?? "here"];
+        if (from === hall.id) {
+          // Already at the hall (the default start; the API rejects a route to itself): straight to the ride.
+          update({ routeLoading: false, rideMode: true });
+          arrive();
+          return;
+        }
+        const full = await fetchRoute(from, hall.id);
+        // Only this floor's walk: the mock router (and any multi-floor answer) may append a ride step.
+        const cut = full.steps.findIndex((st) => st.kind !== "walk");
+        const route = { ...full, steps: cut >= 0 ? full.steps.slice(0, cut) : full.steps, arrived: { ...full.arrived, node: hall.id, label: hall.label, floor } };
+        navLoad(route);
+        update({ route, steps: route.steps.map(toRouteStep), routeLoading: false, rideMode: true });
+        go("preview", { dest: { id: hall.id, name: hall.label, kind: "승강기", floor: floorNumber(floor), cat: "엘리베이터", routeReady: true }, step: 0, dir: "far" });
+      } catch (e) {
+        update({ routeLoading: false });
+        toast(e instanceof Error ? e.message : "경로를 찾을 수 없어요");
+      }
+    },
+    [go, update, navLoad, toast, arrive],
   );
 
   const stopGuidance = useCallback(() => {
@@ -537,21 +691,132 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const endGuide = useCallback(() => {
     stopGuidance();
     navLoad(null);
-    go("welcome", { step: 0, dir: "far", start: "here", startAt: null, route: null, steps: [], routeLoading: false, simDir: null, floorMapTarget: null });
+    go("welcome", {
+      step: 0,
+      dir: "far",
+      start: "here",
+      startAt: null,
+      route: null,
+      steps: [],
+      routeLoading: false,
+      simDir: null,
+      floorMapTarget: null,
+      rideMode: false,
+      photoMap: null,
+      trialOn: false,
+      dest: null,
+    });
   }, [go, stopGuidance, navLoad]);
+
+  /** Guided trial start: skips the marketing intro and lands on the real capture screen with 하은's photo. */
+  const startTrial = useCallback(() => {
+    if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+    navLoad(null);
+    update({
+      screen: "captureIntro",
+      trialOn: true,
+      mapDemo: false,
+      parsed: null,
+      parsedPhoto: null,
+      start: null,
+      locEdit: false,
+      landmarks: false,
+      rideMode: false,
+      photoMap: null,
+      query: "",
+      cat: null,
+      floorPick: null,
+      dest: null,
+      route: null,
+      steps: [],
+      routeLoading: false,
+      trip: { startedAt: null, arrivedAt: null, reroutes: 0 },
+      mode: "both",
+      vibe: true,
+      voice: true,
+      simDir: null,
+      sheet: false,
+      toast: null,
+      cue: null,
+    });
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [update, navLoad, scrollRef]);
+
+  /**
+   * Opens the guided trial's entry page. The overlay starts here so the first thing it does is
+   * explain who 하은 is and point at the real "길찾기 시작" button.
+   */
+  const enterTrial = useCallback(() => {
+    update({ trialOn: true, rideMode: false });
+    go("trial");
+  }, [go, update]);
+
+  /**
+   * Ends the guided overlay. `toLanding` also clears the half-finished trip so the next
+   * ordinary visit starts clean; otherwise the user keeps the real screen they reached.
+   */
+  const endTrial = useCallback(
+    (toLanding = false) => {
+      if (!toLanding) {
+        update({ trialOn: false });
+        toast("3분 체험을 마쳤어요. 실제 앱처럼 이어서 사용할 수 있어요");
+        return;
+      }
+      if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+        navLoad(null);
+      update({
+        screen: "landing",
+        trialOn: false,
+        mapDemo: false,
+        parsed: null,
+        parsedPhoto: null,
+        start: "here",
+        locEdit: false,
+        landmarks: false,
+        rideMode: false,
+        photoMap: null,
+        query: "",
+        cat: null,
+        floorPick: null,
+        dest: null,
+        route: null,
+        steps: [],
+        routeLoading: false,
+        trip: { startedAt: null, arrivedAt: null, reroutes: 0 },
+        simDir: null,
+        sheet: false,
+        toast: null,
+        cue: null,
+      });
+      scrollRef.current?.scrollTo({ top: 0 });
+    },
+    [update, navLoad, scrollRef, toast],
+  );
 
   const back = useCallback(() => {
     const s = ref.current;
+    // Leaving any guided screen ends the trial; the overlay must not reappear later in the trip.
+    if (s.trialOn) update({ trialOn: false });
     if (s.screen === "scan") {
       clearTimeout(timers.current.scan);
       go(s.scanFrom === "scan" ? "welcome" : s.scanFrom);
       return;
     }
-    if (s.floorMapTarget && (s.screen === "mapResult" || s.screen === "invalidMap" || s.screen === "wrongFloor")) {
+    if ((s.floorMapTarget || s.rideMode) && (s.screen === "mapResult" || s.screen === "invalidMap" || s.screen === "wrongFloor")) {
       go("floorMap");
       return;
     }
+    if (s.screen === "floorMap" && s.rideMode) {
+      // Before the destination is picked, "back" just undoes "예, 이동할게요".
+      navLoad(null);
+      go("destFloor", { rideMode: false, photoMap: null, route: null, steps: [], step: 0, dest: null });
+      return;
+    }
     if (s.screen === "floorMap") return; // Keep guidance paused until a new plan is confirmed or the trip ends.
+    if (s.screen === "search" && s.rideMode) {
+      go("floorMap"); // after the ride: back to photographing this floor's map
+      return;
+    }
     if (s.screen === "offroute") {
       startGuide(s.step);
       return;
@@ -572,7 +837,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       return;
     }
     go(BACK[s.screen] ?? "welcome");
-  }, [go, startGuide, stopGuidance]);
+  }, [go, startGuide, stopGuidance, update, navLoad]);
 
   const setMode = useCallback(
     (mode: GuideMode) => {
@@ -635,13 +900,32 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     return () => window.removeEventListener("deviceorientation", onOrient);
   }, [state.postureSensor, setRaised]);
 
-  // Direction pulse: the closer to the target heading, the shorter the interval.
+  // Whether this device can speak Korean (the voice list loads late on Chrome).
   useEffect(() => {
-    if (state.screen !== "guide" || state.dir === "unstable" || !state.vibe || state.simNoVibe || !supportsVibration()) return;
+    void koreanVoiceReady().then((koVoice) => update({ koVoice }));
+  }, [update]);
+
+  // Direction pulse: the closer to the target heading, the shorter the interval. Vibration where it exists,
+  // the iPhone haptic tick where it doesn't, and a beep panned toward the turn (read live, not per render).
+  const navDelta = useRef<number | null>(null);
+  useEffect(() => {
+    navDelta.current = nav.delta;
+  });
+  useEffect(() => {
+    if (state.screen !== "guide" || state.dir === "unstable") return;
+    const haptic = state.vibe && !state.simNoVibe;
+    const sound = state.beep && (state.vibe || state.voice); // "화면만" mode stays silent
+    if (!haptic && !sound) return;
     const dir = state.dir;
-    const id = setInterval(() => vibrate(dir === "aligned" ? 70 : 35), DIRECTION[dir].period * 1000);
-    return () => clearInterval(id);
-  }, [state.screen, state.dir, state.vibe, state.simNoVibe]);
+    const period = DIRECTION[dir].period * 1000;
+    const buzz = haptic ? setInterval(() => (supportsVibration() ? vibrate(dir === "aligned" ? 70 : 35) : iosHaptic()), period) : undefined;
+    // Beeps no faster than 0.7 s: three a second when on course is noise, not guidance.
+    const tone = sound ? setInterval(() => beep(navDelta.current === null ? 0 : beepPan(navDelta.current), dir === "aligned"), Math.max(period, 700)) : undefined;
+    return () => {
+      clearInterval(buzz);
+      clearInterval(tone);
+    };
+  }, [state.screen, state.dir, state.vibe, state.voice, state.beep, state.simNoVibe]);
 
   // Hardware/browser back maps to in-app back instead of leaving the app.
   useEffect(() => {
@@ -685,13 +969,16 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       confirmMap,
       openScan,
       runScan,
+      loadSavedMap,
       readMapPhoto,
       cancelScan,
       scanNext,
       arrive,
       toOffroute,
       dismissOffroute,
+      rerouteFromPin,
       pickDest,
+      chooseFloorScope,
       endGuide,
       setMode,
       replay,
@@ -702,12 +989,15 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       beginTrip,
       setRaised,
       enablePosture,
+      startTrial,
+      enterTrial,
+      endTrial,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, loadSavedMap, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, chooseFloorScope, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture, startTrial, enterTrial, endTrial],
   );
 
   // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.
-  const compass = { heading: nav.heading, delta: nav.delta, calibrated: nav.calibrated, calibrate: nav.calibrate, resetCalibration: nav.resetCalibration };
+  const compass = { heading: nav.heading, delta: nav.delta, disturbed: nav.disturbed, walkedM: nav.walkedM, calibrated: nav.calibrated, calibrate: nav.calibrate, resetCalibration: nav.resetCalibration };
 
   return { state, actions, compass };
 }

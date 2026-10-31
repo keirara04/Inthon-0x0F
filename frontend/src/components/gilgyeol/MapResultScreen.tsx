@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BUILDING, C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
+import { C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
 import { floorName, canUseFloorMap } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { WrongFloorScreen } from "./WrongFloorScreen";
@@ -75,7 +75,7 @@ export function MapResultScreen() {
               role="radio"
               aria-checked={mode === m}
               onClick={() => setMode(m)}
-              className={`h-9 min-w-11 rounded-lg border-none px-2.5 text-[12px] font-bold text-ink ${mode === m ? "bg-surface" : "bg-transparent"}`}
+              className={`h-9 min-w-11 rounded-lg border-none px-2.5 text-[13px] font-bold text-ink ${mode === m ? "bg-surface" : "bg-transparent"}`}
             >
               {m === "2d" ? "2D" : "3D"}
             </button>
@@ -87,7 +87,7 @@ export function MapResultScreen() {
         {picked ? (
           <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[12px] font-semibold text-muted">
+              <span className="text-[13px] font-semibold text-muted">
                 {TYPE_LABEL[picked.type] ?? "지점"} · 복도 연결 {links}곳
               </span>
               <span className="whitespace-normal text-[18px] font-extrabold [overflow-wrap:anywhere]">{picked.label}</span>
@@ -100,7 +100,7 @@ export function MapResultScreen() {
           <dl className="m-0 grid grid-cols-3 gap-2">
             {stats.map(([k, v, ok]) => (
               <div key={k} className="flex flex-col gap-0.5 rounded-2xl bg-surface px-3 py-2.5">
-                <dt className="text-[12px] text-muted">{k}</dt>
+                <dt className="text-[13px] text-muted">{k}</dt>
                 <dd className={`m-0 flex items-center gap-1.5 text-[16px] font-bold ${ok ? "text-ink" : "text-warning"}`}>
                   <StatusDot color={ok ? C.success : C.warning} dashed={!ok} />
                   {v}
@@ -109,13 +109,13 @@ export function MapResultScreen() {
             ))}
           </dl>
         )}
-        <p className="m-0 text-[12px] leading-normal text-muted">
+        <p className="m-0 text-[13px] leading-normal text-muted">
           {target
             ? floorRead
               ? `${floorName(target)} 안내도를 확인했어요. 기존 목적지까지 안내를 계속해요.`
               : `사진에서 층 번호를 확인하지 못했어요. 현재 계신 ${floorName(target)}의 안내도가 맞다면 계속할 수 있어요.`
             : g
-              ? `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${BUILDING}). 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
+              ? `${g.savedAt ? `${g.building}에 저장된 ${floorText} 안내도예요` : `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${g.building})`}. 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
               : "데모 안내도예요. 현재 위치는 다음 화면에서 확인해요."}
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
