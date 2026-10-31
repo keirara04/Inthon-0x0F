@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\NavigationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
@@ -8,6 +9,9 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 Route::get('/ping', fn () => ['message' => 'pong from laravel']);
+
+Route::get('/search', [NavigationController::class, 'search']);
+Route::post('/route', [NavigationController::class, 'route']);
 
 // Starter AI call (Lablup, Anthropic Messages format). Throttled: every call costs tokens.
 Route::get('/ai/test', function (Request $request) {
