@@ -19,10 +19,12 @@ from PIL import Image, ImageOps
 
 AI_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = AI_DIR.parent
-PROMPTS_DIR = AI_DIR / "prompts"
-SCHEMA_DIR = AI_DIR / "schema"
+# 프롬프트·스키마 원본은 백엔드 하나 (VisionClient가 같은 파일을 읽는다)
+PROMPTS_DIR = REPO_ROOT / "backend" / "resources" / "prompts"
+SCHEMA_DIR = REPO_ROOT / "backend" / "resources" / "schemas"
+# 정답 = 백엔드 시드 그래프 (명성 검수 데이터, <건물>-<층>.json)
+TRUTH_DIR = REPO_ROOT / "backend" / "database" / "seeders" / "data"
 DATA_DIR = AI_DIR / "eval" / "data"
-TRUTH_DIR = DATA_DIR / "truth"
 RESULTS_DIR = AI_DIR / "eval" / "results"
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
@@ -57,11 +59,21 @@ def load_api_key(name: str = "OPENROUTER_API_KEY") -> str:
 
 
 def load_prompt(name: str) -> str:
-    return (PROMPTS_DIR / f"{name}.md").read_text(encoding="utf-8").strip()
+    """backend/resources/prompts/<name>.md 전체 (VisionClient처럼 그대로 보낸다)."""
+    return (PROMPTS_DIR / f"{name}.md").read_text(encoding="utf-8")
 
 
 def load_schema(name: str) -> dict:
-    return json.loads((SCHEMA_DIR / f"{name}.schema.json").read_text(encoding="utf-8"))
+    return json.loads((SCHEMA_DIR / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def load_truth(building: str, floor: str) -> dict | None:
+    path = TRUTH_DIR / f"{building}-{floor}.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+
+
+def load_truth_floors(building: str) -> list[dict]:
+    return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(TRUTH_DIR.glob(f"{building}-*.json"))]
 
 
 def api_schema(schema: dict) -> dict:
@@ -82,6 +94,14 @@ def list_images(folder: Path) -> list[Path]:
 
 def load_image(path: Path) -> Image.Image:
     return ImageOps.exif_transpose(Image.open(path)).convert("RGB")  # 폰 사진 회전 보정
+
+
+def image_data_url(path: Path, img: Image.Image, max_side: int) -> str:
+    """max_side=0이면 파일을 그대로 보낸다 (현재 prod VisionClient와 같음). 아니면 긴 변을 줄여 JPEG로."""
+    if max_side == 0:
+        mime = "image/png" if path.suffix.lower() == ".png" else "image/webp" if path.suffix.lower() == ".webp" else "image/jpeg"
+        return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode()
+    return to_data_url(img, max_side)
 
 
 def to_data_url(img: Image.Image, max_side: int, quality: int = 85) -> str:
@@ -222,29 +242,6 @@ def normalize_room(label: str | None) -> str:
     s = re.sub(r"\s+", "", str(label)).upper()
     m = ROOM_NO_RE.search(s)
     return m.group(0) if m else s
-
-
-def normalize_floor(text: str | None) -> str:
-    """'4층', '4F', '4 F' → '4F' · '지하1층', 'B1', 'B1F' → 'B1'."""
-    if not text:
-        return ""
-    s = re.sub(r"\s+", "", str(text)).upper()
-    m = re.search(r"(?:지하|B)(\d+)", s)
-    if m:
-        return f"B{m.group(1)}"
-    m = re.search(r"(\d+)(?:F|층)", s) or re.fullmatch(r"(\d+)", s)
-    return f"{m.group(1)}F" if m else s
-
-
-def normalize_text(text: str | None, kind: str | None = None) -> str:
-    """체크포인트 텍스트 비교용."""
-    if not text:
-        return ""
-    if kind == "floor_sign":
-        return normalize_floor(text)
-    if kind == "room_no":
-        return normalize_room(text)
-    return re.sub(r"\s+", "", str(text)).upper()
 
 
 # ---------------------------------------------------------------- 결과 저장
