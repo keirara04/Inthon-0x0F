@@ -35,7 +35,7 @@ function SampleEvacMap() {
   );
 }
 
-/** Live rear-camera preview. Frames are never captured or stored; recognition is still simulated. */
+/** Live rear-camera preview. A grabbed frame is sent for one checkpoint check and never stored. */
 function useCamera(onDenied: () => void) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -65,9 +65,21 @@ function useCamera(onDenied: () => void) {
     }
   };
 
+  /** One JPEG frame from the preview, or null when the camera is not showing a picture yet. */
+  const grab = async (): Promise<Blob | null> => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return null;
+    const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.7));
+  };
+
   useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
 
-  return { videoRef, on, error, start, stop };
+  return { videoRef, on, error, start, stop, grab };
 }
 
 export function CheckpointScanner() {
@@ -75,8 +87,27 @@ export function CheckpointScanner() {
   const d = useDestName();
   const demo = useDemoTools();
   const m = scanMeta(s.scanTarget, d);
-  const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam } = useCamera(() => actions.update({ scanState: "denied", camDenied: true }));
+  const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam, grab } = useCamera(() => actions.update({ scanState: "denied", camDenied: true }));
+  const [capturing, setCapturing] = useState(false);
   const frameColor = { success: "#4CC38A", mismatch: "#F2C37A", fail: "#F2C37A" }[s.scanState as string] ?? "#FFFFFF";
+  // Real recognition needs a frame. ?demo and the map flow keep the simulated outcome so presenters can drive it by hand.
+  const realScan = !demo && s.scanTarget === "sign" && camOn;
+
+  /** Live: capture one frame and let the engine judge it. Otherwise: the existing simulated result. */
+  const confirmScan = async () => {
+    if (!realScan) {
+      actions.runScan();
+      return;
+    }
+    setCapturing(true);
+    try {
+      const frame = await grab();
+      if (frame) actions.runScan(frame);
+      else actions.toast("카메라 화면이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요");
+    } finally {
+      setCapturing(false);
+    }
+  };
 
   const manualOpts: { label: string; pick: () => void }[] = (() => {
     switch (s.scanTarget) {
@@ -117,7 +148,7 @@ export function CheckpointScanner() {
         {!camOn && s.scanTarget === "map" && <SampleEvacMap />}
         {!camOn && (
           <div className="absolute top-3 left-3 font-mono text-[10px] font-semibold text-[#A8ABA5]">
-            {s.scanTarget === "map" ? "샘플 안내도 · 실제 카메라 미연결" : "후면 카메라 미리보기 자리 · 실제 카메라 미연결"}
+            {s.scanTarget === "map" ? "샘플 안내도 · 실제 카메라 미연결" : "후면 카메라 미리보기 자리 · 카메라를 켜면 표지를 확인해요"}
           </div>
         )}
         {s.scanState === "success" && (
@@ -173,8 +204,12 @@ export function CheckpointScanner() {
               </div>
             </div>
             )}
-            <PrimaryButton onClick={actions.runScan}>{m.runLabel}</PrimaryButton>
-            <p className="m-0 text-[13px] leading-normal text-muted">실제 서비스에서는 카메라를 표지 확인에만 사용해요. 지금은 실제 인식 없이 선택한 결과를 보여줘요.</p>
+            <PrimaryButton onClick={confirmScan} disabled={capturing}>{m.runLabel}</PrimaryButton>
+            <p className="m-0 text-[13px] leading-normal text-muted">
+              {realScan
+                ? "지금 찍은 프레임으로 표지 위치를 확인해요. 사진은 확인 요청에만 쓰고 저장하지 않아요."
+                : "카메라를 켜지 않으면 실제 인식 없이 선택한 결과를 보여줘요. 현장에서는 ‘실제 카메라 켜기’를 눌러주세요."}
+            </p>
             {s.scanTarget !== "map" && (
               <p className="m-0 text-center text-[13px] font-semibold text-muted">
                 {s.postureSensor ? "폰을 내리면 카메라가 꺼지고 진동 안내로 돌아가요" : "‘닫기’를 누르면 진동 안내로 돌아가요"}

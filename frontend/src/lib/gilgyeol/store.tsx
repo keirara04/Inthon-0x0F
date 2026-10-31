@@ -219,7 +219,16 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       update({ route: r, steps: r.steps.map(toRouteStep), step: 0, dir: ref.current.simDir ?? "far" });
     },
   });
-  const { dir: navDir, load: navLoad, start: navStart, next: navNext, goTo: navGoTo } = nav;
+  const { dir: navDir, load: navLoad, start: navStart, next: navNext, goTo: navGoTo, resume: navResume, confirmCheckpoint: navConfirm } = nav;
+
+  /** "무시하고 계속": clear the engine's off-route state and go back to the current step. */
+  const dismissOffroute = useCallback(() => {
+    navResume();
+    const s = ref.current;
+    const st = s.steps[s.step];
+    go(st && st.kind && st.kind !== "walk" ? "elevator" : "guide");
+    say("계속 안내할게요");
+  }, [navResume, go, say]);
 
   // The compass drives `dir`; ?demo can still override it from the presenter panel.
   useEffect(() => {
@@ -279,17 +288,41 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [go, ensureDest, destName, say],
   );
 
-  const runScan = useCallback(() => {
-    update({ scanState: "analyzing", manual: false });
-    clearTimeout(timers.current.scan);
-    timers.current.scan = setTimeout(() => {
-      const o = ref.current.outcome;
-      update({ scanState: o });
-      if (o === "success" && ref.current.scanTarget !== "map") cue("confirm");
-      const m = scanMeta(ref.current.scanTarget, destName());
-      say(o === "success" ? m.ok : o === "mismatch" ? "예상한 표지와 달라요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요");
-    }, 1300);
-  }, [update, destName, say, cue]);
+  /**
+   * Checkpoint scan. With a camera frame the engine sends it to POST /api/checkpoint and owns the result;
+   * without one (demo panel, map flow, desktop without a camera) the old simulated outcome is used.
+   */
+  const runScan = useCallback(
+    async (frame?: Blob) => {
+      update({ scanState: "analyzing", manual: false });
+      if (frame) {
+        try {
+          const res = await navConfirm(frame);
+          if (res.status === "matched") cue("confirm");
+          else if (res.status === "mismatch") toast("예상한 표지와 달라요 · 지금 위치에서 경로를 다시 계산했어요");
+          else say("표지를 읽지 못했어요. 더 가까이 비춰주세요");
+          // matched/mismatch made the engine change step or route, which already moved the screen.
+          // Staying on the scanner means the result was unusable, so show it and let the user retry.
+          if (ref.current.screen === "scan") {
+            update({ scanState: res.status === "matched" ? "success" : res.status === "mismatch" ? "mismatch" : "fail" });
+          }
+        } catch (e) {
+          toast(e instanceof Error ? e.message : "표지를 확인하지 못했어요");
+          if (ref.current.screen === "scan") update({ scanState: "fail" });
+        }
+        return;
+      }
+      clearTimeout(timers.current.scan);
+      timers.current.scan = setTimeout(() => {
+        const o = ref.current.outcome;
+        update({ scanState: o });
+        if (o === "success" && ref.current.scanTarget !== "map") cue("confirm");
+        const m = scanMeta(ref.current.scanTarget, destName());
+        say(o === "success" ? m.ok : o === "mismatch" ? "예상한 표지와 달라요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요");
+      }, 1300);
+    },
+    [update, navConfirm, cue, say, toast, destName],
+  );
 
   const cancelScan = useCallback(() => {
     clearTimeout(timers.current.scan);
@@ -544,6 +577,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       scanNext,
       arrive,
       toOffroute,
+      dismissOffroute,
       pickDest,
       endGuide,
       setMode,
@@ -556,7 +590,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   return { state, actions };

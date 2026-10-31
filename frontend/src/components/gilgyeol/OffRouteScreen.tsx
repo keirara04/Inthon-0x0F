@@ -40,6 +40,9 @@ export function OffRouteScreen() {
           <div className="flex-1" />
           <PrimaryButton onClick={() => actions.openScan("sign")}>주변 표지 확인</PrimaryButton>
           <SecondaryButton onClick={() => actions.update({ offState: "floor" })}>현재 층·랜드마크 직접 선택</SecondaryButton>
+          <button type="button" onClick={actions.dismissOffroute} className="h-11 border-none bg-transparent text-[15px] font-semibold text-muted underline underline-offset-4">
+            무시하고 계속 안내
+          </button>
         </>
       )}
 

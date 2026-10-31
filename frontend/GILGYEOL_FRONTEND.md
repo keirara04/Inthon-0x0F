@@ -161,7 +161,7 @@ welcome → editor (관리자 · 지도 만들기)
   - 들면: 이탈 경고 화면(offroute)에서만 주변 표지 스캔을 엽니다. 일반 안내 중에는 카메라를 켜지 않습니다
   - 내리면: 스캔 대기 중일 때 이전 안내 화면으로 복귀
   - 센서가 없으면 데모 버튼 `폰 들어 표지 비추기`로 동일 동작
-- **카메라**: 스캐너의 `실제 카메라 켜기`로 후면 카메라 미리보기. 프레임은 캡처·저장하지 않으며, 권한 거부 시 `denied` 상태와 수동 선택으로 전환
+- **카메라**: 스캐너의 `실제 카메라 켜기`로 후면 카메라 미리보기. 이탈 시 표지 확인에서 프레임 1장을 `POST /api/checkpoint`로 보내며, 백엔드는 저장하지 않습니다. 권한 거부 시 `denied` 상태와 수동 선택으로 전환
 
 ---
 
@@ -175,7 +175,7 @@ welcome → editor (관리자 · 지도 만들기)
 | `parseEvacMap(file, building, floor)` | `POST /api/evac-map/parse` (multipart `image`, `building`, `floor: "4F"`) | 1.5초 후 `SAMPLE_AI_GRAPH` | GraphEditor AI 초안 |
 | `saveFloorGraph({ building, floor, graph, status, replace })` | `PUT /api/graph` (`X-Admin-Token`, 0–1 좌표, `elevators[]`) | 0.4초 지연 | GraphEditor 저장 |
 | `fetchRoute(start, dest)` | `POST /api/route` (`start_node`, `dest_node`) | 오류 | 아직 화면 미연결 |
-| `checkCheckpoint(blob, expectedNode)` | `POST /api/checkpoint` (multipart `image`, `expected_node`) | 0.9초 후 `matched` | 아직 화면 미연결 |
+| `checkCheckpoint(blob, expectedNode)` | `POST /api/checkpoint` (multipart `image`, `expected_node`) | 1.2초 후 `matched` | CheckpointScanner (카메라 켜짐 + live) |
 
 변환 규칙:
 - 검색 결과 `{id,label,type,floor:"4F",building}` → `Room` (`label→name`, `floor→4`, `type→cat`). `id`는 **노드 id 그대로** 두고 `route`/`checkpoint`에 씁니다.
@@ -231,9 +231,10 @@ welcome → editor (관리자 · 지도 만들기)
 | 항목 | 상태 |
 |---|---|
 | 진동 · 음성 | 기기가 지원하면 **실제 동작** |
-| 카메라 미리보기 | **실제 동작** (HTTPS/localhost), 인식은 하지 않음 |
+| 카메라 미리보기 · 체크포인트 인식 | **실제 동작** (HTTPS/localhost + live + 카메라 켜짐). `matched` → 다음 단계, `mismatch` → 현재 위치에서 재경로, `unknown` → 재촬영 |
 | 폰 자세 감지 | **실제 센서** (권한 필요), 데모 버튼 대체 |
-| 안내도 OCR · 주변 표지 인식 | **데모**: `?demo`에서 성공/불일치/실패 선택, 기본 모드는 성공 |
+| 안내도 OCR | **데모**: 샘플 결과, 실제 OCR 미연결 |
+| 주변 표지 인식 | **실제 동작** (카메라 켜짐 + live). 카메라를 끄면 `?demo` 선택값/기본 성공으로 대체 |
 | 방향 센서 | **데모**: 벗어남/가까움/일치/불안정 버튼 |
 | 경로 이탈 감지 | **데모**: `반대 복도로 이동해 보기`로 재현 (기준 문구: 60° 이상 · 5초 이상) |
 | 건물·경로·비상구·층 상태 데이터 | **데모 데이터**, 현장 검증 아님 |
