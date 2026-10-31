@@ -64,9 +64,48 @@ export function trackOffRoute(s: OffRouteState, d: number | null, now: number): 
   return { armed, since, off: s.off || now - since >= OFF_ROUTE_MS };
 }
 
+/** A direction in the earth frame: x = east, y = north, z = up. */
+type Vec3 = [number, number, number];
+/** The phone's top edge and camera (out of the back) as earth-frame directions. */
+export type Axes = { top: Vec3; back: Vec3 };
+
+/**
+ * Heading of whichever axis lies flatter: the top edge when the phone is held low, the camera when it is held
+ * up. They agree whenever the phone isn't rolled sideways, and the switch falls at 45° tilt, where both are
+ * equally noisy. Plain `360 - alpha` is the top edge alone, which goes jittery and then locks near upright.
+ */
+export function headingFromAxes({ top, back }: Axes): number {
+  const [x, y] = Math.hypot(top[0], top[1]) >= Math.hypot(back[0], back[1]) ? top : back;
+  return ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
+}
+
+/** Axes from deviceorientation angles (W3C rotation Z-X'-Y''; `back` is the spec's "compass heading" Vx/Vy). */
+export function axesFromEuler(alpha: number, beta: number, gamma: number): Axes {
+  const r = Math.PI / 180;
+  const [cZ, sZ, cX, sX, cY, sY] = [Math.cos(alpha * r), Math.sin(alpha * r), Math.cos(beta * r), Math.sin(beta * r), Math.cos(gamma * r), Math.sin(gamma * r)];
+  return {
+    top: [-sZ * cX, cZ * cX, sX],
+    back: [-cZ * sY - sZ * sX * cY, -sZ * sY + cZ * sX * cY, -cX * cY],
+  };
+}
+
+/** Axes from an AbsoluteOrientationSensor quaternion [x, y, z, w] (device -> earth). */
+export function axesFromQuaternion([x, y, z, w]: readonly number[]): Axes {
+  return {
+    top: [2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w)],
+    back: [-2 * (x * z + y * w), -2 * (y * z - x * w), -(1 - 2 * (x * x + y * y))],
+  };
+}
+
 /** Compass heading (0 = north, clockwise) from a deviceorientation event, or null. */
-export function headingFromEvent(e: { alpha: number | null; absolute?: boolean; webkitCompassHeading?: number }): number | null {
-  if (typeof e.webkitCompassHeading === "number") return e.webkitCompassHeading; // iOS
-  if (e.absolute && e.alpha !== null) return (360 - e.alpha) % 360; // Android deviceorientationabsolute
+export function headingFromEvent(e: {
+  alpha: number | null;
+  beta?: number | null;
+  gamma?: number | null;
+  absolute?: boolean;
+  webkitCompassHeading?: number;
+}): number | null {
+  if (typeof e.webkitCompassHeading === "number") return e.webkitCompassHeading; // iOS, already tilt-compensated
+  if (e.absolute && e.alpha !== null) return headingFromAxes(axesFromEuler(e.alpha, e.beta ?? 0, e.gamma ?? 0)); // Android
   return null;
 }

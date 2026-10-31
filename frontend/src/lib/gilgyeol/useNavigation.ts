@@ -9,7 +9,7 @@ import { fetchRoute, postCheckpoint } from "./api";
 import { routeSummary } from "./routeSummary";
 import { stepCompletion } from "./floorTransition";
 import { BUILDING } from "./data";
-import { circularMean, corrected, delta as angleDelta, dirState, headingFromEvent, offsetFor, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
+import { axesFromQuaternion, circularMean, corrected, delta as angleDelta, dirState, headingFromAxes, headingFromEvent, offsetFor, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
 
 /**
  * Per-building north offset: route headings are drawn with the sign's "up" as north, which rarely matches
@@ -40,6 +40,9 @@ export interface NavCallbacks {
 
 type IOSOrientation = typeof DeviceOrientationEvent & { requestPermission?: () => Promise<"granted" | "denied"> };
 type CompassEvent = DeviceOrientationEvent & { webkitCompassHeading?: number };
+/** Generic Sensor API (Chrome on Android); not in lib.dom. */
+type OrientationSensor = EventTarget & { quaternion: number[] | null; start(): void; stop(): void; onreading: (() => void) | null; onerror: (() => void) | null };
+type OrientationSensorCtor = new (o: { frequency: number; referenceFrame: "screen" | "device" }) => OrientationSensor;
 
 const SMOOTHING = 8; // compass samples averaged
 const RENDER_MS = 150; // max heading re-render rate
@@ -91,8 +94,7 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     if (status === "idle" || status === "arrived" || status === "awaiting_map" || fixedHeading.current !== null) return;
     const samples: number[] = [];
     let last = 0;
-    const onOrient = (e: Event) => {
-      const h = headingFromEvent(e as CompassEvent);
+    const push = (h: number | null) => {
       if (h === null) return;
       samples.push(h);
       if (samples.length > SMOOTHING) samples.shift();
@@ -101,9 +103,35 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
       last = now;
       setHeading(circularMean(samples));
     };
-    window.addEventListener("deviceorientationabsolute", onOrient);
-    window.addEventListener("deviceorientation", onOrient);
+    const onOrient = (e: Event) => push(headingFromEvent(e as CompassEvent));
+    let listening = false;
+    const listen = () => {
+      if (listening) return;
+      listening = true;
+      samples.length = 0; // never mix the two sources in one average
+      window.addEventListener("deviceorientationabsolute", onOrient);
+      window.addEventListener("deviceorientation", onOrient);
+    };
+    // Fused gyro + accelerometer + magnetometer where available (Chrome on Android): steadier than deviceorientation.
+    // Missing, blocked or failing: fall back to the events.
+    const Ctor = (window as unknown as { AbsoluteOrientationSensor?: OrientationSensorCtor }).AbsoluteOrientationSensor;
+    let sensor: OrientationSensor | null = null;
+    if (Ctor) {
+      try {
+        const s = new Ctor({ frequency: 30, referenceFrame: "screen" });
+        s.onreading = () => s.quaternion && push(headingFromAxes(axesFromQuaternion(s.quaternion)));
+        s.onerror = () => {
+          s.stop();
+          listen();
+        };
+        s.start();
+        sensor = s;
+      } catch {
+        listen();
+      }
+    } else listen();
     return () => {
+      sensor?.stop();
       window.removeEventListener("deviceorientationabsolute", onOrient);
       window.removeEventListener("deviceorientation", onOrient);
     };
