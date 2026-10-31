@@ -277,7 +277,9 @@ button:disabled {
 }
 
 .gg-statusbar,
-.gg-aside {
+.gg-aside,
+.gg-island,
+.gg-home {
   display: none;
 }
 
@@ -288,23 +290,90 @@ button:disabled {
     justify-content: center;
     align-items: flex-start;
     gap: 40px;
-    padding: 40px 20px;
+    padding: 32px 20px; /* device height is 100dvh - 64px, so the stage fits the viewport when it can */
   }
+  /* iPhone-like device (393×852 screen). Height fits the viewport, width follows the aspect ratio. */
   .gg-device {
+    position: relative;
     flex: none;
-    width: 390px;
-    height: 844px;
-    padding: 10px;
-    border-radius: 52px;
-    background: var(--color-device);
-    box-shadow: 0 30px 60px rgba(30, 28, 20, 0.18);
+    /* Never below 740px: the screen stays >= 328px wide (layout tested down to 320). Short laptops scroll a little. */
+    height: clamp(740px, calc(100dvh - 64px), 876px);
+    aspect-ratio: 417 / 876;
+    padding: 12px;
+    border-radius: 60px;
+    background: #0b0c0b;
+    box-shadow:
+      0 0 0 1.5px #2a2c2a,
+      0 0 0 4px #9a958c,
+      0 0 0 5px #6b6862,
+      0 40px 80px rgba(30, 28, 20, 0.22),
+      0 12px 24px rgba(30, 28, 20, 0.12);
+  }
+  /* Side buttons: action + volume up/down (left), power (right). */
+  .gg-device::before,
+  .gg-device::after {
+    content: "";
+    position: absolute;
+    width: 3px;
+    border-radius: 2px;
+  }
+  .gg-device::before {
+    left: -7px;
+    top: 17%;
+    height: 22%;
+    background: linear-gradient(#8f8a81 0 15%, transparent 15% 30%, #8f8a81 30% 62%, transparent 62% 68%, #8f8a81 68% 100%);
+  }
+  .gg-device::after {
+    right: -7px;
+    top: 27%;
+    height: 11%;
+    background: #8f8a81;
   }
   .gg-screen {
-    border-radius: 42px;
+    border-radius: 48px;
     padding-top: 0;
+  }
+  /* Faint glass highlight over the screen. */
+  .gg-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(118deg, rgba(255, 255, 255, 0.07), transparent 38%);
   }
   .gg-statusbar {
     display: flex;
+  }
+  .gg-island {
+    display: block;
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    z-index: 9;
+    width: 31%;
+    height: 34px;
+    border-radius: 20px;
+    background: #000;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  .gg-home {
+    display: block;
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    z-index: 9;
+    width: 35%;
+    height: 5px;
+    border-radius: 3px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+  /* Keep the haptic cue clear of the Dynamic Island. */
+  .gg-cue {
+    top: 62px;
   }
   .gg-aside {
     display: flex;
