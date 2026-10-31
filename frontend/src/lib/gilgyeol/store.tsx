@@ -37,6 +37,8 @@ export interface AppState {
   /** A photo picked on another screen, handed to the scanner to find the sign in it before reading. */
   pendingPhoto: Blob | null;
   start: StartNodeId | null;
+  /** Real start node from a sign scan or the entrance list; overrides START_NODE_IDS[start] when set. */
+  startAt: { id: string; label: string; floor: string; via: "scan" | "list" } | null;
   locEdit: boolean;
   landmarks: boolean;
   // search
@@ -91,6 +93,7 @@ const INITIAL: AppState = {
   parsedPhoto: null,
   pendingPhoto: null,
   start: "here",
+  startAt: null,
   locEdit: false,
   landmarks: false,
   query: "",
@@ -129,7 +132,7 @@ const INITIAL: AppState = {
 
 const BACK: Partial<Record<Screen, Screen>> = {
   building: "welcome",
-  captureIntro: "building",
+  captureIntro: "welcome", // building screen is skipped while there is only one building
   invalidMap: "captureIntro",
   mapResult: "captureIntro",
   start: "mapResult",
@@ -514,7 +517,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       if (ref.current.routeLoading) return;
       update({ routeLoading: true });
       try {
-        const route = await fetchRoute(START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        const route = await fetchRoute(ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"], room.id);
         navLoad(route);
         update({ route, steps: route.steps.map(toRouteStep), routeLoading: false });
         go("preview", { dest: room, step: 0, dir: "far" });
@@ -534,7 +537,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const endGuide = useCallback(() => {
     stopGuidance();
     navLoad(null);
-    go("welcome", { step: 0, dir: "far", start: "here", route: null, steps: [], routeLoading: false, simDir: null, floorMapTarget: null });
+    go("welcome", { step: 0, dir: "far", start: "here", startAt: null, route: null, steps: [], routeLoading: false, simDir: null, floorMapTarget: null });
   }, [go, stopGuidance, navLoad]);
 
   const back = useCallback(() => {
@@ -703,7 +706,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
-  return { state, actions };
+  // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.
+  const compass = { heading: nav.heading, delta: nav.delta, calibrated: nav.calibrated, calibrate: nav.calibrate, resetCalibration: nav.resetCalibration };
+
+  return { state, actions, compass };
 }
 
 type Controller = ReturnType<typeof useGilgyeolController> & { scrollRef: RefObject<HTMLDivElement | null> };

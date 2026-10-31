@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { floorName } from "@/lib/gilgyeol/floorTransition";
+import { MAP_JPEG_QUALITY, canvasToJpeg } from "@/lib/gilgyeol/api";
 import { C, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { boxDrift, detectSign, detectSignIn, smoothBox, withMargin, type Box } from "@/lib/gilgyeol/signDetect";
@@ -71,8 +72,43 @@ function MapReading({ onCancel }: { onCancel: () => void }) {
   }, []);
   const pct = Math.round(92 * (1 - Math.exp(-t / 9))); // ~80% at 18 s, never reaches 100 on its own
   const step = READ_STEPS.filter(([at]) => t >= at).length - 1;
+  // Collapsible so the camera view behind stays visible during the 15–20 s read; the timer keeps running either way.
+  const [open, setOpen] = useState(true);
+  const bar = (
+    <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="안내도 분석 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+      <div className="h-full rounded-[3px] bg-route transition-[width] duration-300 ease-out" style={{ width: `${pct}%` }} />
+    </div>
+  );
+  const chevron = (up: boolean) => (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" className={up ? "rotate-180" : ""}>
+      <polyline points="4,7 9,12 14,7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+
+  if (!open) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={false}
+          aria-label={`안내도를 읽고 있어요, ${Math.floor(t)}초. 펼치기`}
+          className="-my-1 flex min-h-11 w-full items-center gap-3 border-none bg-transparent p-0 text-left text-ink"
+        >
+          <span className="flex-1 text-[16px] font-extrabold">안내도를 읽고 있어요</span>
+          <span className="font-mono text-[14px] font-semibold text-muted tabular-nums">{Math.floor(t)}초</span>
+          {chevron(true)}
+        </button>
+        {bar}
+      </>
+    );
+  }
   return (
     <>
+      {/* grab handle: tap to collapse */}
+      <button type="button" onClick={() => setOpen(false)} aria-expanded aria-label="안내도 읽기 화면 접기" className="-mt-3 -mb-1.5 flex h-6 w-full items-center justify-center border-none bg-transparent p-0">
+        <span aria-hidden="true" className="h-1.5 w-10 rounded-full bg-edge" />
+      </button>
       <div className="relative h-[96px] overflow-hidden rounded-2xl bg-surface" aria-hidden="true">
         <svg viewBox="0 0 200 96" className="absolute inset-0 size-full">
           {SKETCH_LINES.map((d, i) => (
@@ -89,13 +125,16 @@ function MapReading({ onCancel }: { onCancel: () => void }) {
       </div>
       <div className="flex items-baseline justify-between gap-3">
         <div className="text-[20px] leading-[1.3] font-extrabold">안내도를 읽고 있어요</div>
-        <div className="flex-none font-mono text-[14px] font-semibold text-muted tabular-nums" aria-hidden="true">
-          {Math.floor(t)}초
+        <div className="flex flex-none items-center gap-1">
+          <span className="font-mono text-[14px] font-semibold text-muted tabular-nums" aria-hidden="true">
+            {Math.floor(t)}초
+          </span>
+          <button type="button" onClick={() => setOpen(false)} aria-label="접기" className="-mr-2 flex size-11 items-center justify-center rounded-xl border-none bg-transparent text-muted">
+            {chevron(false)}
+          </button>
         </div>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="안내도 분석 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-        <div className="h-full rounded-[3px] bg-route transition-[width] duration-300 ease-out" style={{ width: `${pct}%` }} />
-      </div>
+      {bar}
       <ol className="m-0 flex list-none flex-col gap-2 p-0">
         {READ_STEPS.map(([, label], i) => (
           <li key={label} className="flex items-center gap-2.5 text-[15px]" aria-current={i === step ? "step" : undefined}>
@@ -172,7 +211,7 @@ function useCamera(onDenied: () => void) {
    * One JPEG frame from the preview, or null when the camera is not showing a picture yet.
    * `crop` (frame fractions) keeps only the detected sign plus a margin, so the map fills the photo.
    */
-  const grab = async (max = 1280, crop?: Box): Promise<Blob | null> => {
+  const grab = async (max = 1280, crop?: Box, quality = 0.7): Promise<Blob | null> => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
     const [vw, vh] = [video.videoWidth, video.videoHeight];
@@ -183,7 +222,7 @@ function useCamera(onDenied: () => void) {
     canvas.width = Math.round(sw * scale);
     canvas.height = Math.round(sh * scale);
     canvas.getContext("2d")?.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
-    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.7));
+    return canvasToJpeg(canvas, quality).catch(() => null);
   };
 
   useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
@@ -305,12 +344,15 @@ export function CheckpointScanner() {
     if (!crop) return actions.readMapPhoto(file);
     const bmp = await createImageBitmap(file);
     const c = withMargin(box);
+    // Crop and shrink to the upload size in one draw, then encode once (no second lossy pass later).
+    const [sw, sh] = [c.w * bmp.width, c.h * bmp.height];
+    const scale = Math.min(1, 2048 / Math.max(sw, sh));
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(c.w * bmp.width);
-    canvas.height = Math.round(c.h * bmp.height);
-    canvas.getContext("2d")?.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+    canvas.width = Math.round(sw * scale);
+    canvas.height = Math.round(sh * scale);
+    canvas.getContext("2d")?.drawImage(bmp, c.x * bmp.width, c.y * bmp.height, sw, sh, 0, 0, canvas.width, canvas.height);
     bmp.close();
-    canvas.toBlob((b) => actions.readMapPhoto(b ?? file), "image/jpeg", 0.88);
+    actions.readMapPhoto(await canvasToJpeg(canvas, MAP_JPEG_QUALITY).catch(() => file));
   };
   const album = useAlbumPick((file) => void pickPhoto(file));
   // A photo picked on the capture-intro screen arrives here.
@@ -360,7 +402,8 @@ export function CheckpointScanner() {
     }
     setCapturing(true);
     try {
-      const frame = await grab(isMap ? 2048 : 1280, isMap ? crop : undefined);
+      // Maps: 2048px at higher JPEG quality, already final size so the upload isn't re-encoded.
+      const frame = await grab(isMap ? 2048 : 1280, isMap ? crop : undefined, isMap ? MAP_JPEG_QUALITY : 0.7);
       if (frame) (isMap ? readMap : actions.runScan)(frame);
       else actions.toast("카메라 화면이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요");
     } finally {

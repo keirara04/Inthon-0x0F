@@ -7,6 +7,7 @@ prod와 같은 구성:
 
 정답은 파일 이름에서 읽는다:
   room_<번호>_<조건>.jpg → 그 호실 · sign_<층>_<조건>.jpg → 그 층 표지 · none_<아무거나>.jpg → 표지 없음
+포스터 함정(*poster*)은 기본으로 뺀다: 촬영 건물에 포스터가 없다. 넣으려면 --exclude "".
 
 AI 호출은 사진당 한 번이고, 매칭은 여러 '예상 노드'로 돌려 본다:
   정상: 예상 노드 = 실제 위치 → matched 여야 함
@@ -52,6 +53,25 @@ def truth_from_name(path: Path, landmarks: list[dict]) -> dict:
     if stem.startswith("none_"):
         return {"kind": "none", "text": None, "node": None, "floor": None}
     raise ValueError(f"파일 이름 규칙에 맞지 않음: {path.name}")
+
+
+def add_photo_rooms(landmarks: list[dict], images: list[Path]) -> list[str]:
+    """시드에 없는 호실을 사진 파일 이름에서 랜드마크로 보탠다 (시드가 임시본일 때만, --rooms-from-photos).
+
+    층은 호실 번호 앞자리('401A' → 4F). 추가한 호실 목록을 돌려준다.
+    """
+    have = {room_key(l["label"]) for l in landmarks if l["kind"] == "room_no"}
+    added = []
+    for p in images:
+        m = re.match(r"room_([0-9]{3,4}[A-Za-z]?)(?:_|$)", p.stem)
+        if not m or (key := m.group(1).upper()) in have:
+            continue
+        have.add(key)
+        added.append(key)
+        floor = re.match(r"([0-9]+?)[0-9]{2}[A-Z]?$", key).group(1) + "F"
+        landmarks.append({"node_id": f"photo-{key}", "floor": floor, "label": f"{key}호", "kind": "room_no",
+                          "ocr_text": canonical(key)})
+    return added
 
 
 def wrong_expectations(truth: dict, landmarks: list[dict]) -> list[str]:
@@ -130,6 +150,7 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, l
         "latency_s_mean": mean(lat), "latency_s_p50": statistics.median(lat) if lat else None,
         "latency_s_max": max(lat, default=None),
         "cost_usd_total": sum(r["cost_usd"] for r in rows if r["cost_usd"]) or None,
+        "rooms_from_photos": args.rooms_from_photos,
         "csv": csv_path.name,
     }
     write_summary_json(csv_path.with_suffix(".summary.json"), summary)
@@ -141,24 +162,31 @@ def main() -> None:
     ap.add_argument("--model", action="append", required=True, help="OpenRouter 모델 id (여러 번 지정해 비교)")
     ap.add_argument("--limit", type=int, help="앞에서 N장만")
     ap.add_argument("--pattern", default="*", help="파일 이름 패턴 (예: room_*)")
+    ap.add_argument("--exclude", default="*poster*", help='뺄 파일 이름 패턴 (기본: 포스터 함정. ""이면 안 뺌)')
     ap.add_argument("--building", default="우정정보관", help="시드 그래프 건물 이름")
     ap.add_argument("--max-side", type=int, default=768, help="전송 이미지 긴 변 px. 0이면 원본 그대로 (현재 prod)")
     ap.add_argument("--reasoning", choices=["minimal", "low", "medium", "high"],
                     help="OpenRouter reasoning effort (prod는 low)")
+    ap.add_argument("--rooms-from-photos", action="store_true",
+                    help="시드에 없는 호실을 사진 이름에서 랜드마크로 보탬 (시드가 임시본일 때만)")
     args = ap.parse_args()
 
-    images = [p for p in list_images(DATA_DIR / "checkpoint") if p.match(args.pattern)][: args.limit]
+    images = [p for p in list_images(DATA_DIR / "checkpoint") if p.match(args.pattern)
+              and not (args.exclude and p.match(args.exclude))][: args.limit]
     if not images:
         raise SystemExit(f"{DATA_DIR / 'checkpoint'}에 사진이 없습니다 (room_*/sign_*/none_*)")
     landmarks = landmarks_from_graphs(load_truth_floors(args.building))
     if not landmarks:
         raise SystemExit("시드 그래프가 없습니다: backend/database/seeders/data/<건물>-<층>.json")
+    if args.rooms_from_photos and (added := add_photo_rooms(landmarks, images)):
+        print(f"⚠️ 시드에 없는 호실을 사진 이름에서 보탬: {' '.join(added)}")
     system, schema, stamp = load_prompt("checkpoint"), load_schema("checkpoint"), run_stamp()
 
     summaries = []
-    for model in args.model:
+    for i, model in enumerate(args.model):
         print(f"\n===== {model} ({len(images)}장, 랜드마크 {len(landmarks)}개, {args.max_side or '원본'}px) =====")
-        summaries.append(run_model(model, images, args, system, schema, landmarks, stamp))
+        repeat = args.model[:i].count(model)  # 같은 모델을 여러 번 돌리면 파일이 덮이지 않게 번호를 붙인다
+        summaries.append(run_model(model, images, args, system, schema, landmarks, stamp + (f"_{repeat + 1}" if repeat else "")))
 
     print("\n목표: matched ≥85% · false_match 0 · none 100% · latency ≤3s")
     print_table(

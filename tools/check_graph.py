@@ -17,8 +17,8 @@ from collections import defaultdict, deque
 NODE_TYPES = {"room", "junction", "stairs", "elevator_hall", "entrance", "exit", "landmark"}
 FLOOR_RE = re.compile(r"^(B\d+|\d+F)$")
 # The frontend start screen and the demo route depend on these ids.
-REQUIRED_IDS = {"1F-lobby", "1F-elev-A", "1F-stairs-W", "4F-405"}
-DEMO_ROUTE = ("1F-lobby", "4F-405")
+REQUIRED_IDS = {"1F-entrance", "1F-elev-A", "1F-stairs-W", "4F-405"}
+DEMO_ROUTE = ("1F-entrance", "4F-405")
 
 errors, warnings = [], []
 
@@ -74,8 +74,10 @@ def check_floor(path, g):
             err(at, "id 중복")
         if n.get("type") not in NODE_TYPES:
             err(at, f"type '{n.get('type')}' 틀림 ({', '.join(sorted(NODE_TYPES))})")
-        if not isinstance(n.get("label"), str) or not n["label"].strip():
+        if not isinstance(n.get("label"), str):
             err(at, "label 없음")
+        elif not n["label"].strip() and n.get("type") != "junction":  # corridor junctions don't need a name
+            err(at, "label 없음 (교차점 junction만 비워도 됨)")
         for axis in ("x", "y"):
             v = n.get(axis)
             if not is_num(v) or not 0 <= v <= 1:
@@ -205,6 +207,10 @@ def check_building(floors):
 
 
 def main(paths):
+    # Windows consoles default to cp949/cp1252 and crash on the emoji below; force UTF-8 output.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     if not paths:
         paths = sorted(glob.glob("backend/database/seeders/data/*.json"))
     if not paths:

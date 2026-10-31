@@ -9,20 +9,11 @@ class CheckpointMatcher
 {
     public function match(array $texts, string $expectedNode): array
     {
-        // Signs are often multi-line ("405\n강의실"): canonicalize each line.
-        $lines = array_merge(...array_map(fn ($t) => preg_split('/\R/u', $t), $texts ?: ['']));
-        $read = array_values(array_unique(array_filter(array_map([self::class, 'canonical'], $lines))));
-
         $expected = DB::table('nodes')->join('floors', 'floors.id', '=', 'nodes.floor_id')
             ->where('nodes.id', $expectedNode)->first(['nodes.id', 'nodes.floor_id', 'floors.building_id']);
 
         // Same floor first, then room numbers over floor signs (more specific).
-        $hits = DB::table('landmarks')
-            ->join('nodes', 'nodes.id', '=', 'landmarks.node_id')
-            ->join('floors', 'floors.id', '=', 'nodes.floor_id')
-            ->where('floors.building_id', $expected->building_id)
-            ->whereIn('landmarks.ocr_text', $read ?: [''])
-            ->get(['nodes.id', 'nodes.label', 'nodes.floor_id', 'floors.label as floor', 'landmarks.kind'])
+        $hits = $this->hits($texts, $expected->building_id)
             ->sortBy(fn ($h) => [$h->floor_id !== $expected->floor_id, $h->kind !== 'room_no']);
 
         $node = $hits->firstWhere('id', $expectedNode) ?? $hits->first();
@@ -36,6 +27,41 @@ class CheckpointMatcher
             'texts' => array_values($texts),
             'node' => $node ? ['id' => $node->id, 'label' => $node->label, 'floor' => $node->floor] : null,
         ];
+    }
+
+    /**
+     * "Where am I?" with no expected node: one photo of a nearby sign, matched across the building's verified floors.
+     * found = a room number pins the node; floor_only = only a floor sign was read (several nodes share it),
+     * so the app asks for a room number; unknown = nothing usable.
+     */
+    public function locate(array $texts, int $buildingId): array
+    {
+        $hits = $this->hits($texts, $buildingId, verifiedOnly: true);
+        $room = $hits->firstWhere('kind', 'room_no');
+        $floor = $hits->firstWhere('kind', 'floor_sign');
+
+        return [
+            'status' => $room ? 'found' : ($floor ? 'floor_only' : 'unknown'),
+            'texts' => array_values($texts),
+            'node' => $room ? ['id' => $room->id, 'label' => $room->label, 'floor' => $room->floor] : null,
+            'floor' => ($room ?? $floor)?->floor,
+        ];
+    }
+
+    /** Landmarks in the building whose stored text equals a canonicalized reading. */
+    private function hits(array $texts, int $buildingId, bool $verifiedOnly = false)
+    {
+        // Signs are often multi-line ("405\n강의실"): canonicalize each line.
+        $lines = array_merge(...array_map(fn ($t) => preg_split('/\R/u', $t), $texts ?: ['']));
+        $read = array_values(array_unique(array_filter(array_map([self::class, 'canonical'], $lines))));
+
+        return DB::table('landmarks')
+            ->join('nodes', 'nodes.id', '=', 'landmarks.node_id')
+            ->join('floors', 'floors.id', '=', 'nodes.floor_id')
+            ->where('floors.building_id', $buildingId)
+            ->when($verifiedOnly, fn ($q) => $q->where('floors.status', 'verified'))
+            ->whereIn('landmarks.ocr_text', $read ?: [''])
+            ->get(['nodes.id', 'nodes.label', 'nodes.floor_id', 'floors.label as floor', 'landmarks.kind']);
     }
 
     /**

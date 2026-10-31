@@ -3,18 +3,818 @@
   "floor": "4F",
   "current_node_id": "4F-elev-A",
   "nodes": [
-    { "id": "4F-elev-A", "type": "elevator_hall", "label": "중앙 엘리베이터 홀", "x": 0.50, "y": 0.45, "ref": "elev-1" },
-    { "id": "4F-elev-B", "type": "elevator_hall", "label": "동쪽 엘리베이터 홀", "x": 0.65, "y": 0.60, "ref": "elev-2" },
-    { "id": "4F-stairs-W", "type": "stairs", "label": "서쪽 계단", "x": 0.10, "y": 0.60, "ref": "stairs-1" },
-    { "id": "4F-junc", "type": "junction", "label": "4층 중앙 복도", "x": 0.50, "y": 0.60 },
-    { "id": "4F-401", "type": "room", "label": "401호", "x": 0.80, "y": 0.60 },
-    { "id": "4F-405", "type": "room", "label": "405호", "x": 0.20, "y": 0.60 }
+    {
+      "id": "4F-elev-A",
+      "type": "elevator_hall",
+      "label": "엘리베이터 홀",
+      "x": 0.4135,
+      "y": 0.2523,
+      "ref": "elev-1",
+      "outline": [
+        {
+          "x": 0.363,
+          "y": 0.126
+        },
+        {
+          "x": 0.464,
+          "y": 0.126
+        },
+        {
+          "x": 0.464,
+          "y": 0.21
+        },
+        {
+          "x": 0.49,
+          "y": 0.21
+        },
+        {
+          "x": 0.49,
+          "y": 0.332
+        },
+        {
+          "x": 0.363,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-stairs-W",
+      "type": "stairs",
+      "label": "서쪽 계단",
+      "x": 0.3075,
+      "y": 0.2775,
+      "ref": "stairs-1",
+      "outline": [
+        {
+          "x": 0.252,
+          "y": 0.223
+        },
+        {
+          "x": 0.363,
+          "y": 0.223
+        },
+        {
+          "x": 0.363,
+          "y": 0.332
+        },
+        {
+          "x": 0.252,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-stairs-E",
+      "type": "stairs",
+      "label": "동쪽 계단",
+      "x": 0.8235,
+      "y": 0.284,
+      "ref": "stairs-2",
+      "outline": [
+        {
+          "x": 0.79,
+          "y": 0.236
+        },
+        {
+          "x": 0.857,
+          "y": 0.236
+        },
+        {
+          "x": 0.857,
+          "y": 0.332
+        },
+        {
+          "x": 0.79,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-406",
+      "type": "room",
+      "label": "406호",
+      "x": 0.521,
+      "y": 0.229,
+      "outline": [
+        {
+          "x": 0.49,
+          "y": 0.126
+        },
+        {
+          "x": 0.552,
+          "y": 0.126
+        },
+        {
+          "x": 0.552,
+          "y": 0.332
+        },
+        {
+          "x": 0.49,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-405",
+      "type": "room",
+      "label": "405호",
+      "x": 0.582,
+      "y": 0.229,
+      "outline": [
+        {
+          "x": 0.552,
+          "y": 0.126
+        },
+        {
+          "x": 0.612,
+          "y": 0.126
+        },
+        {
+          "x": 0.612,
+          "y": 0.332
+        },
+        {
+          "x": 0.552,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-404",
+      "type": "room",
+      "label": "404호",
+      "x": 0.642,
+      "y": 0.229,
+      "outline": [
+        {
+          "x": 0.612,
+          "y": 0.126
+        },
+        {
+          "x": 0.672,
+          "y": 0.126
+        },
+        {
+          "x": 0.672,
+          "y": 0.332
+        },
+        {
+          "x": 0.612,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-403",
+      "type": "room",
+      "label": "403호",
+      "x": 0.702,
+      "y": 0.229,
+      "outline": [
+        {
+          "x": 0.672,
+          "y": 0.126
+        },
+        {
+          "x": 0.732,
+          "y": 0.126
+        },
+        {
+          "x": 0.732,
+          "y": 0.332
+        },
+        {
+          "x": 0.672,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-402",
+      "type": "room",
+      "label": "402호",
+      "x": 0.761,
+      "y": 0.229,
+      "outline": [
+        {
+          "x": 0.732,
+          "y": 0.126
+        },
+        {
+          "x": 0.79,
+          "y": 0.126
+        },
+        {
+          "x": 0.79,
+          "y": 0.332
+        },
+        {
+          "x": 0.732,
+          "y": 0.332
+        }
+      ]
+    },
+    {
+      "id": "4F-413",
+      "type": "room",
+      "label": "413호",
+      "x": 0.452,
+      "y": 0.45,
+      "outline": [
+        {
+          "x": 0.414,
+          "y": 0.388
+        },
+        {
+          "x": 0.49,
+          "y": 0.388
+        },
+        {
+          "x": 0.49,
+          "y": 0.512
+        },
+        {
+          "x": 0.414,
+          "y": 0.512
+        }
+      ]
+    },
+    {
+      "id": "4F-412",
+      "type": "room",
+      "label": "412호",
+      "x": 0.452,
+      "y": 0.564,
+      "outline": [
+        {
+          "x": 0.414,
+          "y": 0.512
+        },
+        {
+          "x": 0.49,
+          "y": 0.512
+        },
+        {
+          "x": 0.49,
+          "y": 0.616
+        },
+        {
+          "x": 0.414,
+          "y": 0.616
+        }
+      ]
+    },
+    {
+      "id": "4F-407B",
+      "type": "room",
+      "label": "407B호",
+      "x": 0.164,
+      "y": 0.502,
+      "outline": [
+        {
+          "x": 0.1,
+          "y": 0.388
+        },
+        {
+          "x": 0.228,
+          "y": 0.388
+        },
+        {
+          "x": 0.228,
+          "y": 0.616
+        },
+        {
+          "x": 0.1,
+          "y": 0.616
+        }
+      ]
+    },
+    {
+      "id": "4F-407A",
+      "type": "room",
+      "label": "407A호",
+      "x": 0.2955,
+      "y": 0.502,
+      "outline": [
+        {
+          "x": 0.228,
+          "y": 0.388
+        },
+        {
+          "x": 0.363,
+          "y": 0.388
+        },
+        {
+          "x": 0.363,
+          "y": 0.616
+        },
+        {
+          "x": 0.228,
+          "y": 0.616
+        }
+      ]
+    },
+    {
+      "id": "4F-401A",
+      "type": "room",
+      "label": "401A호",
+      "x": 0.566,
+      "y": 0.502,
+      "outline": [
+        {
+          "x": 0.49,
+          "y": 0.388
+        },
+        {
+          "x": 0.642,
+          "y": 0.388
+        },
+        {
+          "x": 0.642,
+          "y": 0.616
+        },
+        {
+          "x": 0.49,
+          "y": 0.616
+        }
+      ]
+    },
+    {
+      "id": "4F-401B",
+      "type": "room",
+      "label": "401B호",
+      "x": 0.7015,
+      "y": 0.502,
+      "outline": [
+        {
+          "x": 0.642,
+          "y": 0.388
+        },
+        {
+          "x": 0.761,
+          "y": 0.388
+        },
+        {
+          "x": 0.761,
+          "y": 0.616
+        },
+        {
+          "x": 0.642,
+          "y": 0.616
+        }
+      ]
+    },
+    {
+      "id": "4F-401C",
+      "type": "room",
+      "label": "401C호",
+      "x": 0.809,
+      "y": 0.502,
+      "outline": [
+        {
+          "x": 0.761,
+          "y": 0.388
+        },
+        {
+          "x": 0.857,
+          "y": 0.388
+        },
+        {
+          "x": 0.857,
+          "y": 0.616
+        },
+        {
+          "x": 0.761,
+          "y": 0.616
+        }
+      ]
+    },
+    {
+      "id": "4F-408",
+      "type": "room",
+      "label": "408호",
+      "x": 0.172,
+      "y": 0.8085,
+      "outline": [
+        {
+          "x": 0.116,
+          "y": 0.725
+        },
+        {
+          "x": 0.228,
+          "y": 0.725
+        },
+        {
+          "x": 0.228,
+          "y": 0.892
+        },
+        {
+          "x": 0.116,
+          "y": 0.892
+        }
+      ]
+    },
+    {
+      "id": "4F-409",
+      "type": "room",
+      "label": "409호",
+      "x": 0.283,
+      "y": 0.8085,
+      "outline": [
+        {
+          "x": 0.228,
+          "y": 0.725
+        },
+        {
+          "x": 0.338,
+          "y": 0.725
+        },
+        {
+          "x": 0.338,
+          "y": 0.892
+        },
+        {
+          "x": 0.228,
+          "y": 0.892
+        }
+      ]
+    },
+    {
+      "id": "4F-410",
+      "type": "room",
+      "label": "410호",
+      "x": 0.3805,
+      "y": 0.8085,
+      "outline": [
+        {
+          "x": 0.338,
+          "y": 0.725
+        },
+        {
+          "x": 0.423,
+          "y": 0.725
+        },
+        {
+          "x": 0.423,
+          "y": 0.892
+        },
+        {
+          "x": 0.338,
+          "y": 0.892
+        }
+      ]
+    },
+    {
+      "id": "4F-411",
+      "type": "room",
+      "label": "411호",
+      "x": 0.4675,
+      "y": 0.8085,
+      "outline": [
+        {
+          "x": 0.423,
+          "y": 0.725
+        },
+        {
+          "x": 0.512,
+          "y": 0.725
+        },
+        {
+          "x": 0.512,
+          "y": 0.892
+        },
+        {
+          "x": 0.423,
+          "y": 0.892
+        }
+      ]
+    },
+    {
+      "id": "4F-hall-top-1",
+      "type": "junction",
+      "label": "",
+      "x": 0.3885,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-2",
+      "type": "junction",
+      "label": "",
+      "x": 0.4135,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-3",
+      "type": "junction",
+      "label": "",
+      "x": 0.521,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-4",
+      "type": "junction",
+      "label": "",
+      "x": 0.574,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-5",
+      "type": "junction",
+      "label": "",
+      "x": 0.642,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-6",
+      "type": "junction",
+      "label": "",
+      "x": 0.7017,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-7",
+      "type": "junction",
+      "label": "",
+      "x": 0.761,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-top-8",
+      "type": "junction",
+      "label": "",
+      "x": 0.8163,
+      "y": 0.36
+    },
+    {
+      "id": "4F-hall-vert-1",
+      "type": "junction",
+      "label": "",
+      "x": 0.3885,
+      "y": 0.45
+    },
+    {
+      "id": "4F-hall-vert-2",
+      "type": "junction",
+      "label": "",
+      "x": 0.3885,
+      "y": 0.564
+    },
+    {
+      "id": "4F-hall-vert-3",
+      "type": "junction",
+      "label": "",
+      "x": 0.3885,
+      "y": 0.6705
+    },
+    {
+      "id": "4F-hall-bot-1",
+      "type": "junction",
+      "label": "",
+      "x": 0.168,
+      "y": 0.6705
+    },
+    {
+      "id": "4F-hall-bot-2",
+      "type": "junction",
+      "label": "",
+      "x": 0.2893,
+      "y": 0.6705
+    },
+    {
+      "id": "4F-hall-bot-3",
+      "type": "junction",
+      "label": "",
+      "x": 0.4675,
+      "y": 0.6705
+    }
   ],
   "edges": [
-    { "from": "4F-elev-A", "to": "4F-junc", "type": "walk", "length_m": 5, "heading_deg": 180 },
-    { "from": "4F-junc", "to": "4F-elev-B", "type": "walk", "length_m": 3, "heading_deg": 90 },
-    { "from": "4F-junc", "to": "4F-401", "type": "walk", "length_m": 10, "heading_deg": 90 },
-    { "from": "4F-junc", "to": "4F-405", "type": "walk", "length_m": 18, "heading_deg": 270 },
-    { "from": "4F-junc", "to": "4F-stairs-W", "type": "walk", "length_m": 15, "heading_deg": 270 }
+    {
+      "from": "4F-hall-top-1",
+      "to": "4F-hall-top-2",
+      "type": "walk",
+      "length_m": 1.5,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-2",
+      "to": "4F-elev-A",
+      "type": "walk",
+      "length_m": 4.1,
+      "heading_deg": 0.0
+    },
+    {
+      "from": "4F-hall-top-2",
+      "to": "4F-hall-top-3",
+      "type": "walk",
+      "length_m": 6.5,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-3",
+      "to": "4F-406",
+      "type": "walk",
+      "length_m": 4.9,
+      "heading_deg": 0.0
+    },
+    {
+      "from": "4F-hall-top-3",
+      "to": "4F-hall-top-4",
+      "type": "walk",
+      "length_m": 3.2,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-4",
+      "to": "4F-401A",
+      "type": "walk",
+      "length_m": 5.4,
+      "heading_deg": 185.1
+    },
+    {
+      "from": "4F-hall-top-4",
+      "to": "4F-405",
+      "type": "walk",
+      "length_m": 5.0,
+      "heading_deg": 5.6
+    },
+    {
+      "from": "4F-hall-top-4",
+      "to": "4F-hall-top-5",
+      "type": "walk",
+      "length_m": 4.1,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-5",
+      "to": "4F-404",
+      "type": "walk",
+      "length_m": 4.9,
+      "heading_deg": 0.0
+    },
+    {
+      "from": "4F-hall-top-5",
+      "to": "4F-hall-top-6",
+      "type": "walk",
+      "length_m": 3.6,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-6",
+      "to": "4F-401B",
+      "type": "walk",
+      "length_m": 5.3,
+      "heading_deg": 180.2
+    },
+    {
+      "from": "4F-hall-top-6",
+      "to": "4F-403",
+      "type": "walk",
+      "length_m": 4.9,
+      "heading_deg": 0.2
+    },
+    {
+      "from": "4F-hall-top-6",
+      "to": "4F-hall-top-7",
+      "type": "walk",
+      "length_m": 3.6,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-7",
+      "to": "4F-402",
+      "type": "walk",
+      "length_m": 4.9,
+      "heading_deg": 0.0
+    },
+    {
+      "from": "4F-hall-top-7",
+      "to": "4F-hall-top-8",
+      "type": "walk",
+      "length_m": 3.3,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-top-8",
+      "to": "4F-401C",
+      "type": "walk",
+      "length_m": 5.4,
+      "heading_deg": 184.7
+    },
+    {
+      "from": "4F-hall-top-8",
+      "to": "4F-stairs-E",
+      "type": "walk",
+      "length_m": 2.9,
+      "heading_deg": 8.6
+    },
+    {
+      "from": "4F-hall-top-1",
+      "to": "4F-hall-vert-1",
+      "type": "walk",
+      "length_m": 3.4,
+      "heading_deg": 180.0
+    },
+    {
+      "from": "4F-hall-vert-1",
+      "to": "4F-413",
+      "type": "walk",
+      "length_m": 3.8,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-vert-1",
+      "to": "4F-hall-vert-2",
+      "type": "walk",
+      "length_m": 4.3,
+      "heading_deg": 180.0
+    },
+    {
+      "from": "4F-hall-vert-2",
+      "to": "4F-412",
+      "type": "walk",
+      "length_m": 3.8,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-vert-2",
+      "to": "4F-hall-vert-3",
+      "type": "walk",
+      "length_m": 4.0,
+      "heading_deg": 180.0
+    },
+    {
+      "from": "4F-hall-bot-1",
+      "to": "4F-407B",
+      "type": "walk",
+      "length_m": 6.3,
+      "heading_deg": 357.8
+    },
+    {
+      "from": "4F-hall-bot-1",
+      "to": "4F-408",
+      "type": "walk",
+      "length_m": 5.2,
+      "heading_deg": 177.4
+    },
+    {
+      "from": "4F-hall-bot-1",
+      "to": "4F-hall-bot-2",
+      "type": "walk",
+      "length_m": 7.3,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-bot-2",
+      "to": "4F-409",
+      "type": "walk",
+      "length_m": 5.2,
+      "heading_deg": 184.1
+    },
+    {
+      "from": "4F-hall-bot-2",
+      "to": "4F-407A",
+      "type": "walk",
+      "length_m": 6.4,
+      "heading_deg": 3.4
+    },
+    {
+      "from": "4F-hall-bot-2",
+      "to": "4F-hall-vert-3",
+      "type": "walk",
+      "length_m": 6.0,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-vert-3",
+      "to": "4F-410",
+      "type": "walk",
+      "length_m": 5.2,
+      "heading_deg": 185.3
+    },
+    {
+      "from": "4F-hall-vert-3",
+      "to": "4F-hall-bot-3",
+      "type": "walk",
+      "length_m": 4.7,
+      "heading_deg": 90.0
+    },
+    {
+      "from": "4F-hall-bot-3",
+      "to": "4F-411",
+      "type": "walk",
+      "length_m": 5.2,
+      "heading_deg": 180.0
+    },
+    {
+      "from": "4F-elev-A",
+      "to": "4F-stairs-W",
+      "type": "walk",
+      "length_m": 6.4,
+      "heading_deg": 261.5
+    }
+  ],
+  "elevators": [
+    { "id": "elev-1", "name": "엘리베이터", "served_floors": ["B1", "1F", "2F", "3F", "4F", "5F", "6F"] }
   ]
 }

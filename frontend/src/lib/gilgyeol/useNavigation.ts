@@ -8,7 +8,22 @@ import type { ApiCheckpointResult, ApiRoute, ApiStep } from "@/types/api";
 import { fetchRoute, postCheckpoint } from "./api";
 import { routeSummary } from "./routeSummary";
 import { stepCompletion } from "./floorTransition";
-import { circularMean, delta as angleDelta, dirState, headingFromEvent, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
+import { BUILDING } from "./data";
+import { circularMean, corrected, delta as angleDelta, dirState, headingFromEvent, offsetFor, OFF_ROUTE_RESET, trackOffRoute } from "./navMath";
+
+/**
+ * Per-building north offset: route headings are drawn with the sign's "up" as north, which rarely matches
+ * the real compass. Saved on this device after one on-site calibration.
+ */
+const NORTH_KEY = `gilgyeol-north:${BUILDING}`;
+function readOffset(): number | null {
+  try {
+    const v = typeof window === "undefined" ? null : window.localStorage.getItem(NORTH_KEY);
+    return v === null ? null : Number(v);
+  } catch {
+    return null;
+  }
+}
 
 export type NavStatus = "idle" | "guiding" | "checking" | "offroute" | "awaiting_map" | "arrived";
 
@@ -33,7 +48,9 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
   const [route, setRoute] = useState<ApiRoute | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [status, setStatus] = useState<NavStatus>("idle");
-  const [heading, setHeading] = useState<number | null>(null);
+  const [rawHeading, setHeading] = useState<number | null>(null);
+  const [offset, setOffset] = useState<number | null>(readOffset);
+  const heading = rawHeading === null ? null : corrected(rawHeading, offset ?? 0);
 
   // Latest values for event handlers and async actions (avoids stale closures).
   const cb = useRef(callbacks);
@@ -155,6 +172,29 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     }
   }, [arrive, enter]);
 
+  /**
+   * "지금 이 방향이 맞아요": the user faces along the current walk step's corridor, so the raw compass
+   * reading there is that step's map heading. Returns false when there's no reading or no target.
+   */
+  const calibrate = useCallback((): boolean => {
+    const st = live.current.route?.steps[live.current.stepIndex];
+    const t = st?.kind === "walk" ? st.heading_deg : null;
+    if (rawHeading === null || t === null || t === undefined) return false;
+    const next = offsetFor(rawHeading, t);
+    setOffset(next);
+    try {
+      window.localStorage.setItem(NORTH_KEY, String(next));
+    } catch {} // private mode: still applies for this visit
+    return true;
+  }, [rawHeading]);
+
+  const resetCalibration = useCallback(() => {
+    setOffset(null);
+    try {
+      window.localStorage.removeItem(NORTH_KEY);
+    } catch {}
+  }, []);
+
   const completeStep = useCallback((mapConfirmed = false) => {
     const { route: r, stepIndex: i, status: current } = live.current;
     if (!r || !r.steps[i] || current === "arrived" || current === "idle") return;
@@ -218,8 +258,12 @@ export function useNavigation(callbacks: NavCallbacks = {}) {
     step,
     stepIndex,
     status,
-    /** Smoothed compass heading, 0 = north. null until the first reading (or no compass). */
+    /** Smoothed compass heading after the north calibration, 0 = the map's up. null until the first reading. */
     heading,
+    /** Whether this device has a saved north calibration for the building. */
+    calibrated: offset !== null,
+    calibrate,
+    resetCalibration,
     /** Target heading for this step (walk steps only). */
     target,
     /** Signed turn from heading to target, positive = turn right. */

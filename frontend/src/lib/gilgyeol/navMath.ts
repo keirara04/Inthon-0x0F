@@ -20,6 +20,16 @@ export function circularMean(headings: number[]): number | null {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+/** A raw compass reading turned by the saved north offset, so 0 = the map's "up" (0–360). */
+export function corrected(raw: number, offset: number): number {
+  return (((raw - offset) % 360) + 360) % 360;
+}
+
+/** The offset that makes `raw` read as `target`: calibrate while facing along a corridor of known heading. */
+export function offsetFor(raw: number, target: number): number {
+  return (((raw - target) % 360) + 360) % 360;
+}
+
 export const ALIGNED_DEG = 20;
 export const NEAR_DEG = 60;
 export const OFF_ROUTE_DEG = 60;

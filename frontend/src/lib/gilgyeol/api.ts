@@ -1,7 +1,7 @@
 // API adapter. Screens call these functions instead of fetching directly.
 // Mock mode is the default; set NEXT_PUBLIC_GILGYEOL_API=live to call the Laravel API at NEXT_PUBLIC_API_URL.
 // Live responses are converted to the UI types here, so screens don't care which mode is on.
-import type { ApiCheckpointResult, ApiGraph, ApiNodeType, ApiRoute, ApiSearchResult, ApiStep } from "@/types/api";
+import type { ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
 import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
 
@@ -98,6 +98,25 @@ export interface ParsedGraph extends FloorGraph {
 }
 
 /**
+ * A verified floor's map (rooms with outlines, corridors) for the live guidance card, cached per floor.
+ * Mock mode has no seeded graph to match the mock route's ids, so it returns null (the card hides).
+ */
+const floorCache = new Map<string, Promise<ParsedGraph | null>>();
+export function fetchFloorGraph(floor: string): Promise<ParsedGraph | null> {
+  if (API_MODE !== "live") return Promise.resolve(null);
+  if (!floorCache.has(floor)) {
+    const p = request<ApiGraph>(`/api/floors/${encodeURIComponent(floor)}/graph?building=${encodeURIComponent(BUILDING)}`)
+      .then(fromApiGraph)
+      .catch(() => {
+        floorCache.delete(floor); // let a later visit retry
+        return null;
+      });
+    floorCache.set(floor, p);
+  }
+  return floorCache.get(floor)!;
+}
+
+/**
  * Parses an evacuation-map image into a draft graph. Results always start as draft. Nothing is saved.
  * Sent at 2048px long side: the AI evals (ai/README.md) measured map reading at that size.
  */
@@ -105,7 +124,7 @@ export async function parseEvacMap(image: Blob | null, floor: number = 4, signal
   if (API_MODE === "live") {
     if (!image) throw new Error("피난안내도 이미지를 먼저 선택해 주세요");
     const body = new FormData();
-    body.append("image", await downscale(image, 2048));
+    body.append("image", await downscale(image, 2048, MAP_JPEG_QUALITY));
     body.append("building", BUILDING);
     body.append("floor", floorLabel(floor));
     return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
@@ -168,6 +187,34 @@ export async function postCheckpoint(image: Blob, expectedNode: string): Promise
   return { status: "matched", texts: [], node: { id: expectedNode, label: "", floor: "" } };
 }
 
+/** Where am I? One photo of a nearby door number or floor sign, matched across the whole building. */
+export async function locate(image: Blob): Promise<ApiLocateResult> {
+  if (API_MODE === "live") {
+    const body = new FormData();
+    body.append("image", await downscale(image), "sign.jpg");
+    body.append("building", BUILDING);
+    return request<ApiLocateResult>("/api/locate", { method: "POST", body });
+  }
+  await delay(1200);
+  return { status: "found", texts: ["101"], node: { id: "1F-101", label: "101호", floor: "1F" }, floor: "1F" };
+}
+
+/** Entrances, exits, elevator halls and stairs to start from ("다른 입구에 계신가요?"). */
+export async function startPoints(): Promise<ApiStartFloor[]> {
+  if (API_MODE === "live") return request<ApiStartFloor[]>(`/api/start-points?building=${encodeURIComponent(BUILDING)}`);
+  await delay(200);
+  return [
+    {
+      floor: "1F",
+      points: [
+        { id: "1F-entrance", label: "정문 출입구", type: "entrance" },
+        { id: "1F-elev-A", label: "엘리베이터 홀", type: "elevator_hall" },
+        { id: "1F-stairs-W", label: "서쪽 계단", type: "stairs" },
+      ],
+    },
+  ];
+}
+
 const TURN_LABEL: Record<NonNullable<Extract<ApiStep, { kind: "walk" }>["turn"]>, string> = {
   left: "좌회전 · 진동 짧게–짧게",
   right: "우회전 · 진동 길게–길게",
@@ -202,7 +249,25 @@ export function toRouteStep(step: ApiStep): RouteStep {
 }
 
 /** Phone photos are 3–8 MB; the backend accepts 2 MB. Shrink to a JPEG (<= 1280px by default) before upload. */
-async function downscale(image: Blob, max = 1280): Promise<Blob> {
+/** JPEG quality for evacuation maps: room numbers are tiny, so keep more detail than for door signs. */
+export const MAP_JPEG_QUALITY = 0.85;
+const MAX_UPLOAD_BYTES = 1_900_000; // backend rejects images over 2 MB
+
+/**
+ * Encodes a canvas as JPEG at `quality`, stepping down (0.7, then 0.6) only if the file would be too big
+ * for the backend. Encoding once at the final size avoids stacking JPEG artefacts.
+ */
+export async function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  for (const q of [quality, 0.7, 0.6]) {
+    if (q > quality) continue;
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
+    if (!blob) throw new Error("이미지 변환 실패");
+    if (blob.size <= MAX_UPLOAD_BYTES || q === 0.6) return blob;
+  }
+  throw new Error("이미지 변환 실패");
+}
+
+async function downscale(image: Blob, max = 1280, quality = 0.7): Promise<Blob> {
   const bmp = await createImageBitmap(image);
   // Already small enough (e.g. a camera frame): skip a second lossy JPEG pass, small text matters.
   if (image.type === "image/jpeg" && image.size <= 2_000_000 && Math.max(bmp.width, bmp.height) <= max) {
@@ -215,7 +280,7 @@ async function downscale(image: Blob, max = 1280): Promise<Blob> {
   canvas.height = Math.round(bmp.height * scale);
   canvas.getContext("2d")?.drawImage(bmp, 0, 0, canvas.width, canvas.height);
   bmp.close();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지 변환 실패"))), "image/jpeg", 0.7));
+  return canvasToJpeg(canvas, quality);
 }
 
 const KEY = "gilgyeol-admin-token";
@@ -343,12 +408,12 @@ function toApiGraph(g: FloorGraph, floor: string, status: "draft" | "verified"):
   };
 }
 
-/** Same shape as prod /api/route for 1F-lobby -> 4F-405, so mock mode exercises the real flow. */
+/** Same shape as prod /api/route for 1F-entrance -> 4F-405, so mock mode exercises the real flow. */
 const MOCK_ROUTE: ApiRoute = {
   total_m: 35,
-  path: ["1F-lobby", "1F-101", "1F-junc", "1F-elev-A", "4F-elev-A", "4F-junc", "4F-405"],
+  path: ["1F-entrance", "1F-101", "1F-junc", "1F-elev-A", "4F-elev-A", "4F-junc", "4F-405"],
   steps: [
-    { kind: "walk", from: "1F-lobby", to: "1F-elev-A", to_label: "중앙 엘리베이터 홀", floor: "1F", checkpoint: null, heading_deg: 0, turn: null, length_m: 12, text: "101호 지나서 중앙 엘리베이터 홀까지 가세요" },
+    { kind: "walk", from: "1F-entrance", to: "1F-elev-A", to_label: "중앙 엘리베이터 홀", floor: "1F", checkpoint: null, heading_deg: 0, turn: null, length_m: 12, text: "101호 지나서 중앙 엘리베이터 홀까지 가세요" },
     { kind: "elevator", from: "1F-elev-A", to: "4F-elev-A", to_label: "중앙 엘리베이터 홀", floor: "4F", checkpoint: { kind: "floor_sign", text: "4F" }, elevator: "중앙 엘리베이터", to_floor: "4F", text: "중앙 엘리베이터에 타서 4층에서 내리세요" },
     { kind: "walk", from: "4F-elev-A", to: "4F-junc", to_label: "4층 중앙 복도", floor: "4F", checkpoint: null, heading_deg: 180, turn: null, length_m: 5, text: "4층 중앙 복도 쪽으로 가세요" },
     { kind: "walk", from: "4F-junc", to: "4F-405", to_label: "405호", floor: "4F", checkpoint: { kind: "room_no", text: "405" }, heading_deg: 270, turn: "right", length_m: 18, text: "오른쪽으로 돌아 405호까지 가세요" },
