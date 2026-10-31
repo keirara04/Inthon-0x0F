@@ -52,6 +52,8 @@ export function RoutePreviewScreen() {
   }));
   const departFloor = s.steps[0]?.floor ?? "1층";
   const arriveFloor = s.steps[s.steps.length - 1]?.floor ?? "4층";
+  // The 2D/3D diagrams are drawn for the 1F -> 4F demo route only; hide them for any other route rather than show a wrong map.
+  const showFloorMap = departFloor === "1층" && arriveFloor === "4층";
   const badgeCls = { warn: "bg-warn-tint text-warn-ink", cp: "bg-haptic-tint text-haptic-ink", ok: "bg-ok-tint text-ok-ink" };
 
   return (
@@ -73,6 +75,8 @@ export function RoutePreviewScreen() {
           <div className="text-[13px] text-muted">{arriveFloor}</div>
         </div>
       </div>
+      {showFloorMap && (
+        <>
       <div className="flex items-center justify-between">
         <div className="text-[15px] font-bold">층별 경로</div>
         <div role="tablist" aria-label="경로 보기" className="flex gap-0.5 rounded-[10px] bg-[#ECEAE3] p-[3px]">
@@ -120,6 +124,8 @@ export function RoutePreviewScreen() {
           <div className="text-[12px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
         </div>
       </div>
+        </>
+      )}
       <div className="rounded-[18px] bg-surface px-[18px] py-1.5">
       <h2 id="gg-steps-title" className="m-0 border-b border-divider pt-3 pb-2.5 text-[17px] font-bold">
         {d}까지 {routeSteps.length}단계

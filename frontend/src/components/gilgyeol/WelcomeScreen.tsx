@@ -1,22 +1,26 @@
 "use client";
 
+import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { PrimaryButton } from "./ui";
 
 export function WelcomeScreen() {
   const { actions } = useGilgyeol();
+  const demo = useDemoTools();
   return (
     <div className="flex min-h-full flex-col gap-[18px] px-6 pt-4 pb-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 rounded-lg bg-warn-tint px-2.5 py-1.5 text-[13px] font-semibold text-warn-ink">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-warning" />
-          시연용 건물 데이터
-        </div>
+        {demo && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-warn-tint px-2.5 py-1.5 text-[13px] font-semibold text-warn-ink">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-warning" />
+            시연용 건물 데이터
+          </div>
+        )}
         <button
           type="button"
           onClick={() => actions.update({ sheet: true })}
           aria-label="안내 설정"
-          className="h-11 rounded-[22px] border-[1.5px] border-edge bg-surface px-3.5 text-[14px] font-semibold text-ink"
+          className="ml-auto h-11 rounded-[22px] border-[1.5px] border-edge bg-surface px-3.5 text-[14px] font-semibold text-ink"
         >
           설정
         </button>

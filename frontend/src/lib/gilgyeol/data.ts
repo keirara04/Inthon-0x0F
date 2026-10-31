@@ -215,4 +215,4 @@ export const EXITS_4F = [
 ];
 
 /** Off-route rule (PRD): shown to explain why the warning fired. */
-export const DETECTION_RULE = "목표 방향과 60° 넘게 다른 쪽으로 5초 이상 걸었어요.";
+export const DETECTION_RULE = "목표 방향과 60° 넘게 다른 쪽으로 5초 이상 향했어요.";

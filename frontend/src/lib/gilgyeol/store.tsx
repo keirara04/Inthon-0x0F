@@ -158,12 +158,18 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [update],
   );
 
+  /** The "no vibration" notice covers the header, so show it only once per session. */
+  const noVibeNotified = useRef(false);
+
   const cue = useCallback(
     (key: HapticPattern) => {
       if (!ref.current.vibe) return;
       const p = PATTERNS[key];
       if (canVibe() && vibrate(p.p)) showCue(`진동 · ${p.label}`);
-      else showCue("진동 미지원 · 음성·화면으로 안내");
+      else if (!noVibeNotified.current) {
+        noVibeNotified.current = true;
+        showCue("진동 미지원 · 음성·화면으로 안내");
+      }
     },
     [canVibe, showCue],
   );
