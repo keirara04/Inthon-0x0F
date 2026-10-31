@@ -49,7 +49,7 @@ export function ModeScreen() {
       </button>
       {s.mode === "both" && !actions.canVibe() && <Notice tone="warn">이 기기에서는 진동 안내를 사용할 수 없어 음성으로 안내합니다</Notice>}
       <div className="flex-1" />
-      <PrimaryButton onClick={actions.beginTrip}>{CTA[s.mode]}</PrimaryButton>
+      <PrimaryButton data-trial="mode-start" onClick={actions.beginTrip}>{CTA[s.mode]}</PrimaryButton>
     </div>
   );
 }

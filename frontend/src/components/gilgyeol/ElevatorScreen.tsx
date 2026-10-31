@@ -70,7 +70,7 @@ export function ElevatorScreen() {
         </button>
       </DemoBox>
       <div className="flex-1" />
-      <PrimaryButton onClick={actions.leaveElevator}>{stairs ? "계단 도착" : `${toFloor}층에서 내렸어요`}</PrimaryButton>
+      <PrimaryButton data-trial="elev-leave" onClick={actions.leaveElevator}>{stairs ? "계단 도착" : `${toFloor}층에서 내렸어요`}</PrimaryButton>
       <GhostButton onClick={actions.replay}>안내 다시 듣기</GhostButton>
     </div>
   );

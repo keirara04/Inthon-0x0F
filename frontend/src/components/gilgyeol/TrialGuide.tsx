@@ -22,7 +22,7 @@ interface Step {
   note?: string;
 }
 
-const TOTAL = 5;
+const TOTAL = 8;
 
 function stepFor(s: AppState): Step | null {
   if (!s.trialOn || s.sheet) return null;
@@ -84,10 +84,56 @@ function stepFor(s: AppState): Step | null {
       };
     case "preview":
       return {
-        key: "route-summary",
+        key: "preview-next",
         no: 5,
         title: "경로 확인",
-        text: "405호까지 가는 경로와 단계를 확인했어요. 3분 체험은 여기까지예요. 실제 앱에서는 이어서 안내 방식을 고르고 이동을 시작할 수 있어요.",
+        text: "1층에서 엘리베이터로 올라가 4층 왼쪽 복도까지 가는 경로예요. ‘안내 방식 선택’을 눌러 이동을 준비해요.",
+      };
+    case "mode":
+      return {
+        key: "mode-start",
+        no: 6,
+        title: "안내 방식",
+        text: "하은은 화면을 계속 보지 않아도 되도록 진동과 음성을 함께 골라요. 기본값 그대로 ‘진동·음성 안내 시작’을 눌러주세요.",
+      };
+    case "guide": {
+      const next = s.steps[s.step + 1];
+      if (!next) {
+        return {
+          key: "guide-next",
+          no: 7,
+          title: "이동 안내",
+          text: "왼쪽 복도로 이동해요. ‘405호 도착’을 누르면 도착 화면으로 넘어가요.",
+        };
+      }
+      if (next.kind === "elevator" || next.kind === "stairs") {
+        return {
+          key: "guide-next",
+          no: 7,
+          title: "이동 안내",
+          text: `화면의 방향과 다음 지점을 보며 이동해요. ${next.kind === "stairs" ? "계단에" : "엘리베이터 홀에"} 오면 강조된 버튼을 눌러주세요.`,
+        };
+      }
+      return {
+        key: "guide-next",
+        no: 7,
+        title: "이동 안내",
+        text: "화면의 방향과 다음 지점을 보며 이동해요. 강조된 버튼을 누르면 다음 안내로 넘어가요.",
+      };
+    }
+    case "elevator":
+      return {
+        key: "elev-leave",
+        no: 7,
+        title: "층 이동",
+        text: "엘리베이터로 4층에 올라가요. 4층에서 내린 뒤 ‘4층에서 내렸어요’를 눌러주세요.",
+      };
+    case "arrive":
+      return {
+        key: "arrive-title",
+        no: 8,
+        title: "405호 도착",
+        text: "우정정보관 4층 405호에 도착했어요. 3분 체험은 여기까지예요. 실제 앱에서는 이 화면에서 이동 통계와 비상구 정보를 확인할 수 있어요.",
         final: true,
       };
     default:
@@ -213,13 +259,15 @@ export function TrialGuide() {
 
   const final = !!step.final;
   const tipW = Math.min(300, box.dw - 32);
-  const tipH = step.note ? 260 : 210;
+  // Slight over-estimate: the card is placed above the target when it does not fit below, and an
+  // under-estimate would let the card grow down over the highlighted control.
+  const tipH = step.note ? 320 : 280;
   const centerX = box.x + box.w / 2;
   const left = Math.max(16, Math.min(centerX - tipW / 2, box.dw - tipW - 16));
   const below = box.y + box.h + 14;
   const above = box.y - tipH - 14;
   const top = below + tipH <= box.dh - 12 ? below : Math.max(12, Math.min(above, box.dh - tipH - 12));
-  // The completion card sits at the bottom so the highlighted route summary stays visible above it.
+  // The completion card sits at the bottom so the highlighted arrival heading stays visible above it.
   const cardStyle = final ? undefined : { left, top, width: tipW };
 
   return (

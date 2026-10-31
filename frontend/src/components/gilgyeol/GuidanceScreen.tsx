@@ -159,7 +159,7 @@ export function GuidanceScreen() {
         )}
       </DemoBox>
 
-      <PrimaryButton onClick={actions.advance}>{ctaLabel}</PrimaryButton>
+      <PrimaryButton data-trial="guide-next" onClick={actions.advance}>{ctaLabel}</PrimaryButton>
       {/* Eyes-free first: details stay folded so the arrow, the instruction and the CTA fill the screen. */}
       <div className="overflow-hidden rounded-2xl bg-surface">
         <button

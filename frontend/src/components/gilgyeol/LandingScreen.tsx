@@ -19,7 +19,16 @@ const ROUTE_STOPS = [
   { label: "405호", kind: "목적지 · 호실", glyph: "405", radius: "50%", bg: "#7A1832", bd: "#7A1832", fg: "#fff", chip: "" },
 ];
 
-const TRIAL_STEPS = ["안내도 사진 선택", "AI 안내도 확인", "출발 위치 지정", "405호 검색", "경로 확인"];
+const TRIAL_STEPS = [
+  "안내도 사진 선택",
+  "AI 안내도 확인",
+  "출발 위치 지정",
+  "405호 검색",
+  "경로 확인",
+  "안내 방식 선택",
+  "이동 안내",
+  "405호 도착",
+];
 
 const FAQS = [
   {
@@ -212,7 +221,7 @@ export function LandingScreen() {
           {TRIAL_STEPS.map((t, i) => (
             <div
               key={t}
-              className={`flex flex-col gap-2 rounded-2xl bg-surface p-3.5 ${i === TRIAL_STEPS.length - 1 ? "col-span-2" : ""}`}
+              className={`flex flex-col gap-2 rounded-2xl bg-surface p-3.5 ${i === TRIAL_STEPS.length - 1 && TRIAL_STEPS.length % 2 === 1 ? "col-span-2" : ""}`}
             >
               <div className="flex size-[26px] items-center justify-center rounded-full bg-ink text-[12px] font-extrabold text-white">{i + 1}</div>
               <div className="text-[15px] leading-[1.35] font-bold">{t}</div>

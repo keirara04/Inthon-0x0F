@@ -13,7 +13,10 @@ const STEPS = [
   { title: "안내도 확인", sub: "AI가 사진 속 복도와 호실을 읽은 지도를 확인해요." },
   { title: "출발 위치 지정", sub: "안내도에서 지금 서 있는 1층 출입구를 골라요." },
   { title: "405호 검색", sub: "4층 405호를 검색해 경로를 불러와요." },
-  { title: "경로 확인", sub: "경로와 단계를 확인하면 3분 체험이 끝나요." },
+  { title: "경로 확인", sub: "1층 → 엘리베이터 → 4층 왼쪽 복도 경로를 확인해요." },
+  { title: "안내 방식 선택", sub: "진동·음성 안내를 골라 이동을 시작해요." },
+  { title: "이동 안내", sub: "방향 화면을 따라 엘리베이터로 4층에 올라가요." },
+  { title: "405호 도착", sub: "도착 화면에서 3분 체험이 끝나요." },
 ];
 
 export function TrialScreen() {
@@ -50,10 +53,10 @@ export function TrialScreen() {
           찾도록 도와주세요
         </h1>
         <p className="m-0 text-[16px] leading-[1.6] text-pretty text-muted">
-          처음 온 우정정보관에서 저장해 둔 안내도 사진부터 405호 경로 확인까지, 실제 안내 화면을 따라가요. 화면에 뜨는 안내에 따라 실제 버튼을 눌러 주세요.
+          처음 온 우정정보관에서 저장해 둔 안내도 사진부터 405호 도착까지, 실제 안내 화면을 따라가요. 화면에 뜨는 안내에 따라 실제 버튼을 눌러 주세요.
         </p>
         <div className="flex flex-wrap gap-1.5">
-          {["약 3분", "5단계", "로그인 없음"].map((t) => (
+          {["약 3분", "8단계", "로그인 없음"].map((t) => (
             <span key={t} className="rounded-lg bg-surface px-2.5 py-[5px] text-[13px] font-bold text-ink">
               {t}
             </span>
