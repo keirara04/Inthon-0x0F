@@ -1,0 +1,10 @@
+{
+  "title": "CheckpointRead",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["text", "kind"],
+  "properties": {
+    "text": { "type": ["string", "null"], "description": "표지에서 읽은 텍스트. 읽을 표지가 없으면 null" },
+    "kind": { "type": "string", "enum": ["room_no", "floor_sign", "elevator_sign", "stairs_sign", "none"] }
+  }
+}

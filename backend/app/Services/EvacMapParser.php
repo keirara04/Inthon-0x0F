@@ -19,7 +19,7 @@ class EvacMapParser
 
     public function parse(UploadedFile $image, string $building, string $floor): array
     {
-        $raw = $this->vision->json('evac-map', $image, ['{building}' => $building, '{floor}' => $floor]);
+        $raw = $this->vision->json('evac-map', $image, "건물: {$building}, 층: {$floor}");
 
         return $this->clean($raw, $building, $floor);
     }
@@ -32,7 +32,8 @@ class EvacMapParser
             if (! is_array($n) || ! in_array($n['type'] ?? null, self::NODE_TYPES, true) || ! isset($n['id'], $n['x'], $n['y'])) {
                 continue;
             }
-            $id = str_starts_with((string) $n['id'], "{$floor}-") ? (string) $n['id'] : "{$floor}-{$n['id']}";
+            $rawId = preg_replace('/^XF-/i', "{$floor}-", (string) $n['id']); // prompt uses XF- when the floor is unknown
+            $id = str_starts_with($rawId, "{$floor}-") ? $rawId : "{$floor}-{$rawId}";
             if (isset($nodes[$id])) {
                 continue;
             }

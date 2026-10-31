@@ -38,7 +38,11 @@ class VisionTest extends TestCase
 
     public function test_checkpoint_matched_mismatch_unknown(): void
     {
-        $this->fakeVision(['texts' => ['405호']], ['texts' => ['401 호']], ['texts' => ['화장실']]);
+        $this->fakeVision(
+            ['text' => '405호', 'kind' => 'room_no'],
+            ['text' => '401 호', 'kind' => 'room_no'],
+            ['text' => null, 'kind' => 'none'],
+        );
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
             ->assertOk()->assertJsonPath('data.status', 'matched');
 
@@ -52,7 +56,7 @@ class VisionTest extends TestCase
 
     public function test_floor_sign_matches_expected_elevator_hall(): void
     {
-        $this->fakeVision(['texts' => ['4층']]);
+        $this->fakeVision(['text' => '4층', 'kind' => 'floor_sign']);
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-elev-A'])
             ->assertOk()->assertJsonPath('data.status', 'matched');
     }
@@ -63,6 +67,16 @@ class VisionTest extends TestCase
         $this->assertSame('4F', CheckpointMatcher::canonical('4 층'));
         $this->assertSame('B1', CheckpointMatcher::canonical('지하1층'));
         $this->assertNull(CheckpointMatcher::canonical('엘리베이터'));
+        $this->assertSame('405', CheckpointMatcher::canonical('405 강의실'));
+        $this->assertSame('4F', CheckpointMatcher::canonical('4층 엘리베이터'));
+    }
+
+    public function test_multiline_door_sign_matches(): void
+    {
+        // Real prod answer before this fix: "405\n강의실" came back as unknown.
+        $this->fakeVision(['text' => "405\n강의실", 'kind' => 'room_no']);
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
+            ->assertOk()->assertJsonPath('data.status', 'matched');
     }
 
     public function test_parse_cleans_llm_output_and_saves_nothing(): void
@@ -88,6 +102,35 @@ class VisionTest extends TestCase
             ->assertJsonCount(1, 'data.edges')
             ->assertJsonPath('data.edges.0.heading_deg', 0); // straight up the map
         $this->assertSame($nodesBefore, DB::table('nodes')->count());
+    }
+
+    public function test_sends_prompt_schema_and_falls_back_to_json_mode(): void
+    {
+        Http::fake(['openrouter.ai/*' => Http::sequence()
+            ->push(['error' => 'structured output not supported'], 400)
+            ->push(['choices' => [['message' => ['content' => json_encode(['text' => '405호', 'kind' => 'room_no'])]]]])]);
+
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
+            ->assertOk()->assertJsonPath('data.status', 'matched');
+
+        $sent = Http::recorded()->map(fn ($pair) => $pair[0]->data());
+        $this->assertSame('json_schema', $sent[0]['response_format']['type']);
+        $this->assertSame(['text', 'kind'], $sent[0]['response_format']['json_schema']['schema']['required']);
+        $this->assertSame('system', $sent[0]['messages'][0]['role']);
+        $this->assertSame(['effort' => 'low'], $sent[0]['reasoning']);
+        $this->assertSame('json_object', $sent[1]['response_format']['type']);
+    }
+
+    public function test_parse_replaces_unknown_floor_prefix(): void
+    {
+        $this->fakeVision([
+            'current_node_id' => null,
+            'nodes' => [['id' => 'XF-405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5, 'ref' => null]],
+            'edges' => [],
+        ]);
+
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '2F'])
+            ->assertOk()->assertJsonPath('data.nodes.0.id', '2F-405');
     }
 
     public function test_vision_garbage_returns_502(): void
