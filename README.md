@@ -2,6 +2,17 @@
 
 > One-line pitch: what problem it solves, for whom.
 
+## Map → diagram → JSON pipeline
+
+The standalone Python workflow lives in [`pipeline/`](pipeline/README.md). It converts a floor-map image into an editable corridor diagram, a visual diagram and overlay, and validated graph JSON. No frontend or backend server is required.
+
+```sh
+python3 -m pip install -r pipeline/requirements.txt
+python3 -m pipeline /absolute/path/to/map.png --output pipeline/output/my-map
+```
+
+Automatic image extraction requires `OPENAI_API_KEY`. The [pipeline README](pipeline/README.md) includes a no-key example using a supplied diagram, the output contract, review workflow, and tests.
+
 ## Team
 | Name | Role |
 |------|------|
