@@ -19,7 +19,7 @@ export default function NavTest() {
 
   async function load() {
     try {
-      nav.load(await fetchRoute("1F-lobby", "4F-405"));
+      nav.load(await fetchRoute("1F-entrance", "4F-405"));
       add(`route loaded (${API_MODE})`);
     } catch (err) {
       add(`route error: ${String(err)}`);
