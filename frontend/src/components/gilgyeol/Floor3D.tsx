@@ -487,7 +487,8 @@ export default function Floor3D({
       } else {
         const t0 = performance.now();
         const tick = (t: number) => {
-          dot!.position.copy(curve!.getPointAt(((t - t0) / 6000) % 1));
+          // The first frame's timestamp can predate t0; a negative u makes getPointAt return null.
+          dot!.position.copy(curve!.getPointAt((Math.max(0, t - t0) / 6000) % 1));
           render();
           raf = requestAnimationFrame(tick);
         };

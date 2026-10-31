@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { locate, startPoints } from "@/lib/gilgyeol/api";
+import { useMemo, useState } from "react";
+import { startPoints } from "@/lib/gilgyeol/api";
 import { C, DEMO_1F_GRAPH, NODE_TYPES, START_NODES } from "@/lib/gilgyeol/data";
 import type { ApiStartFloor } from "@/types/api";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { StartNodeId } from "@/lib/gilgyeol/types";
 import { Floor3DLazy } from "./Floor3DLazy";
 import { MapBox, MapSketch, graphFrame, parsedSpot, startNode as nodeFor } from "./MapSketch";
-import { Mascot } from "./Mascot";
 import { PinMap } from "./PinMap";
 import { BackHeader, Badge, PrimaryButton, SecondaryButton, Title } from "./ui";
 
@@ -16,8 +15,6 @@ const START_IDS = new Set<StartNodeId>(START_NODES.map((n) => n.id));
 
 /** "4F" -> "4층", "B1" -> "지하 1층" */
 const floorKo = (f: string) => (f.startsWith("B") ? `지하 ${f.slice(1)}층` : `${parseInt(f, 10)}층`);
-
-type ScanState = { kind: "idle" } | { kind: "reading" } | { kind: "floor_only"; floor: string } | { kind: "unknown" } | { kind: "error"; msg: string };
 
 export function StartLocationScreen() {
   const { state: s, actions } = useGilgyeol();
@@ -46,33 +43,14 @@ export function StartLocationScreen() {
   const pickOnMap = (id: StartNodeId) =>
     s.locEdit ? actions.update({ start: id, startAt: null, locEdit: false }) : actions.toast("‘위치 수정’을 누르면 다른 지점을 고를 수 있어요");
 
-  // Starting somewhere other than the map's 현위치: scan a nearby sign, or pick an entrance from the real graph.
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [scan, setScan] = useState<ScanState>({ kind: "idle" });
+  // Starting somewhere other than the map's 현위치: pick an entrance from the real graph, or pin it on the map.
   const [floors, setFloors] = useState<ApiStartFloor[] | null>(null);
   const [floorsErr, setFloorsErr] = useState(false);
   const [pinning, setPinning] = useState(false);
 
   const setStartAt = (at: NonNullable<typeof s.startAt>) => {
-    setScan({ kind: "idle" }); // a chosen start replaces any old scan message
     setPinning(false);
     actions.update({ startAt: at, start: null, locEdit: false, landmarks: false });
-  };
-
-  const onPhoto = async (file: File | undefined) => {
-    if (!file) return;
-    setScan({ kind: "reading" });
-    try {
-      const r = await locate(file);
-      if (r.status === "found" && r.node) {
-        setScan({ kind: "idle" });
-        setStartAt({ ...r.node, via: "scan" });
-        actions.toast(`${floorKo(r.node.floor)} ${r.node.label} 근처로 확인했어요`);
-      } else if (r.status === "floor_only" && r.floor) setScan({ kind: "floor_only", floor: r.floor });
-      else setScan({ kind: "unknown" });
-    } catch (err) {
-      setScan({ kind: "error", msg: err instanceof Error ? err.message : "확인하지 못했어요" });
-    }
   };
 
   const toggleList = () => {
@@ -167,37 +145,13 @@ export function StartLocationScreen() {
         {summary}
       </div>
       <div className="flex flex-col gap-2">
-        {/* Native camera: works on every phone and doesn't depend on the in-app scanner. */}
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { onPhoto(e.target.files?.[0]); e.target.value = ""; }} />
-        <SecondaryButton disabled={scan.kind === "reading"} onClick={() => fileRef.current?.click()}>
-          📷 주변 표지로 위치 찾기
-        </SecondaryButton>
-        {scan.kind !== "idle" && (
-          <div role="status" className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3 text-[15px] leading-normal">
-            {scan.kind === "reading" ? (
-              <>
-                <Mascot pose="lying" height={44} motion="bob" />
-                <span className="font-semibold">표지를 읽는 중이에요…</span>
-              </>
-            ) : (
-              <>
-                <Mascot pose="peek" height={40} />
-                <span>
-                  {scan.kind === "floor_only" && `${floorKo(scan.floor)}이네요. 가까운 호실 번호를 비춰주세요.`}
-                  {scan.kind === "unknown" && "표지를 읽지 못했어요. 호실 번호나 층 표지를 가까이서 다시 찍어주세요."}
-                  {scan.kind === "error" && `확인하지 못했어요 (${scan.msg}). 다시 찍거나 아래에서 직접 골라주세요.`}
-                </span>
-              </>
-            )}
-          </div>
-        )}
         <SecondaryButton aria-expanded={s.landmarks} onClick={toggleList}>
           다른 입구에 계신가요?
         </SecondaryButton>
         {s.landmarks && (
           <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
             {!floors && !floorsErr && <div className="px-4 py-3 text-[14px] text-muted">불러오는 중…</div>}
-            {floorsErr && <div className="px-4 py-3 text-[14px] text-muted">목록을 불러오지 못했어요. 표지로 위치를 찾아주세요.</div>}
+            {floorsErr && <div className="px-4 py-3 text-[14px] text-muted">목록을 불러오지 못했어요. 지도에서 위치를 찍어주세요.</div>}
             {floors?.map((fl) => (
               <div key={fl.floor} role="group" aria-label={floorKo(fl.floor)}>
                 <div className="bg-app-bg px-4 py-1.5 text-[12px] font-extrabold text-muted">{floorKo(fl.floor)}</div>

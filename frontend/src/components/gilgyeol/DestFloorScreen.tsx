@@ -4,12 +4,12 @@ import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { BackHeader, Title } from "./ui";
 
 /**
- * Branch before routing: does the user need another floor? Yes → elevator leg, then the new
- * floor's map. No → pick a room from the current-floor map. No floor picker here.
+ * Branch before search: does the user need another floor? Yes → rooms on the other floors, No → this floor's rooms.
+ * Either way the route comes from the picked room, so the backend plans the elevator ride.
  */
 export function DestFloorScreen() {
   const { state: s, actions } = useGilgyeol();
-  const currentFloor = s.parsed ? s.parsed.floor.replace(/F$/i, "") : "1";
+  const currentFloor = (s.startAt?.floor ?? s.parsed?.floor ?? "1F").replace(/F$/i, "");
   const currentLabel = `${currentFloor}층`;
 
   return (
@@ -31,24 +31,23 @@ export function DestFloorScreen() {
       <div className="flex flex-col gap-2.5">
         <button
           type="button"
-          disabled={s.routeLoading}
-          onClick={actions.goDifferentFloor}
+          onClick={() => actions.chooseFloorScope(true)}
           className="flex min-h-[64px] items-center justify-between gap-3 rounded-[18px] bg-brand px-[18px] text-left text-white disabled:opacity-70"
         >
           <span className="flex flex-col gap-0.5">
             <span className="text-[19px] font-extrabold">예, 이동할게요</span>
-            <span className="text-[13px] font-medium text-white/80">엘리베이터 안내부터 이어서 안내해요</span>
+            <span className="text-[13px] font-medium text-white/80">다른 층 목적지를 고르면 엘리베이터부터 안내해요</span>
           </span>
-          <span className="flex-none text-[13px] font-bold">{s.routeLoading ? "경로 찾는 중…" : "엘리베이터 →"}</span>
+          <span className="flex-none text-[13px] font-bold">목적지 선택 →</span>
         </button>
         <button
           type="button"
-          onClick={actions.stayOnFloor}
+          onClick={() => actions.chooseFloorScope(false)}
           className="flex min-h-[64px] items-center justify-between gap-3 rounded-[18px] border-2 border-edge bg-surface px-[18px] text-left"
         >
           <span className="flex flex-col gap-0.5">
             <span className="text-[19px] font-extrabold text-ink">아니요, 이 층이에요</span>
-            <span className="text-[13px] font-medium text-muted">{currentLabel} 안내도에서 목적지를 골라요</span>
+            <span className="text-[13px] font-medium text-muted">{currentLabel} 목적지를 골라요</span>
           </span>
           <span className="flex-none text-[13px] font-bold text-brand">목적지 선택 →</span>
         </button>

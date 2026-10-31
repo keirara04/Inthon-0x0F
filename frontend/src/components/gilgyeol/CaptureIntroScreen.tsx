@@ -86,8 +86,7 @@ const TIPS: [keyof typeof TIP_ICONS, string][] = [
 
 export function CaptureIntroScreen() {
   const { state: s, actions } = useGilgyeol();
-  const dest = s.captureFor === "dest";
-  const demo = () => (dest ? actions.loadDemoDestMap() : actions.go("mapResult", { mapDemo: true }));
+  const demo = () => actions.go("mapResult", { mapDemo: true });
   // The scanner finds the sign in the photo and frames it, like the live camera does.
   const album = useAlbumPick((file) => {
     actions.openScan("map");
@@ -95,30 +94,14 @@ export function CaptureIntroScreen() {
   });
   return (
     <div className="flex min-h-full flex-col gap-4 px-5 pt-1 pb-6">
-      <BackHeader label={dest ? "새로운 층 안내도" : "안내도 촬영"} onBack={actions.back} />
+      <BackHeader label="안내도 촬영" onBack={actions.back} />
       <Title className="text-[22px] leading-[1.32] tracking-[-0.035em]">
-        {dest ? (
-          <>
-            새로운 층의 비상시 대피
-            <br />
-            안내도를 골라주세요
-          </>
-        ) : (
-          <>
-            현재 있는 층의 비상시
-            <br />
-            대피 안내도를 찍어주세요
-          </>
-        )}
+        현재 있는 층의 비상시
+        <br />
+        대피 안내도를 찍어주세요
       </Title>
-      {dest ? (
-        <p className="m-0 text-[16px] leading-[1.55] text-muted">새로운 층의 안내도가 있어야 목적지 목록을 만들 수 있어요. 앨범에서 골라주세요.</p>
-      ) : (
-        <>
-          <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽에 층별 안내도가 있어요.</p>
-          <BuildingPicker />
-        </>
-      )}
+      <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽에 층별 안내도가 있어요.</p>
+      <BuildingPicker />
       <ExampleShot />
       <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0" aria-label="촬영 팁">
         {TIPS.map(([icon, label]) => (
