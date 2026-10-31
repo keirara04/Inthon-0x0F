@@ -95,15 +95,18 @@ export interface ParsedGraph extends FloorGraph {
   elevators: NonNullable<ApiGraph["elevators"]>;
 }
 
-/** Parses an evacuation-map image into a draft graph. Results always start as draft. Nothing is saved. */
-export async function parseEvacMap(image: File | null, floor: number = 4): Promise<ParsedGraph> {
+/**
+ * Parses an evacuation-map image into a draft graph. Results always start as draft. Nothing is saved.
+ * Sent at 2048px long side: the AI evals (ai/README.md) measured map reading at that size.
+ */
+export async function parseEvacMap(image: Blob | null, floor: number = 4, signal?: AbortSignal): Promise<ParsedGraph> {
   if (API_MODE === "live") {
     if (!image) throw new Error("피난안내도 이미지를 먼저 선택해 주세요");
     const body = new FormData();
-    body.append("image", await downscale(image));
+    body.append("image", await downscale(image, 2048));
     body.append("building", BUILDING);
     body.append("floor", floorLabel(floor));
-    return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body }));
+    return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
   }
   await delay(1500);
   return {
@@ -196,9 +199,14 @@ export function toRouteStep(step: ApiStep): RouteStep {
   };
 }
 
-/** Phone photos are 3–8 MB; the backend accepts 2 MB. Shrink to <= 1280px JPEG before upload. */
+/** Phone photos are 3–8 MB; the backend accepts 2 MB. Shrink to a JPEG (<= 1280px by default) before upload. */
 async function downscale(image: Blob, max = 1280): Promise<Blob> {
   const bmp = await createImageBitmap(image);
+  // Already small enough (e.g. a camera frame): skip a second lossy JPEG pass, small text matters.
+  if (image.type === "image/jpeg" && image.size <= 2_000_000 && Math.max(bmp.width, bmp.height) <= max) {
+    bmp.close();
+    return image;
+  }
   const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bmp.width * scale);

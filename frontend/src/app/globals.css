@@ -86,7 +86,161 @@ button:disabled {
   animation-iteration-count: infinite;
 }
 
+/* ---------- Map-reading loader ----------
+   Scan line sweeps the photo; a sketch floor graph draws itself on a loop. */
+@keyframes gg-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(330px);
+  }
+}
+
+.gg-scan {
+  animation: gg-scan 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+@keyframes gg-draw {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  45%,
+  85% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.gg-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: gg-draw 4.2s ease-in-out infinite;
+}
+
+@keyframes gg-pop {
+  0%,
+  10% {
+    transform: scale(0);
+  }
+  22%,
+  85% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.gg-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gg-pop 4.2s ease-out infinite;
+}
+
+/* One-shot entrance for the map result: corridors draw in, chips pop in. */
+@keyframes gg-draw-in {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.gg-draw-in {
+  stroke-dasharray: 1;
+  animation: gg-draw-in 0.7s ease-out both;
+}
+
+@keyframes gg-pop-in {
+  0% {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.gg-pop-in {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gg-pop-in 0.35s ease-out both;
+}
+
+/* Capture-intro example: frame closes in, one sweep, map fades in. */
+@keyframes gg-frame-in {
+  from {
+    transform: scale(1.12);
+    opacity: 0.3;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.gg-frame-in {
+  animation: gg-frame-in 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes gg-sweep {
+  from {
+    top: -25%;
+  }
+  to {
+    top: 100%;
+  }
+}
+
+.gg-sweep {
+  animation: gg-sweep 1.3s ease-in-out both;
+}
+
+@keyframes gg-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.gg-fade-in {
+  animation: gg-fade-in 0.45s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .gg-frame-in,
+  .gg-sweep,
+  .gg-fade-in {
+    animation: none !important;
+  }
+  .gg-draw-in,
+  .gg-pop-in {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+    transform: none !important;
+  }
+  .gg-scan {
+    animation: none !important;
+    transform: translateY(150px) !important;
+  }
+  .gg-draw,
+  .gg-pop {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+    transform: none !important;
+  }
   .gg-pulse {
     animation: none !important;
     opacity: 0.3 !important;

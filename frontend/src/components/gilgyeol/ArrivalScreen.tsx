@@ -15,9 +15,11 @@ export function ArrivalScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
   const [exitsOpen, setExitsOpen] = useState(false);
+  const from = s.steps[0]?.floor ?? "1층";
+  const to = s.steps[s.steps.length - 1]?.floor ?? `${s.dest?.floor ?? 4}층`;
   const stats = [
     { k: "소요 시간", v: duration(s.trip.startedAt, s.trip.arrivedAt) },
-    { k: "층 이동", v: "1층 → 4층" },
+    { k: "층 이동", v: from === to ? "없음" : `${from} → ${to}` },
     { k: "경로 재확인", v: `${s.trip.reroutes}회` },
   ];
   return (
@@ -33,7 +35,7 @@ export function ArrivalScreen() {
           <br />
           도착했어요
         </h1>
-        <div className="text-[18px] text-muted">우정정보관 · 4층</div>
+        <div className="text-[18px] text-muted">우정정보관 · {to}</div>
         <div className="flex flex-wrap gap-1.5">
           <Badge tone="haptic">진동 · 길게 1회 + 짧게 2회</Badge>
         </div>
