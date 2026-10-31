@@ -188,8 +188,8 @@ export async function startPoints(): Promise<ApiStartFloor[]> {
     {
       floor: "1F",
       points: [
-        { id: "1F-lobby", label: "1층 로비", type: "entrance" },
-        { id: "1F-elev-A", label: "중앙 엘리베이터 홀", type: "elevator_hall" },
+        { id: "1F-entrance", label: "정문 출입구", type: "entrance" },
+        { id: "1F-elev-A", label: "엘리베이터 홀", type: "elevator_hall" },
         { id: "1F-stairs-W", label: "서쪽 계단", type: "stairs" },
       ],
     },

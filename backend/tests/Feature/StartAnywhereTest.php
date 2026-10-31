@@ -67,8 +67,8 @@ class StartAnywhereTest extends TestCase
 
         $this->assertSame(['1F', '4F'], array_column($res->json('data'), 'floor'));
         $first = $res->json('data.0.points');
-        $this->assertSame('1F-lobby', $first[0]['id']); // entrances first
-        $this->assertSame(['entrance', 'elevator_hall', 'elevator_hall', 'stairs'], array_column($first, 'type'));
+        $this->assertSame('1F-entrance', $first[0]['id']); // entrances first
+        $this->assertSame(['entrance', 'exit', 'elevator_hall', 'stairs', 'stairs'], array_column($first, 'type'));
         $this->assertNotContains('1F-101', array_column($first, 'id')); // rooms are not start points
     }
 }
