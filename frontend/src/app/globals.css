@@ -88,17 +88,19 @@ button:disabled {
 
 /* ---------- Map-reading loader ----------
    Scan line sweeps the photo; a sketch floor graph draws itself on a loop. */
-@keyframes gg-scan {
+@keyframes gg-scan-full {
   0% {
     transform: translateY(-100%);
   }
   100% {
-    transform: translateY(330px);
+    transform: translateY(0);
   }
 }
 
-.gg-scan {
-  animation: gg-scan 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+.gg-scan-full {
+  transform: translateY(-100%);
+  will-change: transform;
+  animation: gg-scan-full 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
 }
 
 @keyframes gg-draw {
@@ -231,9 +233,9 @@ button:disabled {
     stroke-dashoffset: 0 !important;
     transform: none !important;
   }
-  .gg-scan {
+  .gg-scan-full {
     animation: none !important;
-    transform: translateY(150px) !important;
+    transform: none !important;
   }
   .gg-draw,
   .gg-pop {
