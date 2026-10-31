@@ -12,18 +12,20 @@ LINE_BREAK = re.compile(r"\r\n|[\n\v\f\r\x85  ]")  # PCRE \R
 
 
 def canonical(text: str) -> str | None:
-    """'405호' → '405', '4층'/'4F' → '4F', '지하1층'/'B1' → 'B1', '405 강의실' → '405', 그 밖은 None.
+    """CheckpointMatcher::canonical. 카메라 쪽과 랜드마크 저장(GraphImporter)이 같이 쓴다.
 
-    정확한 형태 먼저, 그다음 긴 글자 안의 3~4자리 호실 번호나 층 표지.
+    '405호' → '405', '401A호'/'401 A' → '401A', 'B101호' → 'B101'(지하 호실), '4층'/'4F' → '4F',
+    '지하1층'/'B1' → 'B1'(층은 B + 1~2자리만), '401A 강의실' → '401A', 그 밖은 None (엘리베이터 표시등 '6'도 None).
+    정확한 형태 먼저, 그다음 긴 글자 안의 호실 번호나 층 표지.
     """
     t = re.sub(r"\s+", "", text).upper()
-    if m := re.fullmatch(r"(?:지하|B)([0-9]+)(?:층|F)?", t):
-        return f"B{m.group(1)}"
+    if m := re.fullmatch(r"(?:지하([0-9]{1,2})층?|B([0-9]{1,2})(?:층|F)?)", t):
+        return "B" + (m.group(1) if m.group(1) not in (None, "", "0") else (m.group(2) or ""))  # PHP: $m[1] ?: $m[2]
     if m := re.fullmatch(r"([0-9]{1,2})(?:층|F)", t):
         return f"{m.group(1)}F"
-    if m := re.fullmatch(r"([0-9]{2,4})(?:호실?)?", t):
+    if m := re.fullmatch(r"(B?[0-9]{2,4}[A-Z]?)(?:호실?)?", t):
         return m.group(1)
-    if m := re.search(r"(?<![0-9])([0-9]{3,4})(?![0-9])", t):
+    if m := re.search(r"(?<![0-9A-Z])(B?[0-9]{3,4}[A-Z]?)(?![0-9A-Z])", t):
         return m.group(1)
     if m := re.search(r"(?<![0-9])([0-9]{1,2})(?:층|F)(?![A-Z])", t):
         return f"{m.group(1)}F"
@@ -31,13 +33,13 @@ def canonical(text: str) -> str | None:
 
 
 def landmarks_from_graphs(graphs: list[dict]) -> list[dict]:
-    """GraphImporter::importFloor와 같은 형태: room → room_no(라벨의 숫자만), 엘리베이터 홀·계단 → floor_sign(층 라벨)."""
+    """GraphImporter::importFloor와 같은 형태: room → room_no(canonical(라벨), 안 되면 라벨 그대로), 엘리베이터 홀·계단 → floor_sign(층 라벨)."""
     out = []
     for g in graphs:
         for n in g["nodes"]:
             if n["type"] == "room":
                 out.append({"node_id": n["id"], "floor": g["floor"], "label": n["label"], "kind": "room_no",
-                            "ocr_text": re.sub(r"[^0-9]", "", n["label"]) or n["label"]})
+                            "ocr_text": canonical(n["label"]) or n["label"]})
             elif n["type"] in ("elevator_hall", "stairs"):
                 out.append({"node_id": n["id"], "floor": g["floor"], "label": n["label"], "kind": "floor_sign",
                             "ocr_text": g["floor"]})
@@ -62,14 +64,26 @@ def match(texts: list[str], expected_node: str, landmarks: list[dict]) -> dict:
 
 
 if __name__ == "__main__":
-    # PHP 주석의 예시 + 경계 사례
-    for text, want in [("405호", "405"), ("4층", "4F"), ("4F", "4F"), ("지하1층", "B1"), ("B1", "B1"),
-                       ("405 강의실", "405"), ("405호실", "405"), ("4층 강의실", "4F"), ("EXIT", None),
-                       ("401A", "401"), ("119", "119"), ("2F", "2F")]:
+    # backend/tests/Feature/VisionTest.php 의 기대값을 그대로 옮긴 자체 검사
+    cases = [("405호", "405"), ("4 층", "4F"), ("지하1층", "B1"), ("엘리베이터", None), ("405 강의실", "405"),
+             ("4층 엘리베이터", "4F"), ("401A호", "401A"), ("401 A", "401A"), ("401A 강의실", "401A"),
+             ("B101호", "B101"), ("B1", "B1"), ("B1F", "B1"), ("지하 1층", "B1"), ("6", None)]
+    bad = 0
+    for text, want in cases:
         got = canonical(text)
+        bad += got != want
         print(f"{'OK ' if got == want else 'BAD'} canonical({text!r}) = {got!r} (기대 {want!r})")
-    lm = landmarks_from_graphs([{"floor": "4F", "nodes": [
-        {"id": "4F-401A", "type": "room", "label": "401A호"}, {"id": "4F-401B", "type": "room", "label": "401B호"},
-        {"id": "4F-elev-1", "type": "elevator_hall", "label": "엘리베이터"}]}])
-    print("401B 문패, 예상 401A →", match(["401B"], "4F-401A", lm))
-    print("405\\n강의실, 예상 401A →", match(["405\n강의실"], "4F-401A", lm))
+    floor4 = {"floor": "4F", "nodes": [{"id": "4F-elev-A", "type": "elevator_hall", "label": "중앙 엘리베이터 홀"},
+                                       {"id": "4F-401", "type": "room", "label": "401호"}, {"id": "4F-405", "type": "room", "label": "405호"}]}
+    floor3 = {"floor": "3F", "nodes": [{"id": "3F-301A", "type": "room", "label": "301A호"}, {"id": "3F-301B", "type": "room", "label": "301B호"}]}
+    lm = landmarks_from_graphs([floor4, floor3])
+    flows = [(["405호"], "4F-405", "matched", "4F-405"), (["401 호"], "4F-405", "mismatch", "4F-401"), ([], "4F-405", "unknown", None),
+             (["4층"], "4F-elev-A", "matched", "4F-elev-A"), (["301A"], "3F-301A", "matched", "3F-301A"),
+             (["301B호"], "3F-301A", "mismatch", "3F-301B"), (["301"], "3F-301A", "unknown", None),
+             (["405\n강의실"], "4F-405", "matched", "4F-405")]
+    for texts, expected, want_status, want_node in flows:
+        r = match(texts, expected, lm)
+        ok = r["status"] == want_status and r["node"] == want_node
+        bad += not ok
+        print(f"{'OK ' if ok else 'BAD'} match({texts!r}, {expected}) = {r['status']} {r['node']} (기대 {want_status} {want_node})")
+    print("불일치", bad, "건")

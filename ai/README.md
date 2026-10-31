@@ -125,5 +125,5 @@ flash-lite가 틀린 사진은 모두 안내판 옆에 **엘리베이터 위치 
 
 - `heading_deg`: 안내도 위쪽 = 0°, 시계 방향. **실제 나침반 방위가 아님** → 층별 방위 보정 필요
 - `ref`: 모델 형식(`stairs-1`, `elev-1`, 왼쪽(서쪽)부터 번호)으로 통일 (2026-10-31 키미 결정). 시드의 ref 값도 이 형식으로 바뀜. 노드 id(`1F-elev-A` 등)는 프론트가 쓰므로 그대로
-- 체크포인트 매칭: 키미가 `CheckpointMatcher`·`GraphImporter`에서 호실 끝 글자(401A/B/C) 보존, 지하 호실(B101)이 층 표지로 읽히는 문제를 고치는 중 → 끝나면 `matcher.py` 맞출 것
+- 체크포인트 매칭 (키미 `feat/keira-ref-roomletter`, `matcher.py` 반영): 호실 끝 글자 보존(`401A호` → `401A`, 랜드마크도 같은 함수로 저장), 지하 호실 `B101`은 호실·`B1`은 층, 엘리베이터 표시등 `6`은 null. 카메라가 `301`만 읽으면 `301A/B` 중 못 고르므로 unknown. `python ai/eval/matcher.py`로 PHP 테스트(VisionTest) 기대값 22개를 검사
 - 한 장의 안내도에서는 `walk` 간선만 나옵니다. 층 사이 간선은 `GraphImporter::linkFloors`가 `ref`로 만듭니다.
