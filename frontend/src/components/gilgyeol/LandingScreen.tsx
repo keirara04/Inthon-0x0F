@@ -21,7 +21,7 @@ type Sec = "trial" | "faq";
 const ROUTE_STOPS = [
   { label: "1층 로비", kind: "출발 · 샘플 시작 지점", glyph: "1F", radius: "50%", bg: "#fff", bd: "#202421", fg: "#202421", chip: "" },
   { label: "중앙 엘리베이터 홀", kind: "엘리베이터 · 층 이동", glyph: "EV", radius: "7px", bg: "#2864A0", bd: "#2864A0", fg: "#fff", chip: "4층 정차" },
-  { label: "4층", kind: "층 표지 체크포인트", glyph: "4F", radius: "50%", bg: "#fff", bd: "#5B4AB8", fg: "#4A3BA0", chip: "" },
+  { label: "4층", kind: "층 표지 체크포인트", glyph: "4F", radius: "50%", bg: "#fff", bd: "#2864A0", fg: "#1F4F80", chip: "" },
   { label: "405호", kind: "목적지 · 호실", glyph: "405", radius: "50%", bg: "#7A1832", bd: "#7A1832", fg: "#fff", chip: "" },
 ];
 
@@ -81,7 +81,7 @@ export function LandingScreen() {
           <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} className="flex-none self-center" />
           <span className="text-[24px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
           {/* hidden on very narrow phones (320px) so the header CTA still fits on one line */}
-          <span className="text-[12px] font-semibold text-muted max-[359px]:hidden">(어디로)</span>
+          <span className="text-[13px] font-semibold text-muted max-[359px]:hidden">(어디로)</span>
         </div>
         <div className="flex items-center gap-1.5">
           {/* Shown only once the hero CTA has scrolled away, so the first screen never has two of it. */}
@@ -136,7 +136,7 @@ export function LandingScreen() {
         {/* One scene: Alienie (right) looks through the telescope at the compass (left) finding the way. */}
         <div aria-hidden="true" className="relative h-[196px] overflow-hidden rounded-[26px] bg-haptic-tint">
           <svg viewBox="0 0 340 196" preserveAspectRatio="none" className="absolute inset-0 size-full">
-            <path d="M118 150 C 170 172, 214 172, 252 150" fill="none" stroke="#B3A9E3" strokeWidth="2.5" strokeDasharray="2 9" strokeLinecap="round" />
+            <path d="M118 150 C 170 172, 214 172, 252 150" fill="none" stroke="#A9C3DE" strokeWidth="2.5" strokeDasharray="2 9" strokeLinecap="round" />
           </svg>
           <div className="absolute top-1/2 left-[6%] -translate-y-1/2 scale-[0.92]">
             <SeekingCompass />
@@ -161,13 +161,13 @@ export function LandingScreen() {
         <div ref={revealRoute} data-reveal className="flex flex-col rounded-[22px] bg-surface px-[18px] pt-[18px] pb-1.5">
           <div className="flex items-center justify-between pb-3.5">
             <span className="text-[13px] font-bold text-muted">우정정보관 · 405호 경로</span>
-            <span className="rounded-md bg-warn-tint px-2 py-[3px] text-[12px] font-bold text-warn-ink">샘플</span>
+            <span className="rounded-md bg-warn-tint px-2 py-[3px] text-[13px] font-bold text-warn-ink">샘플</span>
           </div>
           {ROUTE_STOPS.map((st, i) => (
             <div key={st.label} className="flex items-stretch gap-3">
               <div className="flex w-[30px] flex-none flex-col items-center">
                 <div
-                  className={`gl-node flex size-[30px] flex-none items-center justify-center text-[12px] font-extrabold ${i === ROUTE_STOPS.length - 1 ? "gl-arrive" : ""}`}
+                  className={`gl-node flex size-[30px] flex-none items-center justify-center text-[13px] font-extrabold ${i === ROUTE_STOPS.length - 1 ? "gl-arrive" : ""}`}
                   style={{ borderRadius: st.radius, background: st.bg, border: `2px solid ${st.bd}`, color: st.fg, ...d(i * STEP_MS) }}
                 >
                   {st.glyph}
@@ -181,7 +181,7 @@ export function LandingScreen() {
               <div style={d(i * STEP_MS + 80)} className="gl-item flex min-w-0 flex-1 flex-col gap-0.5 pt-1 pb-4">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[17px] font-bold">{st.label}</span>
-                  {st.chip && <span style={d(i * STEP_MS + 300)} className="gl-chip rounded-md bg-ok-tint px-1.5 py-0.5 text-[12px] font-bold text-ok-ink">{st.chip}</span>}
+                  {st.chip && <span style={d(i * STEP_MS + 300)} className="gl-chip rounded-md bg-ok-tint px-1.5 py-0.5 text-[13px] font-bold text-ok-ink">{st.chip}</span>}
                 </div>
                 <span className="text-[13px] text-muted">{st.kind}</span>
               </div>
@@ -202,7 +202,7 @@ export function LandingScreen() {
               style={d(i * 90)}
               className={`gl-item flex flex-col gap-2 rounded-2xl bg-surface p-3.5 ${i === TRIAL_STEPS.length - 1 ? "col-span-2" : ""}`}
             >
-              <div className="flex size-[26px] items-center justify-center rounded-full bg-ink text-[12px] font-extrabold text-white">{i + 1}</div>
+              <div className="flex size-[26px] items-center justify-center rounded-full bg-ink text-[13px] font-extrabold text-white">{i + 1}</div>
               <div className="text-[15px] leading-[1.35] font-bold">{t}</div>
             </div>
           ))}
@@ -260,7 +260,7 @@ export function LandingScreen() {
           <img src="/mascot/head.png" alt="" aria-hidden="true" width={26} height={26} className="flex-none self-center" />
           어디路
         </div>
-        <div className="text-[12px] leading-[1.55] text-muted">
+        <div className="text-[13px] leading-[1.55] text-muted">
           어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.
         </div>
       </footer>

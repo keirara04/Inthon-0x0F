@@ -35,6 +35,7 @@ export function BuildingPicker() {
   const place = state.place;
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [showSaved, setShowSaved] = useState(false); // saved maps are a shortcut, folded so the photo stays the main path
   // Kept here until a pick, so a late location fix can't overwrite a building chosen meanwhile.
   const [coords, setCoords] = useState(place.coords);
   const rows = useBuildings(open ? q : place.name, coords);
@@ -69,7 +70,7 @@ export function BuildingPicker() {
     <section aria-label="건물" className="flex flex-col gap-2.5 rounded-[18px] bg-surface p-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col">
-          <span className="text-[12px] font-semibold text-muted">지금 있는 건물</span>
+          <span className="text-[13px] font-semibold text-muted">지금 있는 건물</span>
           <span className="truncate text-[16px] font-bold">{place.name}</span>
         </div>
         {!open && (
@@ -103,9 +104,9 @@ export function BuildingPicker() {
                 <button type="button" onClick={() => pick(b.id, b.name)} className="flex min-h-11 w-full items-center justify-between gap-3 px-1 py-1.5 text-left">
                   <span className="flex flex-col">
                     <span className="text-[15px] font-semibold">{b.name}</span>
-                    {b.saved_floors.length > 0 && <span className="text-[12px] text-muted">저장된 안내도 {b.saved_floors.length}개 층</span>}
+                    {b.saved_floors.length > 0 && <span className="text-[13px] text-muted">저장된 안내도 {b.saved_floors.length}개 층</span>}
                   </span>
-                  {b.distance_m !== null && <span className="flex-none text-[12px] text-muted">{b.distance_m < 1000 ? `${b.distance_m}m` : `${(b.distance_m / 1000).toFixed(1)}km`}</span>}
+                  {b.distance_m !== null && <span className="flex-none text-[13px] text-muted">{b.distance_m < 1000 ? `${b.distance_m}m` : `${(b.distance_m / 1000).toFixed(1)}km`}</span>}
                 </button>
               </li>
             ))}
@@ -116,19 +117,25 @@ export function BuildingPicker() {
 
       {!open && saved.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] text-muted">다른 사람이 찍어둔 안내도가 있어요. 촬영 없이 바로 쓸 수 있어요.</span>
-          <div className="flex flex-wrap gap-2">
-            {saved.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => actions.loadSavedMap(f)}
-                className="h-11 rounded-lg bg-ok-tint px-3 text-[14px] font-bold text-ok-ink"
-              >
-                {floorName(f)} 안내도 사용
-              </button>
-            ))}
-          </div>
+          <button type="button" aria-expanded={showSaved} onClick={() => setShowSaved((v) => !v)} className="flex min-h-11 items-center justify-between text-left text-[15px] font-bold text-ok-ink">
+            <span>저장된 안내도 쓰기 · {saved.length}개 층</span>
+            <span aria-hidden="true">{showSaved ? "▴" : "›"}</span>
+          </button>
+          {showSaved && <span className="text-[14px] text-muted">다른 사람이 찍어둔 안내도예요. 촬영 없이 바로 쓸 수 있어요.</span>}
+          {showSaved && (
+            <div className="flex flex-wrap gap-2">
+              {saved.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => actions.loadSavedMap(f)}
+                  className="h-11 rounded-lg bg-ok-tint px-3 text-[14px] font-bold text-ok-ink"
+                >
+                  {floorName(f)} 안내도 사용
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>

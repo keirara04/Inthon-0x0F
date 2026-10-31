@@ -13,11 +13,11 @@ export function DestFloorScreen() {
   const currentLabel = `${currentFloor}층`;
 
   return (
-    <div className="flex min-h-full flex-col gap-4 px-5 pt-1 pb-7">
+    <div className="flex flex-col gap-4 px-5 pt-1 pb-7">
       <BackHeader label="층 이동 여부" onBack={actions.back} />
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+      <div className="flex flex-col items-center gap-5 pt-8 pb-4 text-center">
         <div className="flex size-[72px] items-center justify-center rounded-full bg-haptic-tint" aria-hidden="true">
-          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="#5B4AB8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="currentColor" className="text-haptic" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <rect x="9" y="4" width="16" height="26" rx="3" />
             <path d="M17 9v5M14.5 11.5 17 9l2.5 2.5M17 25v-5M14.5 22.5 17 25l2.5-2.5" />
           </svg>
@@ -32,24 +32,18 @@ export function DestFloorScreen() {
         <button
           type="button"
           onClick={() => actions.chooseFloorScope(true)}
-          className="flex min-h-[64px] items-center justify-between gap-3 rounded-[18px] bg-brand px-[18px] text-left text-white disabled:opacity-70"
+          className="flex min-h-[72px] flex-col justify-center gap-1 rounded-[18px] bg-brand px-5 py-3 text-left text-white"
         >
-          <span className="flex flex-col gap-0.5">
-            <span className="text-[19px] font-extrabold">예, 이동할게요</span>
-            <span className="text-[13px] font-medium text-white/80">다른 층 목적지를 고르면 엘리베이터부터 안내해요</span>
-          </span>
-          <span className="flex-none text-[13px] font-bold">목적지 선택 →</span>
+          <span className="text-[19px] font-extrabold">예, 이동할게요</span>
+          <span className="text-[14px] font-medium text-white/85">엘리베이터부터 안내해요</span>
         </button>
         <button
           type="button"
           onClick={() => actions.chooseFloorScope(false)}
-          className="flex min-h-[64px] items-center justify-between gap-3 rounded-[18px] border-2 border-edge bg-surface px-[18px] text-left"
+          className="flex min-h-[72px] flex-col justify-center gap-1 rounded-[18px] border-2 border-edge bg-surface px-5 py-3 text-left"
         >
-          <span className="flex flex-col gap-0.5">
-            <span className="text-[19px] font-extrabold text-ink">아니요, 이 층이에요</span>
-            <span className="text-[13px] font-medium text-muted">{currentLabel} 목적지를 골라요</span>
-          </span>
-          <span className="flex-none text-[13px] font-bold text-brand">목적지 선택 →</span>
+          <span className="text-[19px] font-extrabold text-ink">아니요, 이 층이에요</span>
+          <span className="text-[14px] font-medium text-muted">{currentLabel} 목적지를 골라요</span>
         </button>
       </div>
     </div>

@@ -77,7 +77,7 @@ export function TrialScreen() {
         <ol className="m-0 flex list-none flex-col gap-2 p-0">
           {STEPS.map((st, i) => (
             <li key={st.title} className="flex items-start gap-3 rounded-2xl bg-surface px-4 py-3.5">
-              <div className="flex size-[26px] flex-none items-center justify-center rounded-full bg-ink text-[12px] font-extrabold text-white">{i + 1}</div>
+              <div className="flex size-[26px] flex-none items-center justify-center rounded-full bg-ink text-[13px] font-extrabold text-white">{i + 1}</div>
               <div className="flex min-w-0 flex-col gap-0.5 pt-0.5">
                 <div className="text-[15px] leading-[1.35] font-bold">{st.title}</div>
                 <div className="text-[13px] leading-[1.45] text-muted">{st.sub}</div>

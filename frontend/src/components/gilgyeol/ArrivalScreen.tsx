@@ -47,7 +47,7 @@ export function ArrivalScreen() {
       <dl className="m-0 grid grid-cols-3 gap-2 rounded-[18px] bg-surface px-3 py-4 text-center">
         {stats.map((x) => (
           <div key={x.k} className="flex flex-col gap-1">
-            <dt className="text-[12px] text-muted">{x.k}</dt>
+            <dt className="text-[13px] text-muted">{x.k}</dt>
             <dd className="m-0 text-[17px] font-bold">{x.v}</dd>
           </div>
         ))}

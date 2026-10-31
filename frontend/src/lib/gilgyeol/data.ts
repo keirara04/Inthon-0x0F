@@ -20,7 +20,7 @@ export const C = {
   muted: "#5E625D",
   brand: "#7A1832",
   route: "#2864A0",
-  haptic: "#5B4AB8",
+  haptic: "#2864A0",
   success: "#25734B",
   warning: "#965900",
   error: "#B3261E",

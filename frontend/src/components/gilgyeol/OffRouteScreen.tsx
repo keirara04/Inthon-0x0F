@@ -41,7 +41,7 @@ export function OffRouteScreen() {
           <div className="flex flex-col gap-1.5 rounded-2xl bg-surface px-4 py-3.5">
             <div className="text-[13px] font-bold text-muted">이렇게 감지했어요</div>
             <p className="m-0 text-[15px] leading-normal text-ink">{DETECTION_RULE}</p>
-            <p className="m-0 text-[12px] font-semibold text-warn-ink">시연에서는 ‘반대 복도로 이동해 보기’ 데모 입력으로 재현했어요</p>
+            <p className="m-0 text-[13px] font-semibold text-warn-ink">시연에서는 ‘반대 복도로 이동해 보기’ 데모 입력으로 재현했어요</p>
           </div>
           <div className="flex-1" />
           <PrimaryButton onClick={() => actions.openScan("sign")}>주변 표지 확인</PrimaryButton>

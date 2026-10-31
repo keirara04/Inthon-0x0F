@@ -38,19 +38,19 @@ export function SeekingCompass() {
     <div aria-hidden="true" className="gl-compass relative mx-auto size-[148px]">
       <svg viewBox="0 0 168 168" className="absolute inset-0 size-full overflow-visible">
         {/* slow, faint search pulses */}
-        <circle className="gl-ring-slow" cx="84" cy="84" r="58" fill="none" stroke="#5B4AB8" strokeWidth="2" />
+        <circle className="gl-ring-slow" cx="84" cy="84" r="58" fill="none" stroke="#2864A0" strokeWidth="2" />
         {/* fast, strong pulses once aligned */}
         <g className="gl-rings-fast">
-          <circle className="gl-ring-fast" cx="84" cy="84" r="58" fill="none" stroke="#5B4AB8" strokeWidth="3" />
-          <circle className="gl-ring-fast gl-ring-fast-2" cx="84" cy="84" r="58" fill="none" stroke="#5B4AB8" strokeWidth="3" />
+          <circle className="gl-ring-fast" cx="84" cy="84" r="58" fill="none" stroke="#2864A0" strokeWidth="3" />
+          <circle className="gl-ring-fast gl-ring-fast-2" cx="84" cy="84" r="58" fill="none" stroke="#2864A0" strokeWidth="3" />
         </g>
         <circle cx="84" cy="84" r="62" fill="none" stroke="#E3E0D7" strokeWidth="2" />
         <circle cx="84" cy="84" r="46" fill="#fff" />
         {/* target heading marker */}
-        <path d="M84 10 l7 11 h-14 z" fill="#5B4AB8" />
+        <path d="M84 10 l7 11 h-14 z" fill="#2864A0" />
         {/* device heading arrow */}
         <g className="gl-arrow">
-          <path d="M84 50 L100 86 L88 82 L88 112 L80 112 L80 82 L68 86 Z" fill="#5B4AB8" />
+          <path d="M84 50 L100 86 L88 82 L88 112 L80 112 L80 82 L68 86 Z" fill="#2864A0" />
         </g>
       </svg>
       <div className="gl-check absolute right-2 bottom-3 flex size-8 items-center justify-center rounded-full bg-success shadow-[0_6px_14px_rgba(37,115,75,.35)]">

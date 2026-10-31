@@ -74,7 +74,7 @@ export function RoutePreviewScreen() {
       <BackHeader label="경로 미리보기" onBack={actions.back} />
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2.5 rounded-[18px] bg-surface p-[18px]">
         <div className="flex flex-col gap-[3px]">
-          <div className="text-[12px] font-semibold text-muted">출발</div>
+          <div className="text-[13px] font-semibold text-muted">출발</div>
           <div className="text-[16px] font-bold">{startNode?.label ?? "—"}</div>
           <div className="text-[13px] text-muted">{departFloor}</div>
         </div>
@@ -83,7 +83,7 @@ export function RoutePreviewScreen() {
           <polyline points="14,1 20,6 14,11" fill="none" stroke={C.route} strokeWidth="2.2" />
         </svg>
         <div className="flex flex-col gap-[3px] text-right">
-          <div className="text-[12px] font-semibold text-muted">도착</div>
+          <div className="text-[13px] font-semibold text-muted">도착</div>
           <div className="text-[16px] font-bold text-brand">{d}</div>
           <div className="text-[13px] text-muted">{arriveFloor}</div>
         </div>
@@ -121,7 +121,7 @@ export function RoutePreviewScreen() {
             <circle cx="15" cy="75" r="6" fill={C.brand} />
             <rect x="68" y="33" width="14" height="14" rx="3" fill={C.route} />
           </svg>
-          <div className="text-[12px] text-muted">현위치 → 엘리베이터 홀</div>
+          <div className="text-[13px] text-muted">현위치 → 엘리베이터 홀</div>
         </div>
         <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
           <div className="text-[13px] font-bold">4층</div>
@@ -134,7 +134,7 @@ export function RoutePreviewScreen() {
             <circle cx="45" cy="45" r="5" fill="#fff" stroke={C.haptic} strokeWidth="2.5" />
             <circle cx="15" cy="20" r="7" fill={C.brand} />
           </svg>
-          <div className="text-[12px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
+          <div className="text-[13px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
         </div>
       </div>
         </>
@@ -151,10 +151,10 @@ export function RoutePreviewScreen() {
               {i + 1}
             </div>
             <div className="flex flex-col gap-1 pt-[3px]">
-              {p.floor && <div className="text-[12px] font-bold text-muted">{p.floor}</div>}
+              {p.floor && <div className="text-[13px] font-bold text-muted">{p.floor}</div>}
               <div className="text-[16px] font-semibold">{p.t}</div>
               {p.meta && <div className="text-[13px] text-muted">{p.meta}</div>}
-              {p.badge && p.tone && <div className={`self-start rounded-md px-2 py-[3px] text-[12px] font-bold ${badgeCls[p.tone]}`}>{p.badge}</div>}
+              {p.badge && p.tone && <div className={`self-start rounded-md px-2 py-[3px] text-[13px] font-bold ${badgeCls[p.tone]}`}>{p.badge}</div>}
             </div>
           </li>
         ))}

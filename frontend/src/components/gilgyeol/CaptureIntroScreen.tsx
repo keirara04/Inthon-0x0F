@@ -64,7 +64,7 @@ function ExampleShot() {
       )}
       </div>
       {/* Caption below the picture, so it never covers the map's chips. */}
-      <div className="flex items-center gap-2 border-t border-divider px-3 py-2 text-[12px] font-semibold text-muted">
+      <div className="flex items-center gap-2 border-t border-divider px-3 py-2 text-[13px] font-semibold text-muted">
         <span aria-hidden="true" className={`size-2 flex-none rounded-full transition-colors duration-300 ${phase === "map" ? "bg-route" : locked ? "bg-success" : "bg-edge"}`} />
         {phase === "map" ? "AI가 이렇게 읽어요" : phase === "scan" ? "안내도를 읽는 중" : "예시 · 우정정보관 4층 안내도"}
       </div>
@@ -101,20 +101,7 @@ export function CaptureIntroScreen() {
         대피 안내도를 찍어주세요
       </Title>
       <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽에 층별 안내도가 있어요.</p>
-      <BuildingPicker />
-      <ExampleShot />
-      <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0" aria-label="촬영 팁">
-        {TIPS.map(([icon, label]) => (
-          <li key={icon} className="flex flex-col items-center gap-1.5 rounded-2xl bg-surface px-1 py-3 text-center text-[13px] font-semibold text-ink">
-            <svg width="21" height="20" viewBox="0 0 21 20" fill="none" stroke={C.route} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              {TIP_ICONS[icon]}
-            </svg>
-            {label}
-          </li>
-        ))}
-      </ul>
-      <p className="m-0 text-[13px] leading-normal text-muted">카메라는 안내도와 표지를 읽을 때만 써요. 사진은 저장하지 않고, 읽은 지도만 이 건물을 찾는 다음 사람을 위해 저장해요. 주변 사람이 찍히지 않게 안내도만 가까이 비춰주세요.</p>
-      <div className="flex-1" />
+      {/* The photo buttons come first: they are this screen's job; example, tips and saved maps support them. */}
       {album.input}
       {s.trialOn ? (
         <>
@@ -134,6 +121,19 @@ export function CaptureIntroScreen() {
       <SecondaryButton dashed onClick={demo}>
         데모 안내도 불러오기
       </SecondaryButton>
+      <BuildingPicker />
+      <ExampleShot />
+      <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0" aria-label="촬영 팁">
+        {TIPS.map(([icon, label]) => (
+          <li key={icon} className="flex flex-col items-center gap-1.5 rounded-2xl bg-surface px-1 py-3 text-center text-[13px] font-semibold text-ink">
+            <svg width="21" height="20" viewBox="0 0 21 20" fill="none" stroke={C.route} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              {TIP_ICONS[icon]}
+            </svg>
+            {label}
+          </li>
+        ))}
+      </ul>
+      <p className="m-0 text-[14px] leading-normal text-muted">카메라는 안내도와 표지를 읽을 때만 써요. 사진은 저장하지 않고, 읽은 지도만 이 건물을 찾는 다음 사람을 위해 저장해요. 주변 사람이 찍히지 않게 안내도만 가까이 비춰주세요.</p>
     </div>
   );
 }

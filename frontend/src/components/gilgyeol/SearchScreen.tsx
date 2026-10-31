@@ -105,7 +105,7 @@ export function SearchScreen() {
                       우정정보관 · {r.cat === "엘리베이터" ? "1–5층 연결" : `${r.floor}층`} · {r.kind}
                     </div>
                   </div>
-                  <span className={cx("flex-none text-[13px] font-semibold", ready ? "text-route" : "text-muted")}>{ready ? "시연 경로" : "경로 준비 중"}</span>
+                  {!ready && <span className="flex-none text-[13px] font-semibold text-muted">경로 준비 중</span>}
                 </button>
               </li>
             );

@@ -47,6 +47,8 @@ export function StartLocationScreen() {
   const [floors, setFloors] = useState<ApiStartFloor[] | null>(null);
   const [floorsErr, setFloorsErr] = useState(false);
   const [pinning, setPinning] = useState(false);
+  // The three ways to correct the start live behind one button, so "맞아요, 계속하기" stays on screen.
+  const [fixing, setFixing] = useState(false);
 
   const setStartAt = (at: NonNullable<typeof s.startAt>) => {
     setPinning(false);
@@ -97,7 +99,7 @@ export function StartLocationScreen() {
         <div className="relative mx-auto h-[320px] w-full overflow-hidden rounded-[18px] border border-line bg-[#FAF9F6]">
           <Floor3DLazy levels={levels3d} markers={markers3d} selected={s.start} onSelect={(id) => START_IDS.has(id as StartNodeId) && pickOnMap(id as StartNodeId)} hint="돌려보기 · 원판을 눌러 출발 지점 선택" />
           {startNode && (
-            <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-brand px-2.5 py-1 text-[12px] font-bold text-white">
+            <div className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-brand px-2.5 py-1 text-[13px] font-bold text-white">
               {s.locEdit ? "현재 위치" : "현재 위치 · 추정"} · {startNode.label}
             </div>
           )}
@@ -130,7 +132,7 @@ export function StartLocationScreen() {
                 {on && (
                   <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-brand px-[7px] py-[3px] text-[12px] font-bold whitespace-nowrap text-white"
+                    className="pointer-events-none absolute -translate-x-1/2 rounded-md bg-brand px-[7px] py-[3px] text-[13px] font-bold whitespace-nowrap text-white"
                     style={{ left, top: `calc(${f2.fy * 100}% + 16px)` }}
                   >
                     {s.locEdit ? "현재 위치" : "현재 위치 · 추정"}
@@ -144,50 +146,55 @@ export function StartLocationScreen() {
       <div role="status" className={`text-[15px] font-semibold ${s.startAt ? "text-success" : startNode ? (s.locEdit ? "text-brand" : "text-warning") : "text-muted"}`}>
         {summary}
       </div>
-      <div className="flex flex-col gap-2">
-        <SecondaryButton aria-expanded={s.landmarks} onClick={toggleList}>
-          다른 입구에 계신가요?
-        </SecondaryButton>
-        {s.landmarks && (
-          <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
-            {!floors && !floorsErr && <div className="px-4 py-3 text-[14px] text-muted">불러오는 중…</div>}
-            {floorsErr && <div className="px-4 py-3 text-[14px] text-muted">목록을 불러오지 못했어요. 지도에서 위치를 찍어주세요.</div>}
-            {floors?.map((fl) => (
-              <div key={fl.floor} role="group" aria-label={floorKo(fl.floor)}>
-                <div className="bg-app-bg px-4 py-1.5 text-[12px] font-extrabold text-muted">{floorKo(fl.floor)}</div>
-                {fl.points.map((p) => {
-                  const on = s.startAt?.id === p.id;
-                  return (
-                    <button
-                      type="button"
-                      key={p.id}
-                      aria-pressed={on}
-                      onClick={() => setStartAt({ id: p.id, label: p.label, floor: fl.floor, via: "list" })}
-                      className="flex min-h-[52px] w-full items-center gap-3 border-0 border-b border-divider bg-surface px-4 text-left text-[16px] text-ink"
-                    >
-                      <span aria-hidden="true" className="flex size-7 flex-none items-center justify-center rounded-lg bg-warm-panel text-[12px] font-extrabold">
-                        {p.type === "elevator_hall" ? "EV" : NODE_TYPES[p.type].short}
-                      </span>
-                      <span className="flex-1">{p.label}</span>
-                      <span className="text-[13px] font-bold text-brand">{on ? "선택됨" : ""}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        )}
-        <SecondaryButton aria-expanded={pinning} onClick={() => setPinning((v) => !v)}>
-          {pinning ? "지도 찍기 닫기" : "지도에서 정확한 위치 찍기"}
-        </SecondaryButton>
-        {pinning && <PinMap initialFloor={s.startAt?.floor ?? "1F"} confirmLabel="여기에서 출발" onConfirm={(p) => setStartAt({ ...p, via: "pin" })} />}
-        <SecondaryButton aria-pressed={s.locEdit} onClick={() => actions.update({ locEdit: !s.locEdit })}>
-          {s.locEdit ? "수정 취소" : "위치 수정 (지도에서 누르기)"}
-        </SecondaryButton>
-      </div>
       <PrimaryButton disabled={!s.start && !s.startAt} onClick={() => (s.start || s.startAt) && actions.go("destFloor")}>
         맞아요, 계속하기
       </PrimaryButton>
+      <SecondaryButton aria-expanded={fixing} onClick={() => setFixing((v) => !v)}>
+        {fixing ? "닫기" : "위치가 달라요"}
+      </SecondaryButton>
+      {fixing && (
+        <div className="flex flex-col gap-2">
+          <SecondaryButton aria-expanded={s.landmarks} onClick={toggleList}>
+            다른 입구에 계신가요?
+          </SecondaryButton>
+          {s.landmarks && (
+            <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">
+              {!floors && !floorsErr && <div className="px-4 py-3 text-[14px] text-muted">불러오는 중…</div>}
+              {floorsErr && <div className="px-4 py-3 text-[14px] text-muted">목록을 불러오지 못했어요. 지도에서 위치를 찍어주세요.</div>}
+              {floors?.map((fl) => (
+                <div key={fl.floor} role="group" aria-label={floorKo(fl.floor)}>
+                  <div className="bg-app-bg px-4 py-1.5 text-[13px] font-extrabold text-muted">{floorKo(fl.floor)}</div>
+                  {fl.points.map((p) => {
+                    const on = s.startAt?.id === p.id;
+                    return (
+                      <button
+                        type="button"
+                        key={p.id}
+                        aria-pressed={on}
+                        onClick={() => setStartAt({ id: p.id, label: p.label, floor: fl.floor, via: "list" })}
+                        className="flex min-h-[52px] w-full items-center gap-3 border-0 border-b border-divider bg-surface px-4 text-left text-[16px] text-ink"
+                      >
+                        <span aria-hidden="true" className="flex size-7 flex-none items-center justify-center rounded-lg bg-warm-panel text-[13px] font-extrabold">
+                          {p.type === "elevator_hall" ? "EV" : NODE_TYPES[p.type].short}
+                        </span>
+                        <span className="flex-1">{p.label}</span>
+                        <span className="text-[13px] font-bold text-brand">{on ? "선택됨" : ""}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+          <SecondaryButton aria-expanded={pinning} onClick={() => setPinning((v) => !v)}>
+            {pinning ? "지도 찍기 닫기" : "지도에서 정확한 위치 찍기"}
+          </SecondaryButton>
+          {pinning && <PinMap initialFloor={s.startAt?.floor ?? "1F"} confirmLabel="여기에서 출발" onConfirm={(p) => setStartAt({ ...p, via: "pin" })} />}
+          <SecondaryButton aria-pressed={s.locEdit} onClick={() => actions.update({ locEdit: !s.locEdit })}>
+            {s.locEdit ? "수정 취소" : "위치 수정 (지도에서 누르기)"}
+          </SecondaryButton>
+        </div>
+      )}
     </div>
   );
 }

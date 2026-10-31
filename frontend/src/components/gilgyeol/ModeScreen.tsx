@@ -39,7 +39,7 @@ export function ModeScreen() {
                 <span className="text-[17px] font-bold text-ink">{m.label}</span>
                 <span className="text-[14px] leading-[1.4] text-muted">{m.sub}</span>
               </span>
-              {m.rec && <span className="flex-none rounded-md bg-warm-panel px-2 py-[3px] text-[12px] font-bold text-ink">기본</span>}
+              {m.rec && <span className="flex-none rounded-md bg-warm-panel px-2 py-[3px] text-[13px] font-bold text-ink">기본</span>}
             </button>
           );
         })}

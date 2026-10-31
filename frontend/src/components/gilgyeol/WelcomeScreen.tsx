@@ -42,9 +42,9 @@ export function WelcomeScreen() {
       {/* Hero: Alienie inside haptic rings that pulse outward like the vibration guidance. */}
       <div aria-hidden="true" className="relative flex min-h-[210px] max-h-[300px] flex-1 items-center justify-center overflow-hidden rounded-[26px] bg-haptic-tint">
         <div className="absolute size-[210px] rounded-full border-2 border-[#DCD7F2]" />
-        <div className="gw-ring absolute size-[120px] rounded-full border-2 border-[#B3A9E3]" />
-        <div className="gw-ring gw-ring-2 absolute size-[120px] rounded-full border-2 border-[#B3A9E3]" />
-        <div className="gw-ring gw-ring-3 absolute size-[120px] rounded-full border-2 border-[#B3A9E3]" />
+        <div className="gw-ring absolute size-[120px] rounded-full border-2 border-[#A9C3DE]" />
+        <div className="gw-ring gw-ring-2 absolute size-[120px] rounded-full border-2 border-[#A9C3DE]" />
+        <div className="gw-ring gw-ring-3 absolute size-[120px] rounded-full border-2 border-[#A9C3DE]" />
         <Mascot pose="main" height={150} motion="bob" className="relative translate-y-2" />
       </div>
 
@@ -68,7 +68,7 @@ export function WelcomeScreen() {
         </button>
       </div>
 
-      <p className="m-0 flex items-start justify-center gap-1.5 text-center text-[12px] leading-normal text-muted">
+      <p className="m-0 flex items-start justify-center gap-1.5 text-center text-[13px] leading-normal text-muted">
         <span aria-hidden="true">ⓘ</span>
         일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.
       </p>

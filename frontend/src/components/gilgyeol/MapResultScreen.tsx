@@ -74,7 +74,7 @@ export function MapResultScreen() {
               role="radio"
               aria-checked={mode === m}
               onClick={() => setMode(m)}
-              className={`h-9 min-w-11 rounded-lg border-none px-2.5 text-[12px] font-bold text-ink ${mode === m ? "bg-surface" : "bg-transparent"}`}
+              className={`h-9 min-w-11 rounded-lg border-none px-2.5 text-[13px] font-bold text-ink ${mode === m ? "bg-surface" : "bg-transparent"}`}
             >
               {m === "2d" ? "2D" : "3D"}
             </button>
@@ -86,7 +86,7 @@ export function MapResultScreen() {
         {picked ? (
           <div role="status" className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[12px] font-semibold text-muted">
+              <span className="text-[13px] font-semibold text-muted">
                 {TYPE_LABEL[picked.type] ?? "지점"} · 복도 연결 {links}곳
               </span>
               <span className="whitespace-normal text-[18px] font-extrabold [overflow-wrap:anywhere]">{picked.label}</span>
@@ -99,7 +99,7 @@ export function MapResultScreen() {
           <dl className="m-0 grid grid-cols-3 gap-2">
             {stats.map(([k, v, ok]) => (
               <div key={k} className="flex flex-col gap-0.5 rounded-2xl bg-surface px-3 py-2.5">
-                <dt className="text-[12px] text-muted">{k}</dt>
+                <dt className="text-[13px] text-muted">{k}</dt>
                 <dd className={`m-0 flex items-center gap-1.5 text-[16px] font-bold ${ok ? "text-ink" : "text-warning"}`}>
                   <StatusDot color={ok ? C.success : C.warning} dashed={!ok} />
                   {v}
@@ -108,7 +108,7 @@ export function MapResultScreen() {
             ))}
           </dl>
         )}
-        <p className="m-0 text-[12px] leading-normal text-muted">
+        <p className="m-0 text-[13px] leading-normal text-muted">
           {target
             ? floorRead
               ? `${floorName(target)} 안내도를 확인했어요. 기존 목적지까지 안내를 계속해요.`
