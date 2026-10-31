@@ -111,14 +111,14 @@ function stepFor(s: AppState): Step | null {
           key: "guide-next",
           no: 7,
           title: "이동 안내",
-          text: `화면의 방향과 다음 지점을 보며 이동해요. ${next.kind === "stairs" ? "계단에" : "엘리베이터 홀에"} 오면 강조된 버튼을 눌러주세요.`,
+          text: `화면의 방향과 다음 지점을 보며 이동해요. ${next.kind === "stairs" ? "계단에" : "엘리베이터 홀에"} 오면 ‘${next.kind === "stairs" ? "계단에 왔어요" : "엘리베이터 홀에 왔어요"}’를 눌러주세요.`,
         };
       }
       return {
         key: "guide-next",
         no: 7,
         title: "이동 안내",
-        text: "화면의 방향과 다음 지점을 보며 이동해요. 강조된 버튼을 누르면 다음 안내로 넘어가요.",
+        text: "화면의 방향과 다음 지점을 보며 이동해요. 다 왔으면 ‘다음 안내’를 눌러주세요.",
       };
     }
     case "elevator":
@@ -322,8 +322,7 @@ export function TrialGuide() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-2 pt-0.5">
-            <span className="text-[12px] font-semibold text-muted">강조된 버튼을 눌러 계속하세요</span>
+          <div className="flex items-center justify-end gap-2 pt-0.5">
             <button
               type="button"
               onClick={() => actions.endTrial(true)}
