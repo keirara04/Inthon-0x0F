@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { canvasTextMeasure, MAP_FONT, placeMapChips } from "@/lib/gilgyeol/mapLabels";
 import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C, EDITOR_H, EDITOR_W } from "@/lib/gilgyeol/data";
 import type { GraphNode, NodeType, StartNodeId } from "@/lib/gilgyeol/types";
@@ -17,9 +18,6 @@ const NODE_COLOR: Record<NodeType, string> = {
   exit: C.error,
   landmark: "#B5B0A4",
 };
-
-/** Small lettered chips for places people navigate by. Junctions and landmarks are not drawn. */
-const BADGE: Partial<Record<NodeType, string>> = { stairs: "계", elevator_hall: "승", exit: "출", entrance: "입" };
 
 export type MapFrame = ReturnType<typeof graphFrame>;
 
@@ -96,42 +94,6 @@ function Outlines({ g, f, selected, stroke }: { g: ParsedGraph; f: MapFrame; sel
   );
 }
 
-/** "405호" -> "405", "412호(화장실)" -> "412 화장실" (the prompt labels restrooms that way). */
-const shortLabel = (n: GraphNode) =>
-  n.label
-    .replace(/\s*호(?=$|\s*\()/, "")
-    .replace(/\s*\(?화장실\)?/, " 화장실")
-    .trim()
-    .slice(0, 8);
-/** Rough text width in em: Hangul is about square, Latin and digits about 0.6em. */
-const textEm = (t: string) => [...t].reduce((w, ch) => w + (/[ㄱ-힣]/.test(ch) ? 1 : 0.62), 0);
-
-type Chip = { n: GraphNode; x: number; y: number; w: number; h: number; text: string; badge?: string };
-
-/** Lays out room chips and lettered badges; a chip that still collides after nudging becomes a dot. */
-function placeChips(g: ParsedGraph, f: MapFrame) {
-  const { k } = f;
-  const chips: Chip[] = [];
-  const dots: { n: GraphNode; x: number; y: number }[] = [];
-  const nodes = g.nodes
-    .filter((n) => n.type === "room" || BADGE[n.type])
-    .map((n) => ({ n, p: f.pt(n) }))
-    .sort((a, b) => a.p.y - b.p.y || a.p.x - b.p.x);
-  const hits = (c: { x: number; y: number; w: number; h: number }) =>
-    chips.some((o) => Math.abs(o.x - c.x) * 2 < o.w + c.w + 2 * k && Math.abs(o.y - c.y) * 2 < o.h + c.h + 2 * k);
-  // ponytail: greedy label nudge, no force layout; fine for ~30 nodes
-  for (const { n, p } of nodes) {
-    const badge = BADGE[n.type];
-    const text = badge ?? shortLabel(n);
-    const h = 17 * k;
-    const w = badge ? h : (textEm(text) * 10 + 10) * k;
-    const spot = [0, -(h + 3 * k), h + 3 * k].map((dy) => ({ x: p.x, y: p.y + dy, w, h })).find((c) => !hits(c));
-    if (spot) chips.push({ n, ...spot, text, badge });
-    else dots.push({ n, ...p });
-  }
-  return { chips, dots };
-}
-
 /**
  * The AI's floor graph as a floor plan: corridors as thick route lines, rooms as numbered chips,
  * stairs/elevators/exits as lettered badges, 현위치 as a pulsing pin. Draws in once on mount.
@@ -184,8 +146,8 @@ export function MapSketch({
     );
   }
 
-  const { chips, dots } = placeChips(g, f);
-  const chipAt = new Map(chips.map((c) => [c.n.id, c]));
+  const currentPoint = cur && f.pt(cur);
+  const chips = placeMapChips(g.nodes, { ...f, measure: canvasTextMeasure() }, currentPoint ? [{ x: currentPoint.x, y: currentPoint.y - 10 * k, w: 44 * k, h: 50 * k }] : []);
   const chipsStart = Math.min(corridors.length * 0.03, 0.6) + 0.25;
   const curP = cur && f.pt(cur);
 
@@ -205,8 +167,7 @@ export function MapSketch({
         const [a, b] = [at.get(e.a), at.get(e.b)];
         if (!a || !b || isRoom(e.a) === isRoom(e.b)) return null;
         const [room, door] = isRoom(e.a) ? [a, b] : [b, a];
-        const c = chipAt.get(room.id);
-        const p = c ?? f.pt(room);
+        const p = f.pt(room);
         const q = f.pt(door);
         return <path key={`s-${e.a}-${e.b}`} d={`M${p.x} ${p.y}L${q.x} ${q.y}`} stroke={C.route} strokeOpacity={0.5} strokeWidth={1.5 * k} strokeLinecap="round" />;
       })}
@@ -216,8 +177,8 @@ export function MapSketch({
       {corridors.map((e, i) => (
         <path key={`r-${e.a}-${e.b}`} d={line(at.get(e.a)!, at.get(e.b)!)} pathLength={1} className="gg-draw-in" stroke={C.route} strokeWidth={5 * k} strokeLinecap="round" style={{ animationDelay: corridorDelay(i) }} />
       ))}
-      {dots.map(({ n, x, y }) => (
-        <circle key={n.id} cx={x} cy={y} r={3 * k} fill={NODE_COLOR[n.type] ?? C.ink} />
+      {chips.filter((c) => Math.hypot(c.x - c.anchor.x, c.y - c.anchor.y) > k).map((c) => (
+        <line key={`label-${c.n.id}`} data-label-for={c.n.id} x1={c.anchor.x} y1={c.anchor.y} x2={c.x} y2={c.y} stroke={C.muted} strokeOpacity={0.7} strokeWidth={k} />
       ))}
       {chips.map((c, i) => (
         <g
@@ -227,31 +188,16 @@ export function MapSketch({
           style={interactive ? { pointerEvents: "auto", cursor: "pointer" } : undefined}
         >
           <g className="gg-pop-in" style={{ animationDelay: `${Math.min(chipsStart + i * 0.04, 1.6)}s` }}>
-            {c.badge ? (
-              <>
-                {selected === c.n.id && <circle r={c.h / 2 + 3 * k} fill="none" stroke={C.brand} strokeWidth={2.5 * k} />}
-                <circle r={c.h / 2} fill={NODE_COLOR[c.n.type] ?? C.ink} stroke="#fff" strokeWidth={1.5 * k} />
-                <text y={3.5 * k} textAnchor="middle" fontSize={10 * k} fontWeight={800} fill="#fff">
-                  {c.badge}
-                </text>
-              </>
-            ) : (
-              <>
-                <rect
-                  x={-c.w / 2}
-                  y={-c.h / 2}
-                  width={c.w}
-                  height={c.h}
-                  rx={5 * k}
-                  fill={selected === c.n.id ? C.brand : "#fff"}
-                  stroke={selected === c.n.id ? C.brand : C.border}
-                  strokeWidth={k}
-                />
-                <text y={3.5 * k} textAnchor="middle" fontSize={10 * k} fontWeight={700} fill={selected === c.n.id ? "#fff" : C.ink}>
-                  {c.text}
-                </text>
-              </>
-            )}
+            <title>{c.text}</title>
+            <rect
+              x={-c.w / 2} y={-c.h / 2} width={c.w} height={c.h} rx={5 * k}
+              fill={selected === c.n.id ? C.brand : c.badge ? NODE_COLOR[c.n.type] : "#fff"}
+              stroke={selected === c.n.id ? C.brand : c.badge ? NODE_COLOR[c.n.type] : C.border}
+              strokeWidth={selected === c.n.id ? 2 * k : k}
+            />
+            <text textAnchor="middle" dominantBaseline="central" fontFamily={MAP_FONT} fontSize={c.fontSize} fontWeight={700} fill={selected === c.n.id || c.badge ? "#fff" : C.ink}>
+              {c.lines.map((line, j) => <tspan key={j} x={0} y={(j - (c.lines.length - 1) / 2) * c.lineHeight}>{line}</tspan>)}
+            </text>
           </g>
         </g>
       ))}
