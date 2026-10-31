@@ -519,6 +519,27 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     advance();
   }, [advance]);
 
+  /**
+   * No checked map for this floor: route on the photographed one (AI draft). The user is standing at the map they
+   * just photographed, so its 현위치 is the start; else its elevator hall, else stairs. False when nothing usable.
+   */
+  const startOnPhoto = useCallback(
+    (g: ParsedGraph | null, floor: string) => {
+      const map = g ? photoGraph(g) : null;
+      const here = g?.current_node_id ? (g.current_node_id.startsWith(`${floor}-`) ? g.current_node_id : `${floor}-${g.current_node_id}`) : null;
+      const photoHall =
+        map?.nodes.find((n) => n.id === here) ?? map?.nodes.find((n) => n.type === "elevator_hall") ?? map?.nodes.find((n) => n.type === "stairs");
+      if (!map || !photoHall) {
+        toast(map ? "안내도에서 현위치나 엘리베이터를 찾지 못했어요. 다시 찍어주세요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+        say(map ? "안내도에서 현위치를 찾지 못했어요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+        return false;
+      }
+      update({ startAt: { id: photoHall.id, label: photoHall.label, floor, via: "list" }, start: null, photoMap: map });
+      return true;
+    },
+    [toast, say, update],
+  );
+
   const confirmMap = useCallback(async () => {
     const s = ref.current;
     const g = s.mapDemo ? null : s.parsed;
@@ -527,18 +548,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       const floor = g?.floor ?? floorLabel(DEST_FLOOR);
       const hall = await elevatorHall(floor);
       if (!hall) {
-        // No checked map for this floor: route on the photographed one (AI draft). The user is standing at the
-        // map they just photographed, so its 현위치 is the start; else its elevator hall, else stairs.
-        const map = g ? photoGraph(g) : null;
-        const here = g?.current_node_id ? (g.current_node_id.startsWith(`${floor}-`) ? g.current_node_id : `${floor}-${g.current_node_id}`) : null;
-        const photoHall =
-          map?.nodes.find((n) => n.id === here) ?? map?.nodes.find((n) => n.type === "elevator_hall") ?? map?.nodes.find((n) => n.type === "stairs");
-        if (!map || !photoHall) {
-          toast(map ? "안내도에서 현위치나 엘리베이터를 찾지 못했어요. 다시 찍어주세요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
-          say(map ? "안내도에서 현위치를 찾지 못했어요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
-          return;
-        }
-        update({ startAt: { id: photoHall.id, label: photoHall.label, floor, via: "list" }, start: null, photoMap: map });
+        if (!startOnPhoto(g, floor)) return;
         say(`${floorName(floor)} 안내도예요. 검수 전 AI 지도로 안내해요. 목적지를 골라주세요`);
         go("search", { floorPick: floorNumber(floor), query: "", cat: null });
         return;
@@ -557,8 +567,15 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       navContinueAfterFloorMap();
       return;
     }
-    go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !s.start, landmarks: false });
-  }, [go, update, navContinueAfterFloorMap, toast, say]);
+    // A photo of a floor with no checked map (2F, 3F): start on that photo, not on the 1F demo start spots.
+    if (g && g.floorSource === "map" && !(await elevatorHall(g.floor))) {
+      if (!startOnPhoto(g, g.floor)) return;
+      say(`${floorName(g.floor)} 안내도예요. 검수 전 AI 지도로 안내해요`);
+      go("destFloor", { landmarks: false });
+      return;
+    }
+    go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !s.start, landmarks: false, photoMap: null });
+  }, [go, update, navContinueAfterFloorMap, say, startOnPhoto]);
 
   const scanNext = useCallback(
     (manual: boolean) => {
@@ -656,14 +673,17 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     async (otherFloor: boolean) => {
       const s = ref.current;
       const floor = s.startAt?.floor ?? s.parsed?.floor ?? "1F";
+      // Started on a photographed floor with no checked map: its rooms and halls come from that photo.
+      const photo = s.photoMap?.floor === floor ? s.photoMap : null;
       if (!otherFloor) {
-        go("search", { rideMode: false, photoMap: null, floorPick: floorNumber(floor), query: "", cat: null });
+        go("search", { rideMode: false, photoMap: photo, floorPick: floorNumber(floor), query: "", cat: null });
         return;
       }
       if (s.routeLoading) return;
       update({ routeLoading: true });
       try {
-        const hall = await elevatorHall(floor);
+        const photoHall = photo?.nodes.find((n) => n.type === "elevator_hall");
+        const hall = photo ? (photoHall ? { id: photoHall.id, label: photoHall.label } : null) : await elevatorHall(floor);
         if (!hall) throw new Error(`${floorName(floor)} 엘리베이터 홀을 찾지 못했어요`);
         const from = s.startAt?.id ?? START_NODE_IDS[s.start ?? "here"];
         if (from === hall.id) {
@@ -672,7 +692,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
           arrive();
           return;
         }
-        const full = await fetchRoute(from, hall.id);
+        const full = photo ? await fetchPhotoRoute(photo, from, hall.id) : await fetchRoute(from, hall.id);
         // Only this floor's walk: the mock router (and any multi-floor answer) may append a ride step.
         const cut = full.steps.findIndex((st) => st.kind !== "walk");
         const route = { ...full, steps: cut >= 0 ? full.steps.slice(0, cut) : full.steps, arrived: { ...full.arrived, node: hall.id, label: hall.label, floor } };
@@ -813,7 +833,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     if (s.screen === "floorMap" && s.rideMode) {
       // Before the destination is picked, "back" just undoes "예, 이동할게요".
       navLoad(null);
-      go("destFloor", { rideMode: false, photoMap: null, route: null, steps: [], step: 0, dest: null });
+      go("destFloor", { rideMode: false, route: null, steps: [], step: 0, dest: null }); // keeps photoMap: chooseFloorScope only reuses it on its own floor
       return;
     }
     if (s.screen === "floorMap") return; // Keep guidance paused until a new plan is confirmed or the trip ends.
@@ -838,6 +858,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     }
     if (s.screen === "elevator") {
       startGuide(Math.max(0, s.step - 1));
+      return;
+    }
+    // Started on a photographed floor: back shows that photo, not the 1F demo start spots.
+    if (s.screen === "destFloor" && s.photoMap) {
+      go("mapResult");
       return;
     }
     go(BACK[s.screen] ?? "welcome");
