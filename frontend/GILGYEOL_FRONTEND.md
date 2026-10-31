@@ -22,8 +22,9 @@ npx tsc --noEmit
 
 | 환경 변수 | 기본값 | 설명 |
 |---|---|---|
-| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Laravel 백엔드 주소 |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Laravel 백엔드 주소 (배포: `https://inthon-api.hakeemiridza.com`) |
 | `NEXT_PUBLIC_GILGYEOL_API` | (없음 = `mock`) | `live`로 두면 실제 API 호출. 미설정 시 목업 데이터 |
+| `NEXT_PUBLIC_GILGYEOL_ADMIN_TOKEN` | (없음) | `PUT /api/graph`의 `X-Admin-Token`. 빌드에 포함되므로 배포 환경변수로만 설정 |
 
 - 카메라(`getUserMedia`)는 **HTTPS 또는 localhost**에서만 동작합니다. 같은 Wi-Fi의 폰에서 `http://<PC IP>:3000`으로 열면 카메라는 막히고 수동 체크포인트로 진행합니다.
 - 기본 화면에는 **사용자가 보는 앱 화면만** 나옵니다. 넓은 화면(≥760px)에서는 390×844 기기 프레임 안에, 폰에서는 전체 화면으로 실행됩니다.
@@ -166,19 +167,22 @@ welcome → editor (관리자 · 지도 만들기)
 
 ## 7. API 어댑터 (`lib/gilgyeol/api.ts`)
 
-화면은 직접 `fetch`하지 않고 어댑터만 호출합니다. 현재 백엔드에는 길결 엔드포인트가 없어 **mock이 기본**입니다.
+화면은 직접 `fetch`하지 않고 어댑터만 호출합니다. `NEXT_PUBLIC_GILGYEOL_API=live`가 아니면 **mock이 기본**입니다. 백엔드 응답은 모두 `{ data: ... }`로 감싸여 있어 어댑터에서 풀어 줍니다.
 
 | 함수 | live 엔드포인트 | mock 동작 | 사용처 |
 |---|---|---|---|
 | `searchPlaces(q)` | `GET /api/search?q=` | `ROOMS` 필터 | SearchScreen (로딩/오류/재시도) |
-| `parseEvacMap(file)` | `POST /api/evac-map/parse` (multipart `image`) | 1.5초 후 `SAMPLE_AI_GRAPH` | GraphEditor AI 초안 |
-| `saveFloorGraph(id, graph, status)` | `PUT /api/floors/{id}/graph` | 0.4초 지연 | GraphEditor 저장 |
+| `parseEvacMap(file, building, floor)` | `POST /api/evac-map/parse` (multipart `image`, `building`, `floor: "4F"`) | 1.5초 후 `SAMPLE_AI_GRAPH` | GraphEditor AI 초안 |
+| `saveFloorGraph({ building, floor, graph, status, replace })` | `PUT /api/graph` (`X-Admin-Token`, 0–1 좌표, `elevators[]`) | 0.4초 지연 | GraphEditor 저장 |
+| `fetchRoute(start, dest)` | `POST /api/route` (`start_node`, `dest_node`) | 오류 | 아직 화면 미연결 |
+| `checkCheckpoint(blob, expectedNode)` | `POST /api/checkpoint` (multipart `image`, `expected_node`) | 0.9초 후 `matched` | 아직 화면 미연결 |
 
-백엔드 연동 시 추가 필요 (브리프 기준, 아직 미연결):
-
-- `POST /api/route` (`start_node`, `dest_node`) → 현재 경로 단계는 `data.ts`의 `routeSteps()` 고정값
-- `POST /api/checkpoint` (프레임 + 기대 노드) → 현재 스캔 결과는 데모 선택값
-- `POST /api/sessions/{id}/event` → 미구현
+변환 규칙:
+- 검색 결과 `{id,label,type,floor:"4F",building}` → `Room` (`label→name`, `floor→4`, `type→cat`). `id`는 **노드 id 그대로** 두고 `route`/`checkpoint`에 씁니다.
+- 빈 검색어는 백엔드가 422라서 `q=우정정보관`으로 전체 목록을 받고, 분류·층 필터는 화면에서 클라이언트 필터로 적용합니다.
+- 안내도 파싱 좌표는 0–1 비율 → 에디터 캔버스(340×230)로, 저장할 때 다시 0–1로 변환합니다.
+- 저장 시 노드 id에 `<층>-` 접두어를 붙이고, 엘리베이터·계단은 `ref`(층 연결 키)를 함께 보냅니다. `servedFloors`는 `1F`/`B1` 형식으로 변환합니다.
+- 검수된 층을 덮어쓸 때만 `replace: true` — draft 저장이 verified 데이터를 지우지 않도록 editor는 `status === "verified"`일 때만 보냅니다.
 
 원칙: 안내도 파싱 결과는 항상 `draft`로 시작하고, 사람이 검수한 `verified` 그래프만 사용자 안내에 사용합니다.
 
@@ -250,7 +254,7 @@ welcome → editor (관리자 · 지도 만들기)
 ## 12. 남은 작업
 
 - [ ] 실제 기기 테스트 (Android 진동, iOS 음성·자세 권한, HTTPS 환경 카메라)
-- [ ] 백엔드 `search` / `route` / `evac-map/parse` / `floors/{id}/graph` / `checkpoint` / `sessions` 연동 후 `NEXT_PUBLIC_GILGYEOL_API=live` 전환
+- [ ] 백엔드 `search` / `evac-map/parse` / `graph` 연동 완료(어댑터 기준). 화면에서 `NEXT_PUBLIC_GILGYEOL_API=live`로 전환해 확인
 - [ ] 경로 단계를 `POST /api/route` 응답 기준으로 렌더 (현재 고정 3단계 + 405호 기준 문구)
 - [ ] 실제 방향 센서(heading) 기반 방향 상태와 이탈 감지(60°/5초)
 - [ ] 그래프 에디터 층별 세션 유지 (현재 층 전환 시 이전 편집 세션 초기화)

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { parseEvacMap, saveFloorGraph } from "@/lib/gilgyeol/api";
-import { C, EDITOR_H, EDITOR_W, FLOOR_STATUS, NODE_TYPES, SAMPLE_AI_GRAPH } from "@/lib/gilgyeol/data";
+import { API_MODE, parseEvacMap, saveFloorGraph } from "@/lib/gilgyeol/api";
+import { BUILDING, C, EDITOR_H, EDITOR_W, FLOOR_STATUS, NODE_TYPES, SAMPLE_AI_GRAPH, parseServedFloors } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { GraphEdge, GraphError, GraphNode, NodeType } from "@/lib/gilgyeol/types";
 import { BackHeader, Badge } from "./ui";
@@ -27,10 +27,10 @@ export function validateGraph(nodes: GraphNode[], edges: GraphEdge[], floor: num
     const deg = edges.filter((e) => e.a === n.id || e.b === n.id).length;
     if (!deg) out.push({ nodeId: n.id, text: `${n.label} · 연결된 간선이 없어요` });
     if (n.type === "elevator_hall") {
-      const floors = n.servedFloors.split(/[,\s]+/).filter(Boolean);
+      const floors = parseServedFloors(n.servedFloors);
       if (!floors.length) out.push({ nodeId: n.id, text: `${n.label} · served_floors가 입력되지 않았어요` });
-      else if (floors.some((f) => !/^-?\d+$/.test(f))) out.push({ nodeId: n.id, text: `${n.label} · served_floors는 숫자로 입력해 주세요 (예: 1,2,3)` });
-      else if (!floors.includes(String(floor))) out.push({ nodeId: n.id, text: `${n.label} · 현재 층(${floor}층)이 정차 층에 없어요` });
+      else if (floors.some((f) => f === null)) out.push({ nodeId: n.id, text: `${n.label} · served_floors는 4F·B1 형식으로 입력해 주세요` });
+      else if (!floors.includes(`${floor}F`)) out.push({ nodeId: n.id, text: `${n.label} · 현재 층(${floor}F)이 정차 층에 없어요` });
     }
     if (n.type === "room" && !/^\d{3}호$/.test(n.label)) out.push({ nodeId: n.id, text: `${n.label} · 호실 번호 형식을 확인해 주세요 (예: 405호)` });
   });
@@ -103,7 +103,7 @@ export function GraphEditorScreen() {
     setPhase("loading");
     setParseError(null);
     try {
-      const g = await parseEvacMap(img?.file ?? null);
+      const g = await parseEvacMap(img?.file ?? null, BUILDING, floor);
       setNodes(g.nodes);
       setEdges(g.edges);
       setHist([]);
@@ -122,7 +122,8 @@ export function GraphEditorScreen() {
     setSaving(true);
     setSaveError(null);
     try {
-      await saveFloorGraph(`woojung-${floor}f`, { nodes, edges }, status);
+      // Draft saves never overwrite a verified floor (the API answers 409); verified saves are confirmed below.
+      await saveFloorGraph({ building: BUILDING, floor, graph: { nodes, edges }, status, replace: status === "verified" });
       setSaved(status);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "저장하지 못했어요");
@@ -423,7 +424,7 @@ export function GraphEditorScreen() {
             </div>
           )}
           <button type="button" onClick={generate} className="h-14 rounded-2xl border-none bg-haptic text-[16px] font-bold text-white">
-            AI 초안 생성 · 시뮬레이션
+            AI 초안 생성{API_MODE === "mock" ? " · 시뮬레이션" : ""}
           </button>
           <button type="button" onClick={reset} className="h-[46px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[14px] font-semibold text-ink">
             다른 이미지 선택
@@ -433,7 +434,7 @@ export function GraphEditorScreen() {
 
       {phase === "loading" && (
         <div role="status" className="rounded-[14px] bg-haptic-tint p-4 text-[15px] leading-normal font-bold text-haptic-ink">
-          AI가 노드·간선 초안을 만들고 있어요 · 시뮬레이션
+          AI가 노드·간선 초안을 만들고 있어요{API_MODE === "mock" ? " · 시뮬레이션" : ""}
         </div>
       )}
 
@@ -565,7 +566,7 @@ export function GraphEditorScreen() {
               {selN.type === "elevator_hall" && (
                 <label className={labelCls}>
                   served_floors · 정차 층 (현장 확인 후 입력)
-                  <input ref={stopsRef} value={selN.servedFloors} onChange={(e) => updateSel({ servedFloors: e.target.value })} placeholder="예: 1,2,3,4,5" inputMode="numeric" className={field} />
+                  <input ref={stopsRef} value={selN.servedFloors} onChange={(e) => updateSel({ servedFloors: e.target.value })} placeholder="예: 1F,2F,3F,4F (또는 1,2,3,4)" className={field} />
                 </label>
               )}
             </div>

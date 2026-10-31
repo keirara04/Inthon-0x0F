@@ -56,7 +56,7 @@ export const ROOMS: Room[] = [
   { id: "stA", name: "계단 A", kind: "계단", floor: 1, cat: "계단", routeReady: false },
 ];
 
-export const CATEGORIES = ["강의실", "행정실", "엘리베이터", "계단"] as const;
+export const CATEGORIES = ["강의실", "행정실", "엘리베이터", "계단", "기타"] as const;
 export const FLOORS = [1, 2, 3, 4, 5];
 
 export const START_NODES: StartNode[] = [
@@ -143,6 +143,33 @@ export const NODE_TYPES: Record<NodeType, { short: string; desc: string; def: st
 
 export const EDITOR_W = 340;
 export const EDITOR_H = 230;
+
+/** 4 => "4F", -1 => "B1" — the backend's floor label format. */
+export function floorLabel(floor: number): string {
+  return floor < 0 ? `B${Math.abs(floor)}` : `${floor}F`;
+}
+
+/**
+ * Normalizes the editor's free-text stop list into backend floor labels.
+ * Accepts "1,2,3" (old demo form) and "1F, B1" (contract form); invalid entries become null.
+ */
+export function parseServedFloors(text: string): (string | null)[] {
+  return text
+    .split(/[,\s]+/)
+    .filter(Boolean)
+    .map((raw) => {
+      const t = raw.toUpperCase();
+      const basement = /^B(\d+)$/.exec(t);
+      if (basement) return `B${parseInt(basement[1], 10)}`;
+      const above = /^(\d+)F$/.exec(t);
+      if (above) return `${parseInt(above[1], 10)}F`;
+      if (/^-?\d+$/.test(t)) {
+        const n = parseInt(t, 10);
+        return n < 0 ? `B${-n}` : `${n}F`;
+      }
+      return null;
+    });
+}
 
 /** Simulated AI draft for the 4F evacuation map — intentionally contains errors to review. */
 export const SAMPLE_AI_GRAPH: FloorGraph = {

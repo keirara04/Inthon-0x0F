@@ -24,7 +24,7 @@ export type OffrouteState = "alert" | "floor" | "confirm";
 export type GuideStep = 0 | 1 | 2;
 export type HapticPattern = "dir" | "left" | "right" | "floor" | "confirm" | "arrive" | "off";
 
-export type RoomCategory = "강의실" | "행정실" | "엘리베이터" | "계단";
+export type RoomCategory = "강의실" | "행정실" | "엘리베이터" | "계단" | "기타";
 
 export interface Room {
   id: string;
@@ -78,12 +78,18 @@ export interface GraphNode {
   ocr: string;
   servedFloors: string;
   src: GraphSource;
+  /** Backend `ref`: links an elevator/stairs node to the same shaft on other floors. */
+  ref?: string;
 }
 
 export interface GraphEdge {
   a: string;
   b: string;
   src: GraphSource;
+  /** Backend `length_m`; kept so editing a parsed graph does not lose measured values. */
+  lengthM?: number;
+  /** Backend `heading_deg`; null/undefined means "unknown", not straight. */
+  headingDeg?: number | null;
 }
 
 export interface FloorGraph {
