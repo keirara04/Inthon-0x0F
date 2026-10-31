@@ -1,7 +1,7 @@
 // Run: node --test src/lib/gilgyeol/navMath.test.mjs   (Node 24 strips the TS types on import)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { circularMean, delta, dirState, headingFromEvent, OFF_ROUTE_RESET, trackOffRoute } from "./navMath.ts";
+import { axesFromEuler, axesFromQuaternion, circularMean, delta, dirState, headingFromAxes, headingFromEvent, OFF_ROUTE_RESET, trackOffRoute } from "./navMath.ts";
 
 test("delta wraps around north", () => {
   assert.equal(delta(350, 10), 20);
@@ -44,6 +44,26 @@ test("headingFromEvent", () => {
   assert.equal(headingFromEvent({ alpha: 10, webkitCompassHeading: 42 }), 42);
   assert.equal(headingFromEvent({ alpha: 90, absolute: true }), 270);
   assert.equal(headingFromEvent({ alpha: 90, absolute: false }), null);
+});
+
+const near = (a, b) => assert.ok(Math.abs(delta(a, b)) < 1e-6, `${a} vs ${b}`);
+
+test("tilt-compensated heading agrees flat and upright", () => {
+  near(headingFromAxes(axesFromEuler(90, 0, 0)), 270); // flat, top edge west
+  near(headingFromAxes(axesFromEuler(90, 90, 0)), 270); // upright, camera west (90 here = sign flipped)
+  near(headingFromAxes(axesFromEuler(90, 60, 0)), 270); // held up past 45°: camera axis takes over, same answer
+  near(headingFromAxes(axesFromEuler(30, 30, 0)), 330);
+  near(headingFromEvent({ alpha: 90, beta: 80, gamma: 0, absolute: true }), 270);
+  near(headingFromAxes(axesFromEuler(0, 90, 90)), 270); // upright, turned 90° about its long axis: camera west (spec Vx = -1)
+});
+
+test("quaternion heading", () => {
+  near(headingFromAxes(axesFromQuaternion([0, 0, 0, 1])), 0); // identity: flat, top north
+  near(headingFromAxes(axesFromQuaternion([0, 0, Math.SQRT1_2, Math.SQRT1_2])), 270); // 90° about up = alpha 90
+  // Quaternion of alpha 90 then beta 90 (upright facing west) matches the Euler path.
+  const h = Math.SQRT1_2;
+  const q = [h * h, h * h, h * h, h * h]; // qz(90°)·qx(90°)
+  near(headingFromAxes(axesFromQuaternion(q)), headingFromAxes(axesFromEuler(90, 90, 0)));
 });
 
 test("north offset turns raw readings into map headings and back", async () => {
