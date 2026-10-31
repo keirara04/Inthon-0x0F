@@ -45,3 +45,14 @@ test("headingFromEvent", () => {
   assert.equal(headingFromEvent({ alpha: 90, absolute: true }), 270);
   assert.equal(headingFromEvent({ alpha: 90, absolute: false }), null);
 });
+
+test("north offset turns raw readings into map headings and back", async () => {
+  const { corrected, offsetFor } = await import("./navMath.ts");
+  assert.equal(corrected(30, 20), 10);
+  assert.equal(corrected(10, 20), 350); // wraps below north
+  assert.equal(corrected(350, 340), 10);
+  const off = offsetFor(95, 90); // facing a corridor drawn at 90° while the compass says 95°
+  assert.equal(off, 5);
+  assert.equal(corrected(95, off), 90);
+  assert.equal(corrected(5, offsetFor(5, 270)), 270); // across north
+});

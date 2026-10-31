@@ -663,7 +663,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
-  return { state, actions };
+  // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.
+  const compass = { heading: nav.heading, delta: nav.delta, calibrated: nav.calibrated, calibrate: nav.calibrate, resetCalibration: nav.resetCalibration };
+
+  return { state, actions, compass };
 }
 
 type Controller = ReturnType<typeof useGilgyeolController> & { scrollRef: RefObject<HTMLDivElement | null> };

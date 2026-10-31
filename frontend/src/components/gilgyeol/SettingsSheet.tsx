@@ -9,7 +9,7 @@ import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { DemoPanel } from "./DemoPanel";
 
 export function SettingsSheet() {
-  const { state: s, actions } = useGilgyeol();
+  const { state: s, actions, compass } = useGilgyeol();
   const close = () => actions.update({ sheet: false });
   const dialogRef = useRef<HTMLDivElement>(null);
   const demo = useDemoTools();
@@ -68,6 +68,24 @@ export function SettingsSheet() {
           ))}
         </div>
         {!supportsSpeech() && <div className="text-[13px] leading-normal text-warn-ink">이 브라우저는 음성 합성을 지원하지 않아요. 화면 문구로 안내합니다.</div>}
+        {compass.calibrated && (
+          <div className="flex min-h-[56px] items-center justify-between gap-3 rounded-2xl bg-surface px-4">
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[15px] font-semibold text-ink">방향 보정</span>
+              <span className="text-[12px] text-muted">이 기기에 저장된 건물 방향 보정값</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                compass.resetCalibration();
+                actions.toast("방향 보정을 초기화했어요");
+              }}
+              className="h-10 flex-none rounded-[10px] border-[1.5px] border-edge bg-surface px-3 text-[13px] font-semibold text-ink"
+            >
+              초기화
+            </button>
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           <div className="text-[13px] font-bold text-muted">진동 테스트 · 패턴과 함께 음성·화면 안내도 제공돼요</div>
           <div className="flex flex-col overflow-hidden rounded-2xl bg-surface">

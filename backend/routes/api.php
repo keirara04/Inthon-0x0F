@@ -19,6 +19,7 @@ Route::post('/route', [NavigationController::class, 'route']);
 Route::post('/evac-map/parse', [VisionController::class, 'parse'])->middleware('throttle:10,1');
 Route::post('/checkpoint', [VisionController::class, 'checkpoint'])->middleware('throttle:60,1');
 Route::put('/graph', [GraphController::class, 'save'])->middleware('throttle:30,1');
+Route::get('/floors/{floor}/graph', [GraphController::class, 'show']);
 
 // Starter AI call (Lablup, Anthropic Messages format). Throttled: every call costs tokens.
 Route::get('/ai/test', function (Request $request) {
