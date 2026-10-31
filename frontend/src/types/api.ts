@@ -56,9 +56,12 @@ export interface ApiCheckpointResult {
 export interface ApiGraph {
   building: string;
   floor: string;
+  /** parse only: "map" = floor read from the sign, "hint" = the floor the app sent. */
+  floor_source?: "map" | "hint";
   status: "draft" | "verified";
   current_node_id?: string | null;
-  nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string }[];
+  /** `outline`: wall outline of a room/stair/elevator, 0–1 photo coords, closing edge implicit (display only). */
+  nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string; outline?: { x: number; y: number }[] }[];
   edges: { from: string; to: string; type: "walk"; length_m?: number | null; heading_deg?: number | null }[];
   elevators?: { id: string; name: string; served_floors: string[] }[];
 }

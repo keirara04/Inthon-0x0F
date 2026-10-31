@@ -15,7 +15,8 @@ export function SettingsSheet() {
   const demo = useDemoTools();
 
   useEffect(() => {
-    dialogRef.current?.focus();
+    // preventScroll: the sheet starts off-screen (slide-up animation); a plain focus() would scroll the device screen.
+    dialogRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && actions.update({ sheet: false });
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -27,7 +28,7 @@ export function SettingsSheet() {
   ];
 
   return (
-    <div className="absolute inset-0 z-[7] flex flex-col justify-end bg-[rgba(20,22,20,.45)]" onClick={close}>
+    <div className="gl-backdrop absolute inset-0 z-[7] flex flex-col justify-end bg-[rgba(20,22,20,.45)]" onClick={close}>
       <div
         ref={dialogRef}
         tabIndex={-1}
@@ -35,7 +36,7 @@ export function SettingsSheet() {
         aria-modal="true"
         aria-label="안내 설정"
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88%] flex-col gap-3.5 overflow-auto rounded-t-[26px] bg-app-bg px-5 pt-5 pb-[calc(30px+env(safe-area-inset-bottom))] outline-none"
+        className="gl-sheet flex max-h-[88%] flex-col gap-3.5 overflow-auto rounded-t-[26px] bg-app-bg px-5 pt-5 pb-[calc(30px+env(safe-area-inset-bottom))] outline-none"
       >
         <div className="flex items-center justify-between">
           <h2 className="m-0 text-[20px] font-extrabold">안내 설정</h2>

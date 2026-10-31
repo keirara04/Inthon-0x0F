@@ -15,6 +15,29 @@ class EvacMapParser
     // ponytail: assumes the map spans ~50 m when the LLM gives no length; real lengths come from the editor.
     private const MAP_WIDTH_M = 50;
 
+    /** Room/stair/elevator wall outline: 3–12 points, 0–1, no repeated neighbours, closing edge implicit. */
+    private function outline(mixed $points): ?array
+    {
+        if (! is_array($points)) {
+            return null;
+        }
+        $out = [];
+        foreach ($points as $p) {
+            if (! is_array($p) || ! is_numeric($p['x'] ?? null) || ! is_numeric($p['y'] ?? null)) {
+                continue;
+            }
+            $pt = ['x' => min(1, max(0, (float) $p['x'])), 'y' => min(1, max(0, (float) $p['y']))];
+            if ($pt !== end($out)) {
+                $out[] = $pt;
+            }
+        }
+        if (count($out) > 1 && $out[0] === end($out)) {
+            array_pop($out); // the model repeated the first point
+        }
+
+        return count($out) >= 3 ? array_slice($out, 0, 12) : null;
+    }
+
     public function __construct(private VisionClient $vision) {}
 
     public function parse(UploadedFile $image, string $building, string $floor): array
@@ -24,8 +47,25 @@ class EvacMapParser
         return $this->clean($raw, $building, $floor);
     }
 
+    /** The floor printed on the map ("4F", "B1"; also accepts "4층", "지하1층"), or null when unreadable. */
+    private function readFloor(mixed $value): ?string
+    {
+        $v = strtoupper(str_replace(' ', '', is_string($value) ? $value : ''));
+        if (preg_match('/^(B\d+|\d+F)$/', $v)) {
+            return $v;
+        }
+        if (preg_match('/^지하(\d+)층$/u', $v, $m)) {
+            return "B{$m[1]}";
+        }
+
+        return preg_match('/^(\d+)층$/u', $v, $m) ? "{$m[1]}F" : null;
+    }
+
     public function clean(array $raw, string $building, string $floor): array
     {
+        // The prompt says to trust the map over the hint, so keep the floor the model read.
+        $read = $this->readFloor($raw['floor'] ?? null);
+        $floor = $read ?? $floor;
         $ids = []; // LLM id => contract id
         $nodes = [];
         foreach ($raw['nodes'] ?? [] as $n) {
@@ -45,6 +85,7 @@ class EvacMapParser
                 'x' => min(1, max(0, (float) $n['x'])),
                 'y' => min(1, max(0, (float) $n['y'])),
                 'ref' => in_array($n['type'], ['stairs', 'elevator_hall'], true) && is_string($n['ref'] ?? null) ? $n['ref'] : null,
+                'outline' => in_array($n['type'], ['room', 'stairs', 'elevator_hall'], true) ? $this->outline($n['outline'] ?? null) : null,
             ], fn ($v) => $v !== null);
         }
 
@@ -77,6 +118,7 @@ class EvacMapParser
         return [
             'building' => $building,
             'floor' => $floor,
+            'floor_source' => $read ? 'map' : 'hint', // 'hint' = the floor the app sent, not confirmed by the map
             'status' => 'draft',
             'current_node_id' => $ids[$raw['current_node_id'] ?? ''] ?? null,
             'nodes' => array_values($nodes),

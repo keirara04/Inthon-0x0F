@@ -1,6 +1,6 @@
-# 길결 프론트엔드 개발 노트
+# 어디路 프론트엔드 개발 노트
 
-실내 길찾기 서비스 **길결**의 모바일 웹 프론트엔드(Next.js) 개발 현황 정리입니다.
+실내 길찾기 서비스 **어디路**(어디로)의 모바일 웹 프론트엔드(Next.js) 개발 현황 정리입니다.
 대표 시나리오: 우정정보관 1층 로비 → 4층 405호.
 
 - 기준 디자인: Claude Design 핸드오프 `Gilgyeol Prototype v2.dc.html` (밝은 배경 · 버건디 · Pretendard)
@@ -57,7 +57,7 @@ frontend/src/
     AppShell.tsx          # Provider + 기기 프레임 + 화면 스위치 + cue/toast/설정 시트 오버레이
     ui.tsx                # 공통 UI (PrimaryButton, BackHeader, Badge, DemoBox 등)
     IsoFloor.tsx          # 3D(아이소메트릭) 층 도식, 회전 훅/버튼
-    WelcomeScreen.tsx  BuildingScreen.tsx  CaptureIntroScreen.tsx  MapResultScreen.tsx
+    WelcomeScreen.tsx  LandingScreen.tsx  BuildingScreen.tsx  CaptureIntroScreen.tsx  MapResultScreen.tsx
     StartLocationScreen.tsx  SearchScreen.tsx  RoutePreviewScreen.tsx  ModeScreen.tsx
     GuidanceScreen.tsx  ElevatorScreen.tsx  CheckpointScanner.tsx  OffRouteScreen.tsx
     ArrivalScreen.tsx  GraphEditorScreen.tsx  SettingsSheet.tsx  DemoPanel.tsx
@@ -76,12 +76,14 @@ frontend/src/
 라우트는 `/` 하나이고, 화면 전환은 `store.tsx`의 typed `screen` 상태로 합니다.
 
 ```text
-welcome → building → captureIntro → scan(map) → mapResult → start(여기 계신가요?)
+landing (3분 체험해보기) → welcome → building → captureIntro → scan(map) → mapResult → start(여기 계신가요?)
   → search(405호) → preview → mode → guide(step 0, 1층)
   → elevator → guide(step 1, 4층 왼쪽 복도)
   → offroute(경고) → scan(sign) → offroute(confirm) → guide(step 2, 복구)   ※ 경로 이탈 시에만
   → arrive
 ```
+
+첫 화면은 랜딩(`landing`)이고, 랜딩의 `3분 체험해보기` CTA는 실제 흐름의 시작 화면인 `welcome`으로 들어갑니다. `welcome` 하단의 `서비스 소개`로 랜딩에 다시 갈 수 있어요.
 
 ### 카메라 확인 시점
 
@@ -98,7 +100,8 @@ welcome → editor (관리자 · 지도 만들기)
 
 | Screen | 파일 | 핵심 기능 |
 |---|---|---|
-| `welcome` | WelcomeScreen | 시연용 배지, 설정, 길찾기 시작, 관리자 진입, 비상 시 고지 |
+| `landing` | LandingScreen | 첫 화면. 히어로·경로 요약·안내 방식·하은의 3분·FAQ·CTA, `3분 체험해보기` → `welcome` |
+| `welcome` | WelcomeScreen | 시연용 배지, 설정, 길찾기 시작, 관리자 진입, 서비스 소개(→ `landing`), 비상 시 고지 |
 | `building` | BuildingScreen | 우정정보관 선택, 정운오IT교양관 준비 중 |
 | `captureIntro` | CaptureIntroScreen | 촬영 안내·권한 이유·개인정보, 카메라 켜기 / 데모 안내도 |
 | `mapResult` | MapResultScreen | 인식 결과(건물·층 확인됨, 현위치 추정), 데모/OCR 미연결 라벨 |
@@ -113,7 +116,7 @@ welcome → editor (관리자 · 지도 만들기)
 | `arrive` | ArrivalScreen | 도착, **이동 통계**(소요 시간·층 이동·경로 재확인), **비상구 정보** |
 | `editor` | GraphEditorScreen | **층별 데이터 목록**, 이미지 업로드/샘플, AI 초안(시뮬레이션), SVG 그래프 편집, 검증, draft/verified 저장 |
 
-뒤로 가기: 화면의 뒤로 버튼과 브라우저/안드로이드 하드웨어 뒤로 가기(`popstate`)가 같은 `actions.back()`을 탑니다.
+뒤로 가기: 화면의 뒤로 버튼과 브라우저/안드로이드 하드웨어 뒤로 가기(`popstate`)가 같은 `actions.back()`을 탑니다. 랜딩과 환영 화면은 앱의 첫 화면이라 하드웨어 뒤로 가기는 앱을 나갑니다.
 
 ---
 

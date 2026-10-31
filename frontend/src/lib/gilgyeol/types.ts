@@ -1,4 +1,5 @@
 export type Screen =
+  | "landing"
   | "welcome"
   | "building"
   | "captureIntro"
@@ -88,6 +89,8 @@ export interface GraphNode {
   src: GraphSource;
   /** Backend `ref`: links an elevator/stairs node to the same shaft on other floors. */
   ref?: string;
+  /** Wall outline of a room/stair/elevator in canvas units, closing edge implicit. Display only, never saved. */
+  outline?: { x: number; y: number }[];
 }
 
 export interface GraphEdge {

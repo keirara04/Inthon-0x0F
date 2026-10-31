@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiRoute } from "@/types/api";
-import { fetchRoute, toRouteStep } from "./api";
+import { fetchRoute, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
 import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
@@ -27,6 +27,12 @@ export interface AppState {
   screen: Screen;
   // start / location
   mapDemo: boolean;
+  /** AI draft of the photographed evacuation map. Shown on the map result; routing still uses the verified graph. */
+  parsed: ParsedGraph | null;
+  /** The photo `parsed` was read from (object URL + pixel size), drawn under the graph. */
+  parsedPhoto: { url: string; w: number; h: number } | null;
+  /** A photo picked on another screen, handed to the scanner to find the sign in it before reading. */
+  pendingPhoto: Blob | null;
   start: StartNodeId | null;
   locEdit: boolean;
   landmarks: boolean;
@@ -75,8 +81,11 @@ export interface AppState {
 }
 
 const INITIAL: AppState = {
-  screen: "welcome",
+  screen: "landing",
   mapDemo: false,
+  parsed: null,
+  parsedPhoto: null,
+  pendingPhoto: null,
   start: "here",
   locEdit: false,
   landmarks: false,
@@ -126,11 +135,20 @@ const BACK: Partial<Record<Screen, Screen>> = {
   arrive: "welcome",
 };
 
+/** Start choice for what the evacuation map marked as "현위치"; null (user picks) when the AI found none. */
+function startFromParsed(g: ParsedGraph): StartNodeId | null {
+  const cur = g.nodes.find((n) => n.id === g.current_node_id);
+  if (!cur) return null;
+  return cur.type === "elevator_hall" ? "hall" : cur.type === "stairs" ? "stair" : cur.type === "entrance" ? "main" : "here";
+}
+
 function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const [state, setState] = useState<AppState>(INITIAL);
   // Mirror of the latest state so chained actions and timers never read stale values.
   const ref = useRef(state);
   const timers = useRef<Record<"cue" | "toast" | "scan", ReturnType<typeof setTimeout> | undefined>>({ cue: undefined, toast: undefined, scan: undefined });
+  /** In-flight evacuation-map parse; cleared when it finishes or the user cancels. */
+  const parseCtl = useRef<AbortController | null>(null);
 
   const update = useCallback((patch: Partial<AppState>) => {
     ref.current = { ...ref.current, ...patch };
@@ -281,6 +299,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       clearTimeout(timers.current.scan);
       const from = ref.current.screen;
       const denied = ref.current.camDenied;
+      if (target === "map" && ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
       go("scan", {
         scanTarget: target,
         scanFrom: from === "scan" ? ref.current.scanFrom : from,
@@ -288,6 +307,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         outcome: "success",
         manual: false,
         dest: ensureDest(),
+        ...(target === "map" ? { parsed: null, parsedPhoto: null } : {}),
       });
       if (!denied) say(scanMeta(target, destName()).guide);
     },
@@ -301,6 +321,25 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const runScan = useCallback(
     async (frame?: Blob) => {
       update({ scanState: "analyzing", manual: false });
+      if (frame && ref.current.scanTarget === "map") {
+        const ctl = new AbortController();
+        parseCtl.current = ctl;
+        const timeout = setTimeout(() => ctl.abort(), 70_000); // backend gives the model 60 s
+        try {
+          const g = await parseEvacMap(frame, 1, ctl.signal);
+          if (parseCtl.current !== ctl || ref.current.screen !== "scan") return;
+          say("안내도를 읽었어요. 결과를 확인해 주세요");
+          go("mapResult", { mapDemo: false, parsed: g, start: startFromParsed(g) });
+        } catch (e) {
+          if (parseCtl.current !== ctl) return; // cancelled by the user
+          toast(ctl.signal.aborted ? "안내도를 읽는 데 너무 오래 걸려요. 다시 찍거나 데모 안내도로 계속해 주세요" : e instanceof Error ? e.message : "안내도를 읽지 못했어요");
+          if (ref.current.screen === "scan") update({ scanState: "fail" });
+        } finally {
+          clearTimeout(timeout);
+          if (parseCtl.current === ctl) parseCtl.current = null;
+        }
+        return;
+      }
       if (frame) {
         try {
           const res = await navConfirm(frame);
@@ -327,13 +366,33 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         say(o === "success" ? m.ok : o === "mismatch" ? "예상한 표지와 달라요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요");
       }, 1300);
     },
-    [update, navConfirm, cue, say, toast, destName],
+    [update, go, navConfirm, cue, say, toast, destName],
   );
 
   const cancelScan = useCallback(() => {
     clearTimeout(timers.current.scan);
+    const ctl = parseCtl.current;
+    parseCtl.current = null;
+    ctl?.abort();
     update({ scanState: "aim" });
   }, [update]);
+
+  /** Reads an evacuation-map photo (camera frame or album pick) from any screen: keeps it for drawing, then parses. */
+  const readMapPhoto = useCallback(
+    async (img: Blob) => {
+      if (ref.current.screen !== "scan" || ref.current.scanTarget !== "map") openScan("map");
+      if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      let photo: AppState["parsedPhoto"] = null;
+      try {
+        const bmp = await createImageBitmap(img);
+        photo = { url: URL.createObjectURL(img), w: bmp.width, h: bmp.height };
+        bmp.close();
+      } catch {} // unreadable format: the parse call reports the error
+      update({ parsedPhoto: photo });
+      await runScan(img);
+    },
+    [openScan, update, runScan],
+  );
 
   /** Walk-step CTA: the engine moves to the next step, the elevator screen, or arrival. */
   const advance = useCallback(() => {
@@ -354,7 +413,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     (manual: boolean) => {
       const t = ref.current.scanTarget;
       if (t === "map") go("mapResult", { mapDemo: false });
-      else go("offroute", { offState: "confirm", offFloor: "4층", offSign: manual ? "직접 선택" : "4층 동측 복도 표지" });
+      else {
+        const destFloor = `${ref.current.dest?.floor ?? 4}층`;
+        go("offroute", { offState: "confirm", offFloor: destFloor, offSign: manual ? "직접 선택" : `${destFloor} 동측 복도 표지` });
+      }
     },
     [go],
   );
@@ -543,7 +605,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     history.pushState({ gilgyeol: true }, "");
     const onPop = () => {
-      if (ref.current.screen === "welcome") {
+      // Landing and welcome are the entry screens: browser back leaves the app instead of looping.
+      if (ref.current.screen === "welcome" || ref.current.screen === "landing") {
         history.back();
         return;
       }
@@ -579,6 +642,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       leaveElevator,
       openScan,
       runScan,
+      readMapPhoto,
       cancelScan,
       scanNext,
       arrive,
@@ -596,7 +660,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   return { state, actions };

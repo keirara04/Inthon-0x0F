@@ -5,6 +5,7 @@ import { searchPlaces } from "@/lib/gilgyeol/api";
 import { CATEGORIES, FLOORS } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { Room } from "@/lib/gilgyeol/types";
+import { Mascot } from "./Mascot";
 import { cx } from "./ui";
 
 type Load = { status: "loading" } | { status: "ok"; rooms: Room[] } | { status: "error"; message: string };
@@ -109,6 +110,7 @@ export function SearchScreen() {
 
       {load.status === "ok" && results.length === 0 && (
         <div className="flex flex-col gap-3.5 rounded-[18px] bg-surface px-[18px] py-[22px]">
+          <Mascot pose="peek" height={64} motion="peek" className="self-start" />
           <div role="status" className="text-[18px] font-bold">
             {s.query.trim() ? `‘${s.query}’에 맞는 장소가 없어요` : "조건에 맞는 장소가 없어요"}
           </div>
