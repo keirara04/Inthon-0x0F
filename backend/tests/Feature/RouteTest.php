@@ -24,7 +24,7 @@ class RouteTest extends TestCase
         // East elevator is closer on 1F but skips 4F, so the route must take the central one.
         $this->assertContains('1F-elev-A', $res->json('data.path'));
         $this->assertNotContains('1F-elev-B', $res->json('data.path'));
-        $elevator =collect($res->json('data.steps'))->firstWhere('kind', 'elevator');
+        $elevator = collect($res->json('data.steps'))->firstWhere('kind', 'elevator');
         $this->assertSame('중앙 엘리베이터', $elevator['elevator']);
         $this->assertSame('중앙 엘리베이터에 타서 4층에서 내리세요', $elevator['text']);
         $this->assertSame('4F-405', $res->json('data.arrived.node'));
