@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import type { ApiRoute } from "@/types/api";
-import { API_MODE, ApiError, fetchFloorGraph, fetchRoute, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
+import type { ApiGraph, ApiRoute } from "@/types/api";
+import { API_MODE, ApiError, fetchFloorGraph, fetchPhotoRoute, fetchRoute, photoGraph, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
 import { BUILDING, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
@@ -50,6 +50,8 @@ export interface AppState {
    * that floor's map, and picks the destination there. Cleared once that destination is picked.
    */
   rideMode: boolean;
+  /** The photographed map of an unchecked floor reached in ride mode; destinations and the route come from it. */
+  photoMap: ApiGraph | null;
   // search
   query: string;
   cat: RoomCategory | null;
@@ -112,6 +114,7 @@ const INITIAL: AppState = {
   locEdit: false,
   landmarks: false,
   rideMode: false,
+  photoMap: null,
   query: "",
   cat: null,
   floorPick: null,
@@ -520,12 +523,23 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       const floor = g?.floor ?? floorLabel(DEST_FLOOR);
       const hall = await elevatorHall(floor);
       if (!hall) {
-        // A read photo (even a saved one) is never routable; only a floor an admin checked in the editor is.
-        toast(`${floorName(floor)}은 사진으로 읽은 지도만 있어요. 관리자가 검수해야 길 안내를 할 수 있어요`);
-        say(`${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+        // No checked map for this floor: route on the photographed one (AI draft). The user is standing at the
+        // map they just photographed, so its 현위치 is the start; else its elevator hall, else stairs.
+        const map = g ? photoGraph(g) : null;
+        const here = g?.current_node_id ? (g.current_node_id.startsWith(`${floor}-`) ? g.current_node_id : `${floor}-${g.current_node_id}`) : null;
+        const photoHall =
+          map?.nodes.find((n) => n.id === here) ?? map?.nodes.find((n) => n.type === "elevator_hall") ?? map?.nodes.find((n) => n.type === "stairs");
+        if (!map || !photoHall) {
+          toast(map ? "안내도에서 현위치나 엘리베이터를 찾지 못했어요. 다시 찍어주세요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+          say(map ? "안내도에서 현위치를 찾지 못했어요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+          return;
+        }
+        update({ startAt: { id: photoHall.id, label: photoHall.label, floor, via: "list" }, start: null, photoMap: map });
+        say(`${floorName(floor)} 안내도예요. 검수 전 AI 지도로 안내해요. 목적지를 골라주세요`);
+        go("search", { floorPick: floorNumber(floor), query: "", cat: null });
         return;
       }
-      update({ startAt: { id: hall.id, label: hall.label, floor, via: "list" }, start: null });
+      update({ startAt: { id: hall.id, label: hall.label, floor, via: "list" }, start: null, photoMap: null });
       say(`${floorName(floor)} 안내도예요. 목적지를 골라주세요`);
       go("search", { floorPick: floorNumber(floor), query: "", cat: null });
       return;
@@ -615,7 +629,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       update({ routeLoading: true });
       try {
         // One route from the start to the room: the backend plans the elevator ride between floors.
-        const route = await fetchRoute(ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"], room.id);
+        // After a ride to an unchecked floor, the route runs on that floor's photographed map instead.
+        const from = ref.current.startAt?.id ?? START_NODE_IDS[ref.current.start ?? "here"];
+        const photo = ref.current.photoMap;
+        const route = photo ? await fetchPhotoRoute(photo, from, room.id) : await fetchRoute(from, room.id);
         navLoad(route);
         update({ route, steps: route.steps.map(toRouteStep), routeLoading: false, rideMode: false });
         go("preview", { dest: room, step: 0, dir: "far" });
@@ -636,7 +653,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       const s = ref.current;
       const floor = s.startAt?.floor ?? s.parsed?.floor ?? "1F";
       if (!otherFloor) {
-        go("search", { rideMode: false, floorPick: floorNumber(floor), query: "", cat: null });
+        go("search", { rideMode: false, photoMap: null, floorPick: floorNumber(floor), query: "", cat: null });
         return;
       }
       if (s.routeLoading) return;
@@ -685,6 +702,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       simDir: null,
       floorMapTarget: null,
       rideMode: false,
+      photoMap: null,
       trialOn: false,
       dest: null,
     });
@@ -704,6 +722,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       locEdit: false,
       landmarks: false,
       rideMode: false,
+      photoMap: null,
       query: "",
       cat: null,
       floorPick: null,
@@ -755,6 +774,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         locEdit: false,
         landmarks: false,
         rideMode: false,
+        photoMap: null,
         query: "",
         cat: null,
         floorPick: null,
@@ -789,7 +809,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     if (s.screen === "floorMap" && s.rideMode) {
       // Before the destination is picked, "back" just undoes "예, 이동할게요".
       navLoad(null);
-      go("destFloor", { rideMode: false, route: null, steps: [], step: 0, dest: null });
+      go("destFloor", { rideMode: false, photoMap: null, route: null, steps: [], step: 0, dest: null });
       return;
     }
     if (s.screen === "floorMap") return; // Keep guidance paused until a new plan is confirmed or the trip ends.

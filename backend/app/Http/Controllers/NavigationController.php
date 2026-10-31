@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\RouteResource;
 use App\Http\Resources\SearchResultResource;
+use App\Services\EvacMapParser;
 use App\Services\RouteService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class NavigationController extends Controller
 {
@@ -72,5 +74,38 @@ class NavigationController extends Controller
         abort_if($route === null, 422, '경로를 찾을 수 없어요');
 
         return new RouteResource($route);
+    }
+
+    /**
+     * POST /api/route/photo {graph, start_node, dest_node} — route on a floor that has no checked map yet, over the
+     * map the user just photographed. Read-only: the graph is never stored, so it needs no admin token.
+     * The answer is marked draft so the app can say "AI 초안 지도 · 검수 전".
+     */
+    public function routePhoto(Request $request, RouteService $routes)
+    {
+        $ids = collect($request->input('graph.nodes'))->pluck('id')->filter()->all();
+        $data = $request->validate([
+            'graph.floor' => ['required', 'string', 'regex:/^(B\d+|\d+F)$/'],
+            // Caps keep Dijkstra cheap on an unauthenticated endpoint; a real floor map is far smaller.
+            'graph.nodes' => 'required|array|min:2|max:400',
+            'graph.nodes.*.id' => 'required|string|max:100|distinct',
+            'graph.nodes.*.type' => ['required', Rule::in(EvacMapParser::NODE_TYPES)],
+            'graph.nodes.*.label' => 'present|nullable|string|max:100',
+            'graph.nodes.*.ref' => 'nullable|string|max:50',
+            'graph.edges' => 'required|array|min:1|max:1200',
+            'graph.edges.*.from' => ['required', Rule::in($ids)],
+            'graph.edges.*.to' => ['required', Rule::in($ids)],
+            'graph.edges.*.length_m' => 'nullable|numeric|min:0|max:1000',
+            'graph.edges.*.heading_deg' => 'nullable|numeric|between:0,360',
+            'start_node' => ['required', 'string', Rule::in($ids)],
+            'dest_node' => ['required', 'string', 'different:start_node', Rule::in($ids)],
+        ]);
+        $graph = $data['graph'];
+        $graph['nodes'] = array_map(fn ($n) => [...$n, 'label' => $n['label'] ?? ''], $graph['nodes']);
+
+        $route = $routes->routeOnGraph($graph, $data['start_node'], $data['dest_node']);
+        abort_if($route === null, 422, '안내도에서 목적지까지 이어진 복도를 찾지 못했어요');
+
+        return new RouteResource([...$route, 'draft' => true]);
     }
 }

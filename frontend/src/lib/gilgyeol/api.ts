@@ -240,6 +240,21 @@ function mockRoute(startNode: string, destNode: string): ApiRoute {
   return route;
 }
 
+/** A photographed (unchecked) floor map in the API's shape, ids prefixed by floor; for POST /api/route/photo. */
+export function photoGraph(g: ParsedGraph): ApiGraph {
+  return toApiGraph(g, g.floor, "draft");
+}
+
+/** Route on a photographed floor map. The server routes in memory and stores nothing. */
+export async function fetchPhotoRoute(graph: ApiGraph, startNode: string, destNode: string): Promise<ApiRoute> {
+  if (API_MODE === "live") {
+    const body = { graph: { floor: graph.floor, nodes: graph.nodes, edges: graph.edges }, start_node: startNode, dest_node: destNode };
+    return request<ApiRoute>("/api/route/photo", { method: "POST", body: JSON.stringify(body) });
+  }
+  await delay(300);
+  return { ...mockRoute(startNode, destNode), draft: true };
+}
+
 /** Sends one camera frame (downscaled) to check where the user is. Frames are not stored by the backend. */
 export async function postCheckpoint(image: Blob, expectedNode: string): Promise<ApiCheckpointResult> {
   if (API_MODE === "live") {

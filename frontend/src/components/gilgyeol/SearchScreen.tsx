@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { searchPlaces } from "@/lib/gilgyeol/api";
+import { useEffect, useMemo, useState } from "react";
+import { floorNumber, searchPlaces } from "@/lib/gilgyeol/api";
 import { CATEGORIES, FLOORS } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { Room } from "@/lib/gilgyeol/types";
 import { Mascot } from "./Mascot";
-import { cx } from "./ui";
+import { Notice, cx } from "./ui";
 
 type Load = { status: "loading" } | { status: "ok"; rooms: Room[] } | { status: "error"; message: string };
 
@@ -15,7 +15,18 @@ export function SearchScreen() {
   const [load, setLoad] = useState<Load>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
 
+  // A photographed, unchecked floor (after the ride) lists its own rooms; otherwise the checked maps are searched.
+  const photo = s.photoMap;
+  const photoRooms = useMemo<Room[] | null>(() => {
+    if (!photo) return null;
+    const floor = floorNumber(photo.floor);
+    return photo.nodes
+      .filter((n) => n.type === "room" && n.label.trim() !== "")
+      .map((n) => ({ id: n.id, name: n.label, kind: "호실", floor, cat: "강의실" as const, routeReady: true }));
+  }, [photo]);
+
   useEffect(() => {
+    if (photoRooms) return;
     let alive = true;
     searchPlaces(s.query)
       .then((rooms) => alive && setLoad({ status: "ok", rooms }))
@@ -23,9 +34,11 @@ export function SearchScreen() {
     return () => {
       alive = false;
     };
-  }, [s.query, attempt]);
+  }, [s.query, attempt, photoRooms]);
 
-  const results = load.status === "ok" ? load.rooms.filter((r) => (!s.cat || r.cat === s.cat) && (!s.floorPick || r.floor === s.floorPick)) : [];
+  const q = s.query.trim();
+  const current: Load = photoRooms ? { status: "ok", rooms: photoRooms.filter((r) => !q || r.name.includes(q)) } : load;
+  const results = current.status === "ok" ? current.rooms.filter((r) => (!s.cat || r.cat === s.cat) && (!s.floorPick || r.floor === s.floorPick)) : [];
 
   return (
     <div className="flex flex-col gap-4 px-5 pt-1 pb-7">
@@ -45,6 +58,7 @@ export function SearchScreen() {
           className="h-[52px] min-w-0 flex-1 rounded-2xl border-[1.5px] border-ink bg-surface px-4 text-[17px] text-ink outline-none placeholder:text-muted"
         />
       </div>
+      {photo && <Notice tone="warn">AI 초안 지도 · 검수 전 — 방금 찍은 {photo.floor.replace("F", "층")} 안내도로 안내해요. 실제 표지와 다를 수 있어요</Notice>}
       <div className="flex flex-wrap gap-2" aria-label="분류 필터">
         {CATEGORIES.map((c) => {
           const on = s.cat === c;
@@ -67,23 +81,23 @@ export function SearchScreen() {
         )}
       </div>
 
-      {load.status === "error" && (
+      {current.status === "error" && (
         <div role="alert" className="flex flex-col gap-3 rounded-[18px] bg-err-tint p-[18px]">
           <div className="text-[16px] font-bold text-err-ink">검색 결과를 불러오지 못했어요</div>
-          <div className="text-[14px] text-muted">{load.message}</div>
+          <div className="text-[14px] text-muted">{current.message}</div>
           <button type="button" onClick={() => setAttempt((n) => n + 1)} className="h-11 self-start rounded-[14px] border-none bg-ink px-4 text-[15px] font-bold text-white">
             다시 시도
           </button>
         </div>
       )}
 
-      {load.status === "loading" && (
+      {current.status === "loading" && (
         <div role="status" className="rounded-[18px] bg-surface p-[18px] text-[15px] text-muted">
           검색 중…
         </div>
       )}
 
-      {load.status === "ok" && results.length > 0 && (
+      {current.status === "ok" && results.length > 0 && (
         <ul className="m-0 flex list-none flex-col overflow-hidden rounded-[18px] bg-surface p-0" aria-label="검색 결과">
           {results.map((r) => {
             const ready = r.routeReady;
@@ -108,7 +122,7 @@ export function SearchScreen() {
         </ul>
       )}
 
-      {load.status === "ok" && results.length === 0 && (
+      {current.status === "ok" && results.length === 0 && (
         <div className="flex flex-col gap-3.5 rounded-[18px] bg-surface px-[18px] py-[22px]">
           <Mascot pose="peek" height={64} motion="peek" className="self-start" />
           <div role="status" className="text-[18px] font-bold">

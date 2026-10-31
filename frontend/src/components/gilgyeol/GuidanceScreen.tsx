@@ -107,6 +107,7 @@ export function GuidanceScreen() {
       {compass.disturbed && (
         <Notice tone="warn">주변 철골·전선 때문에 방향이 부정확해요 (방향 부정확). 잠시 멈추거나 주변 표지를 확인해 주세요</Notice>
       )}
+      {s.route?.draft && <Notice tone="warn">AI 초안 지도 · 검수 전 — 방금 찍은 안내도로 안내 중이에요. 실제 표지를 함께 확인해 주세요</Notice>}
       {s.voice && s.koVoice === false && <Notice tone="warn">이 기기에서 한국어 음성을 찾지 못했어요. 음성이 안 들리면 화면 안내를 봐 주세요</Notice>}
 
       <div className="relative size-[240px] self-center" role="img" aria-label={`방향 표시: ${dirMsg}`}>
