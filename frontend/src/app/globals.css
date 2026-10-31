@@ -1,26 +1,161 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ink: #202421;
+  --color-muted: #5e625d;
+  --color-brand: #7a1832;
+  --color-route: #2864a0;
+  --color-haptic: #5b4ab8;
+  --color-success: #25734b;
+  --color-warning: #965900;
+  --color-error: #b3261e;
+  --color-surface: #ffffff;
+  --color-app-bg: #f6f5f1;
+  --color-line: #e3e0d7;
+  --color-edge: #d9d5cb;
+  --color-divider: #efede7;
+  --color-warm-panel: #efede7;
+  --color-haptic-tint: #eeebfa;
+  --color-haptic-ink: #4a3ba0;
+  --color-warn-tint: #fff4e0;
+  --color-warn-ink: #7a4800;
+  --color-ok-tint: #e6f2ea;
+  --color-ok-ink: #1e5e3d;
+  --color-err-tint: #fdf1f0;
+  --color-err-ink: #8e1d17;
+  --color-canvas: #e7e4dc;
+  --color-device: #141614;
+  --color-camera: #151715;
+
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --font-mono: ui-monospace, Menlo, Consolas, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-route);
+  outline-offset: 2px;
+}
+
+/* Diagonal hatching used for "image goes here" placeholders in the design. */
+.gg-hatch {
+  background: repeating-linear-gradient(45deg, #efede6 0 6px, #e8e5dc 6px 9px);
+}
+
+.gg-hatch-dark {
+  background: repeating-linear-gradient(45deg, #232623 0 7px, #1c1f1c 7px 11px);
+}
+
+@keyframes gg-pulse {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.12);
+    opacity: 0;
+  }
+}
+
+.gg-pulse {
+  animation-name: gg-pulse;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gg-pulse {
+    animation: none !important;
+    opacity: 0.3 !important;
+    transform: none !important;
+  }
+  * {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ---------- App shell ----------
+   Phones: the app fills the viewport and respects safe areas.
+   Wide screens: a 390×844 device frame for demo/design review, with the demo panel beside it. */
+.gg-stage {
+  min-height: 100dvh;
+}
+
+.gg-device {
+  height: 100dvh;
+}
+
+.gg-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-app-bg);
+  padding-top: env(safe-area-inset-top);
+}
+
+.gg-scroll {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.gg-statusbar,
+.gg-aside {
+  display: none;
+}
+
+@media (min-width: 760px) and (min-height: 700px) {
+  .gg-stage {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 40px 20px;
+  }
+  .gg-device {
+    flex: none;
+    width: 390px;
+    height: 844px;
+    padding: 10px;
+    border-radius: 52px;
+    background: var(--color-device);
+    box-shadow: 0 30px 60px rgba(30, 28, 20, 0.18);
+  }
+  .gg-screen {
+    border-radius: 42px;
+    padding-top: 0;
+  }
+  .gg-statusbar {
+    display: flex;
+  }
+  .gg-aside {
+    display: flex;
+  }
+  .gg-mobile-only {
+    display: none;
+  }
 }
