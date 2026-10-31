@@ -1,0 +1,17 @@
+{
+  "floor": "Ground floor",
+  "places": [
+    {"id": "entrance", "name": "Main entrance", "x": 15, "y": 80, "description": "Entrance at the bottom of the west corridor."},
+    {"id": "reception", "name": "Reception", "x": 15, "y": 50, "description": "Reception doorway on the west side of the corridor."},
+    {"id": "cafe", "name": "Café", "x": 44, "y": 40, "description": "Café doorway on the top side of the main corridor."},
+    {"id": "restrooms", "name": "Restrooms", "x": 72, "y": 40, "description": "Restroom doorway on the top side of the main corridor."},
+    {"id": "library", "name": "Library", "x": 85, "y": 60, "description": "Library doorway on the lower right side of the corridor."}
+  ],
+  "corridors": [
+    {"from": "entrance", "to": "reception", "via": []},
+    {"from": "reception", "to": "cafe", "via": [{"x": 44, "y": 50}]},
+    {"from": "cafe", "to": "restrooms", "via": [{"x": 44, "y": 50}, {"x": 72, "y": 50}]},
+    {"from": "restrooms", "to": "library", "via": [{"x": 72, "y": 50}, {"x": 85, "y": 50}]}
+  ],
+  "warnings": ["Hand-authored example diagram for testing conversion. This fixture is not a live image-analysis result."]
+}

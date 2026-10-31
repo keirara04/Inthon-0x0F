@@ -1,0 +1,1096 @@
+{
+  "source": {
+    "filename": "IMG_4965 Medium.jpeg",
+    "sha256": "308298760d8ec011ecfe2d11b78c6a7df3b85e3d9675869fa17bb27ef7a6f911",
+    "width": 640,
+    "height": 480,
+    "orientation": "EXIF orientation applied"
+  },
+  "frame": {
+    "corners": [
+      [
+        82,
+        154
+      ],
+      [
+        422,
+        160
+      ],
+      [
+        416,
+        376
+      ],
+      [
+        73,
+        365
+      ]
+    ],
+    "width": 1200,
+    "height": 760
+  },
+  "provenance": {
+    "method": "assistant_photo_trace",
+    "model": null,
+    "automatic_local_api": false,
+    "basis": "Visual inspection of supplied photo and rectified enlargement; approximate manual geometric transcription."
+  },
+  "plan": {
+    "floor": "2F",
+    "spaces": [
+      {
+        "id": "room-201",
+        "label": "201",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 49.583333,
+            "y": 35.131579
+          },
+          {
+            "x": 65.166667,
+            "y": 35.131579
+          },
+          {
+            "x": 65.166667,
+            "y": 63.289474
+          },
+          {
+            "x": 49.583333,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-202",
+        "label": "202",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 65.166667,
+            "y": 35.131579
+          },
+          {
+            "x": 98.5,
+            "y": 35.131579
+          },
+          {
+            "x": 98.5,
+            "y": 63.289474
+          },
+          {
+            "x": 65.166667,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-203",
+        "label": "203",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 65.166667,
+            "y": 2.894737
+          },
+          {
+            "x": 82.0,
+            "y": 2.894737
+          },
+          {
+            "x": 82.0,
+            "y": 28.026316
+          },
+          {
+            "x": 65.166667,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-204",
+        "label": "204",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 49.166667,
+            "y": 2.894737
+          },
+          {
+            "x": 65.166667,
+            "y": 2.894737
+          },
+          {
+            "x": 65.166667,
+            "y": 28.026316
+          },
+          {
+            "x": 49.166667,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-205",
+        "label": "205",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 0.666667,
+            "y": 34.605263
+          },
+          {
+            "x": 33.75,
+            "y": 34.605263
+          },
+          {
+            "x": 33.75,
+            "y": 63.289474
+          },
+          {
+            "x": 0.666667,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-206",
+        "label": "206",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 1.25,
+            "y": 69.736842
+          },
+          {
+            "x": 17.083333,
+            "y": 69.736842
+          },
+          {
+            "x": 17.083333,
+            "y": 97.894737
+          },
+          {
+            "x": 1.25,
+            "y": 97.894737
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-207",
+        "label": "207",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 17.083333,
+            "y": 69.736842
+          },
+          {
+            "x": 33.583333,
+            "y": 69.736842
+          },
+          {
+            "x": 33.583333,
+            "y": 98.289474
+          },
+          {
+            "x": 17.083333,
+            "y": 98.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-208",
+        "label": "208",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 33.583333,
+            "y": 69.736842
+          },
+          {
+            "x": 49.666667,
+            "y": 69.736842
+          },
+          {
+            "x": 49.666667,
+            "y": 98.684211
+          },
+          {
+            "x": 33.583333,
+            "y": 98.684211
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-209",
+        "label": "209",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 38.583333,
+            "y": 50.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 50.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 63.289474
+          },
+          {
+            "x": 38.583333,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "room-210",
+        "label": "210",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 38.583333,
+            "y": 35.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 35.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 50.131579
+          },
+          {
+            "x": 38.583333,
+            "y": 50.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "service-block",
+        "label": "Unlabeled",
+        "kind": "room",
+        "polygon": [
+          {
+            "x": 41.666667,
+            "y": 5.263158
+          },
+          {
+            "x": 49.166667,
+            "y": 5.263158
+          },
+          {
+            "x": 49.166667,
+            "y": 28.026316
+          },
+          {
+            "x": 41.666667,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "low"
+      },
+      {
+        "id": "corridor-west",
+        "label": "West corridor",
+        "kind": "corridor",
+        "polygon": [
+          {
+            "x": 33.75,
+            "y": 28.026316
+          },
+          {
+            "x": 38.583333,
+            "y": 28.026316
+          },
+          {
+            "x": 38.583333,
+            "y": 63.289474
+          },
+          {
+            "x": 49.583333,
+            "y": 63.289474
+          },
+          {
+            "x": 49.583333,
+            "y": 69.736842
+          },
+          {
+            "x": 1.25,
+            "y": 69.736842
+          },
+          {
+            "x": 1.25,
+            "y": 63.289474
+          },
+          {
+            "x": 33.75,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "corridor-north",
+        "label": "North corridor",
+        "kind": "corridor",
+        "polygon": [
+          {
+            "x": 32.75,
+            "y": 2.894737
+          },
+          {
+            "x": 41.666667,
+            "y": 2.894737
+          },
+          {
+            "x": 41.666667,
+            "y": 28.026316
+          },
+          {
+            "x": 94.0,
+            "y": 28.026316
+          },
+          {
+            "x": 94.0,
+            "y": 35.131579
+          },
+          {
+            "x": 38.583333,
+            "y": 35.131579
+          },
+          {
+            "x": 38.583333,
+            "y": 28.026316
+          },
+          {
+            "x": 32.75,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "stairs-west",
+        "label": "West stairs",
+        "kind": "stairs",
+        "polygon": [
+          {
+            "x": 18.75,
+            "y": 14.868421
+          },
+          {
+            "x": 32.75,
+            "y": 14.868421
+          },
+          {
+            "x": 32.75,
+            "y": 28.026316
+          },
+          {
+            "x": 18.75,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "stairs-east",
+        "label": "East stairs",
+        "kind": "stairs",
+        "polygon": [
+          {
+            "x": 82.0,
+            "y": 16.842105
+          },
+          {
+            "x": 96.666667,
+            "y": 16.842105
+          },
+          {
+            "x": 96.666667,
+            "y": 28.026316
+          },
+          {
+            "x": 82.0,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      }
+    ],
+    "walls": [
+      {
+        "id": "wall-001",
+        "points": [
+          {
+            "x": 32.75,
+            "y": 14.868421
+          },
+          {
+            "x": 32.75,
+            "y": 2.894737
+          },
+          {
+            "x": 82.0,
+            "y": 2.894737
+          },
+          {
+            "x": 82.0,
+            "y": 16.842105
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-002",
+        "points": [
+          {
+            "x": 18.75,
+            "y": 14.868421
+          },
+          {
+            "x": 32.75,
+            "y": 14.868421
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-003",
+        "points": [
+          {
+            "x": 18.75,
+            "y": 14.868421
+          },
+          {
+            "x": 18.75,
+            "y": 28.026316
+          },
+          {
+            "x": 30.166667,
+            "y": 28.026316
+          },
+          {
+            "x": 30.166667,
+            "y": 34.605263
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-004",
+        "points": [
+          {
+            "x": 32.75,
+            "y": 14.868421
+          },
+          {
+            "x": 32.75,
+            "y": 19.210526
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-005",
+        "points": [
+          {
+            "x": 32.75,
+            "y": 23.815789
+          },
+          {
+            "x": 32.75,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-006",
+        "points": [
+          {
+            "x": 82.0,
+            "y": 16.842105
+          },
+          {
+            "x": 96.666667,
+            "y": 16.842105
+          },
+          {
+            "x": 96.666667,
+            "y": 28.026316
+          },
+          {
+            "x": 94.0,
+            "y": 28.026316
+          },
+          {
+            "x": 94.0,
+            "y": 35.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-007",
+        "points": [
+          {
+            "x": 49.166667,
+            "y": 2.894737
+          },
+          {
+            "x": 49.166667,
+            "y": 28.026316
+          },
+          {
+            "x": 54.583333,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-008",
+        "points": [
+          {
+            "x": 59.166667,
+            "y": 28.026316
+          },
+          {
+            "x": 70.916667,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-009",
+        "points": [
+          {
+            "x": 75.416667,
+            "y": 28.026316
+          },
+          {
+            "x": 82.0,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-010",
+        "points": [
+          {
+            "x": 65.166667,
+            "y": 2.894737
+          },
+          {
+            "x": 65.166667,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-011",
+        "points": [
+          {
+            "x": 41.666667,
+            "y": 5.263158
+          },
+          {
+            "x": 49.166667,
+            "y": 5.263158
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-012",
+        "points": [
+          {
+            "x": 41.666667,
+            "y": 5.263158
+          },
+          {
+            "x": 41.666667,
+            "y": 19.342105
+          },
+          {
+            "x": 49.166667,
+            "y": 19.342105
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-013",
+        "points": [
+          {
+            "x": 41.666667,
+            "y": 20.394737
+          },
+          {
+            "x": 41.666667,
+            "y": 28.026316
+          },
+          {
+            "x": 46.5,
+            "y": 28.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-014",
+        "points": [
+          {
+            "x": 0.666667,
+            "y": 34.605263
+          },
+          {
+            "x": 33.75,
+            "y": 34.605263
+          },
+          {
+            "x": 33.75,
+            "y": 59.210526
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-015",
+        "points": [
+          {
+            "x": 0.666667,
+            "y": 34.605263
+          },
+          {
+            "x": 0.666667,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-016",
+        "points": [
+          {
+            "x": 4.166667,
+            "y": 63.289474
+          },
+          {
+            "x": 30.416667,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-017",
+        "points": [
+          {
+            "x": 52.5,
+            "y": 35.131579
+          },
+          {
+            "x": 65.166667,
+            "y": 35.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-018",
+        "points": [
+          {
+            "x": 49.583333,
+            "y": 35.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 63.289474
+          },
+          {
+            "x": 98.5,
+            "y": 63.289474
+          },
+          {
+            "x": 98.5,
+            "y": 35.131579
+          },
+          {
+            "x": 94.333333,
+            "y": 35.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-019",
+        "points": [
+          {
+            "x": 67.5,
+            "y": 35.131579
+          },
+          {
+            "x": 91.916667,
+            "y": 35.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-020",
+        "points": [
+          {
+            "x": 65.166667,
+            "y": 39.473684
+          },
+          {
+            "x": 65.166667,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-021",
+        "points": [
+          {
+            "x": 38.583333,
+            "y": 35.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 35.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-022",
+        "points": [
+          {
+            "x": 38.583333,
+            "y": 50.131579
+          },
+          {
+            "x": 49.583333,
+            "y": 50.131579
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-023",
+        "points": [
+          {
+            "x": 38.583333,
+            "y": 36.973684
+          },
+          {
+            "x": 38.583333,
+            "y": 42.763158
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-024",
+        "points": [
+          {
+            "x": 38.583333,
+            "y": 55.921053
+          },
+          {
+            "x": 38.583333,
+            "y": 63.289474
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-025",
+        "points": [
+          {
+            "x": 1.25,
+            "y": 69.736842
+          },
+          {
+            "x": 1.25,
+            "y": 97.894737
+          },
+          {
+            "x": 49.666667,
+            "y": 98.684211
+          },
+          {
+            "x": 49.666667,
+            "y": 69.736842
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-026",
+        "points": [
+          {
+            "x": 17.083333,
+            "y": 73.684211
+          },
+          {
+            "x": 17.083333,
+            "y": 98.026316
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-027",
+        "points": [
+          {
+            "x": 33.583333,
+            "y": 69.736842
+          },
+          {
+            "x": 33.583333,
+            "y": 98.421053
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-028",
+        "points": [
+          {
+            "x": 4.166667,
+            "y": 69.736842
+          },
+          {
+            "x": 14.166667,
+            "y": 69.736842
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-029",
+        "points": [
+          {
+            "x": 17.083333,
+            "y": 69.736842
+          },
+          {
+            "x": 23.333333,
+            "y": 69.736842
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-030",
+        "points": [
+          {
+            "x": 27.5,
+            "y": 69.736842
+          },
+          {
+            "x": 40.0,
+            "y": 69.736842
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "wall-031",
+        "points": [
+          {
+            "x": 44.166667,
+            "y": 69.736842
+          },
+          {
+            "x": 49.666667,
+            "y": 69.736842
+          }
+        ],
+        "confidence": "medium"
+      }
+    ],
+    "markings": [
+      {
+        "id": "exit-west",
+        "label": "West exit symbol",
+        "kind": "exit",
+        "points": [
+          {
+            "x": 25.0,
+            "y": 21.578947
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "id": "exit-east",
+        "label": "East exit symbol",
+        "kind": "exit",
+        "points": [
+          {
+            "x": 89.166667,
+            "y": 22.368421
+          }
+        ],
+        "confidence": "high"
+      },
+      {
+        "id": "evacuation-west-a",
+        "label": "Printed westbound evacuation annotation",
+        "kind": "evacuation_route",
+        "points": [
+          {
+            "x": 2.75,
+            "y": 65.789474
+          },
+          {
+            "x": 36.083333,
+            "y": 66.447368
+          },
+          {
+            "x": 36.083333,
+            "y": 21.447368
+          },
+          {
+            "x": 32.75,
+            "y": 21.447368
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "evacuation-west-b",
+        "label": "Printed branch toward west stairs",
+        "kind": "evacuation_route",
+        "points": [
+          {
+            "x": 44.0,
+            "y": 66.447368
+          },
+          {
+            "x": 36.083333,
+            "y": 66.447368
+          },
+          {
+            "x": 36.083333,
+            "y": 21.447368
+          },
+          {
+            "x": 32.75,
+            "y": 21.447368
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "evacuation-east",
+        "label": "Printed eastbound evacuation annotation",
+        "kind": "evacuation_route",
+        "points": [
+          {
+            "x": 36.083333,
+            "y": 31.842105
+          },
+          {
+            "x": 83.333333,
+            "y": 31.842105
+          },
+          {
+            "x": 83.333333,
+            "y": 27.368421
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "hydrant-north",
+        "label": "Fire hydrant sign",
+        "kind": "fire_equipment",
+        "points": [
+          {
+            "x": 39.416667,
+            "y": 11.842105
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "fire-marker-west",
+        "label": "Fire equipment symbol",
+        "kind": "fire_equipment",
+        "points": [
+          {
+            "x": 37.25,
+            "y": 60.657895
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "fire-marker-center",
+        "label": "Fire equipment symbol",
+        "kind": "fire_equipment",
+        "points": [
+          {
+            "x": 47.666667,
+            "y": 33.421053
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "fire-marker-east",
+        "label": "Fire equipment symbol",
+        "kind": "fire_equipment",
+        "points": [
+          {
+            "x": 81.0,
+            "y": 29.736842
+          }
+        ],
+        "confidence": "medium"
+      },
+      {
+        "id": "fire-marker-south",
+        "label": "Fire equipment symbol",
+        "kind": "fire_equipment",
+        "points": [
+          {
+            "x": 49.166667,
+            "y": 68.947368
+          }
+        ],
+        "confidence": "medium"
+      }
+    ],
+    "warnings": [
+      "Assisted approximate trace of the supplied 640×480 photo, not a successful local API extraction.",
+      "Rooms 201–210 are read from the image; internal restroom fixtures, tiny symbols, and most door-swing details are simplified or omitted.",
+      "Unlabeled service block is visible, but its function is not established; no elevator identity is asserted.",
+      "Wall endpoints and doorway gaps are approximate and require review against a sharper original.",
+      "The yellow/orange dot near the hydrant sign is not labeled as a confirmed you-are-here marker.",
+      "Frame corners and output aspect ratio are visually estimated; no real-world scale is known."
+    ]
+  }
+}

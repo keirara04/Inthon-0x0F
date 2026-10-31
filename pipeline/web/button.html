@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Map → SVG + JSON</title>
+  <link rel="stylesheet" href="/button.css">
+  <script src="/button.js" defer></script>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">MAP EXTRACTION · LOCAL TEST TOOL</p>
+    <h1>A photo in.<br>A vector plan out.</h1>
+    <p class="intro">Upload a floor-plan photo to extract rooms, corridors, walls, and markings into SVG and JSON.</p>
+    <form id="convert-form">
+      <label for="photo">Choose a floor-plan photo</label>
+      <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required>
+      <p class="hint">JPG, PNG or WebP · up to 6 MB</p>
+      <button id="convert" type="submit" disabled>Convert to SVG + JSON <span aria-hidden="true">↗</span></button>
+      <p class="privacy">Image recognition sends your photo to the API provider configured on this server. Perspective correction, validation, and SVG generation run on this local Python server.</p>
+    </form>
+    <p id="status" role="status" aria-live="polite">Choose a photo to begin.</p>
+    <p id="error" role="alert" hidden></p>
+    <section class="previews" aria-label="Conversion preview">
+      <article><h2>Original photo</h2><img id="original" alt="Uploaded floor-plan photo" hidden><p id="original-empty" class="empty">Your photo will appear here.</p></article>
+      <article><h2>Extracted vector</h2><img id="vector" alt="Automatically extracted vector floor plan" hidden><p id="vector-empty" class="empty">Your SVG will appear after conversion.</p></article>
+    </section>
+    <section id="results" hidden aria-label="Conversion downloads">
+      <p id="summary"></p>
+      <div class="downloads"><a id="download-svg" download="vector.svg">Download SVG</a><a id="download-json" download="plan.json">Download JSON</a><a id="download-overlay" download="overlay.svg">Download photo overlay</a></div>
+      <p class="hint">Check labels and geometry against the photo before using the result.</p>
+      <details><summary>Extraction notes</summary><ul id="warnings"></ul></details>
+    </section>
+    <footer>One button → detect map → correct perspective → extract geometry → generate SVG + JSON</footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Single-floor diagram",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["floor", "places", "corridors", "warnings"],
+  "properties": {
+    "floor": {"type": "string"},
+    "places": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "name", "x", "y", "description"],
+        "properties": {
+          "id": {"type": "string"}, "name": {"type": "string"},
+          "x": {"type": "number"}, "y": {"type": "number"},
+          "description": {"type": "string"}
+        }
+      }
+    },
+    "corridors": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["from", "to", "via"],
+        "properties": {
+          "from": {"type": "string"}, "to": {"type": "string"},
+          "via": {
+            "type": "array",
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["x", "y"],
+              "properties": {"x": {"type": "number"}, "y": {"type": "number"}}
+            }
+          }
+        }
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}
