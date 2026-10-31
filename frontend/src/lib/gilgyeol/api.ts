@@ -105,7 +105,7 @@ export async function parseEvacMap(image: Blob | null, floor: number = 4, signal
   if (API_MODE === "live") {
     if (!image) throw new Error("피난안내도 이미지를 먼저 선택해 주세요");
     const body = new FormData();
-    body.append("image", await downscale(image, 2048));
+    body.append("image", await downscale(image, 2048, MAP_JPEG_QUALITY));
     body.append("building", BUILDING);
     body.append("floor", floorLabel(floor));
     return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
@@ -202,7 +202,25 @@ export function toRouteStep(step: ApiStep): RouteStep {
 }
 
 /** Phone photos are 3–8 MB; the backend accepts 2 MB. Shrink to a JPEG (<= 1280px by default) before upload. */
-async function downscale(image: Blob, max = 1280): Promise<Blob> {
+/** JPEG quality for evacuation maps: room numbers are tiny, so keep more detail than for door signs. */
+export const MAP_JPEG_QUALITY = 0.85;
+const MAX_UPLOAD_BYTES = 1_900_000; // backend rejects images over 2 MB
+
+/**
+ * Encodes a canvas as JPEG at `quality`, stepping down (0.7, then 0.6) only if the file would be too big
+ * for the backend. Encoding once at the final size avoids stacking JPEG artefacts.
+ */
+export async function canvasToJpeg(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
+  for (const q of [quality, 0.7, 0.6]) {
+    if (q > quality) continue;
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", q));
+    if (!blob) throw new Error("이미지 변환 실패");
+    if (blob.size <= MAX_UPLOAD_BYTES || q === 0.6) return blob;
+  }
+  throw new Error("이미지 변환 실패");
+}
+
+async function downscale(image: Blob, max = 1280, quality = 0.7): Promise<Blob> {
   const bmp = await createImageBitmap(image);
   // Already small enough (e.g. a camera frame): skip a second lossy JPEG pass, small text matters.
   if (image.type === "image/jpeg" && image.size <= 2_000_000 && Math.max(bmp.width, bmp.height) <= max) {
@@ -215,7 +233,7 @@ async function downscale(image: Blob, max = 1280): Promise<Blob> {
   canvas.height = Math.round(bmp.height * scale);
   canvas.getContext("2d")?.drawImage(bmp, 0, 0, canvas.width, canvas.height);
   bmp.close();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("이미지 변환 실패"))), "image/jpeg", 0.7));
+  return canvasToJpeg(canvas, quality);
 }
 
 const KEY = "gilgyeol-admin-token";
