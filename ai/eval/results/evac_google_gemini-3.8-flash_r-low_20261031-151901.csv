@@ -1,0 +1,4 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms
+evac_2F_angle.jpg,2F,False,15.45,0.01003275,json_schema,,True,,0,True,18,17,10
+evac_2F_far.jpg,2F,False,17.25,0.010479,json_schema,,True,,0,True,19,18,10
+evac_2F_front.jpg,2F,False,12.69,0.00908775,json_schema,,True,,0,False,20,17,10

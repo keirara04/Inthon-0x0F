@@ -1,0 +1,4 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms
+evac_2F_angle.jpg,2F,False,71.04,,prompt_json,,True,,0,True,19,18,10
+evac_2F_far.jpg,2F,False,33.28,,prompt_json,,True,,0,False,17,16,10
+evac_2F_front.jpg,2F,False,37.2,,prompt_json,json parse: Expecting value: line 1 column 1 (char 0),False,,,,,,

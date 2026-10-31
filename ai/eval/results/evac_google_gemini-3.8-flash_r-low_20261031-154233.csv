@@ -1,0 +1,2 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms
+evac_1F_front.jpg,1F,False,14.64,0.01153725,json_schema,,True,,0,True,20,19,9
