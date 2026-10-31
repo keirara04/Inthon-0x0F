@@ -120,6 +120,7 @@ class VisionTest extends TestCase
     public function test_parse_cleans_llm_output_and_saves_nothing(): void
     {
         $this->fakeVision([
+            'is_floor_plan' => true,
             'current_node_id' => 'lobby',
             'nodes' => [
                 ['id' => 'lobby', 'type' => 'entrance', 'label' => '로비', 'x' => 0.5, 'y' => 0.9],
@@ -146,6 +147,7 @@ class VisionTest extends TestCase
     {
         $sq = [['x' => 0.1, 'y' => 0.1], ['x' => 0.3, 'y' => 0.1], ['x' => 0.3, 'y' => 0.3], ['x' => 0.1, 'y' => 0.3]];
         $this->fakeVision([
+            'is_floor_plan' => true,
             'current_node_id' => null,
             'nodes' => [
                 // repeated closing point, a duplicate neighbour and one point off the photo
@@ -167,6 +169,7 @@ class VisionTest extends TestCase
     public function test_parse_keeps_the_floor_read_from_the_map(): void
     {
         $graph = fn (string $floor) => [
+            'is_floor_plan' => true,
             'floor' => $floor,
             'current_node_id' => null,
             'nodes' => [['id' => 'XF-405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5, 'ref' => null]],
@@ -208,6 +211,7 @@ class VisionTest extends TestCase
     public function test_parse_replaces_unknown_floor_prefix(): void
     {
         $this->fakeVision([
+            'is_floor_plan' => true,
             'current_node_id' => null,
             'nodes' => [['id' => 'XF-405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5, 'ref' => null]],
             'edges' => [],
@@ -215,6 +219,86 @@ class VisionTest extends TestCase
 
         $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '2F'])
             ->assertOk()->assertJsonPath('data.nodes.0.id', '2F-405');
+    }
+
+    public function test_non_floor_plan_returns_422_without_a_graph_or_saved_nodes(): void
+    {
+        Http::preventStrayRequests();
+        $this->fakeVision([
+            'is_floor_plan' => false,
+            'floor' => '4F',
+            'current_node_id' => '405',
+            'nodes' => [['id' => '405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5]],
+            'edges' => [],
+        ]);
+        $nodesBefore = DB::table('nodes')->count();
+
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonPath('code', 'NOT_FLOOR_PLAN')
+            ->assertJsonPath('message', '평면도가 아닌 사진이에요')
+            ->assertJsonMissingPath('data');
+
+        $this->assertSame($nodesBefore, DB::table('nodes')->count());
+        Http::assertSentCount(1);
+    }
+
+    public function test_empty_floor_plan_returns_422_instead_of_a_successful_read(): void
+    {
+        Http::preventStrayRequests();
+        $this->fakeVision([
+            'is_floor_plan' => true,
+            'nodes' => [['id' => 'bad', 'type' => 'spaceship', 'x' => 0.2, 'y' => 0.5]],
+            'edges' => [],
+            'current_node_id' => null,
+        ]);
+
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('image')
+            ->assertJsonPath('errors.image.0', '안내도에서 방이나 복도를 읽지 못했어요. 안내도 전체가 선명하게 보이도록 다시 찍어주세요.')
+            ->assertJsonMissingPath('data');
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_missing_or_invalid_classification_returns_502_instead_of_accepting_a_graph(): void
+    {
+        Http::preventStrayRequests();
+        $graph = [
+            'nodes' => [['id' => '405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5]],
+            'edges' => [],
+        ];
+        $this->fakeVision($graph, ['is_floor_plan' => 'false', ...$graph]);
+
+        foreach ([0, 1] as $attempt) {
+            $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'], ['Accept' => 'application/json'])
+                ->assertStatus(502)
+                ->assertJsonPath('message', 'AI 인식에 실패했어요. 다시 찍어주세요')
+                ->assertJsonMissingPath('data');
+        }
+
+        Http::assertSentCount(2);
+    }
+
+    public function test_valid_map_can_be_uploaded_after_a_non_floor_plan(): void
+    {
+        Http::preventStrayRequests();
+        $this->fakeVision(
+            ['is_floor_plan' => false, 'nodes' => [], 'edges' => []],
+            [
+                'is_floor_plan' => true, 'floor' => '2F', 'current_node_id' => null,
+                'nodes' => [['id' => '201', 'type' => 'room', 'label' => '201호', 'x' => 0.2, 'y' => 0.5]],
+                'edges' => [],
+            ],
+        );
+
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'], ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('code', 'NOT_FLOOR_PLAN');
+        $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'], ['Accept' => 'application/json'])
+            ->assertOk()->assertJsonPath('data.floor', '2F')->assertJsonPath('data.nodes.0.label', '201호');
+
+        Http::assertSentCount(2);
     }
 
     public function test_vision_garbage_returns_502(): void

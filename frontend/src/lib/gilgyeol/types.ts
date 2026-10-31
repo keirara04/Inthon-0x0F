@@ -3,6 +3,7 @@ export type Screen =
   | "welcome"
   | "building"
   | "captureIntro"
+  | "invalidMap"
   | "mapResult"
   | "start"
   | "search"

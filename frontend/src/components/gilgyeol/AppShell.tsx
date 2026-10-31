@@ -12,6 +12,7 @@ import { DemoPanel } from "./DemoPanel";
 import { ElevatorScreen } from "./ElevatorScreen";
 import { GraphEditorScreen } from "./GraphEditorScreen";
 import { GuidanceScreen } from "./GuidanceScreen";
+import { InvalidMapScreen } from "./InvalidMapScreen";
 import { LandingScreen } from "./LandingScreen";
 import { MapResultScreen } from "./MapResultScreen";
 import { ModeScreen } from "./ModeScreen";
@@ -27,6 +28,7 @@ const SCREENS: Record<Screen, () => ReactNode> = {
   welcome: WelcomeScreen,
   building: BuildingScreen,
   captureIntro: CaptureIntroScreen,
+  invalidMap: InvalidMapScreen,
   mapResult: MapResultScreen,
   start: StartLocationScreen,
   search: SearchScreen,

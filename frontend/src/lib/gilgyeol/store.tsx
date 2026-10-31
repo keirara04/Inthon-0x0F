@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiRoute } from "@/types/api";
-import { fetchRoute, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
+import { ApiError, fetchRoute, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
 import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
@@ -126,6 +126,7 @@ const INITIAL: AppState = {
 const BACK: Partial<Record<Screen, Screen>> = {
   building: "welcome",
   captureIntro: "building",
+  invalidMap: "captureIntro",
   mapResult: "captureIntro",
   start: "mapResult",
   search: "start",
@@ -332,6 +333,10 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
           go("mapResult", { mapDemo: false, parsed: g, start: startFromParsed(g) });
         } catch (e) {
           if (parseCtl.current !== ctl) return; // cancelled by the user
+          if (ref.current.screen === "scan" && e instanceof ApiError && e.code === "NOT_FLOOR_PLAN") {
+            go("invalidMap", { parsed: null, pendingPhoto: null, mapDemo: false, start: null, scanState: "aim" });
+            return;
+          }
           toast(ctl.signal.aborted ? "안내도를 읽는 데 너무 오래 걸려요. 다시 찍거나 데모 안내도로 계속해 주세요" : e instanceof Error ? e.message : "안내도를 읽지 못했어요");
           if (ref.current.screen === "scan") update({ scanState: "fail" });
         } finally {

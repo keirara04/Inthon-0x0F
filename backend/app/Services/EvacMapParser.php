@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\NotFloorPlanException;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 /**
  * Evacuation-map photo -> graph JSON in the shared contract (업무분담.md).
@@ -44,7 +47,21 @@ class EvacMapParser
     {
         $raw = $this->vision->json('evac-map', $image, "건물: {$building}, 층: {$floor}");
 
-        return $this->clean($raw, $building, $floor);
+        if (! is_bool($raw['is_floor_plan'] ?? null)) {
+            throw new RuntimeException('Vision response is missing a floor-plan classification.');
+        }
+        if (! $raw['is_floor_plan']) {
+            throw new NotFloorPlanException;
+        }
+
+        $graph = $this->clean($raw, $building, $floor);
+        if ($graph['nodes'] === []) {
+            throw ValidationException::withMessages([
+                'image' => '안내도에서 방이나 복도를 읽지 못했어요. 안내도 전체가 선명하게 보이도록 다시 찍어주세요.',
+            ]);
+        }
+
+        return $graph;
     }
 
     /** The floor printed on the map ("4F", "B1"; also accepts "4층", "지하1층"), or null when unreadable. */
