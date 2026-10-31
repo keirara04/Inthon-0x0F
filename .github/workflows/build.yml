@@ -49,6 +49,7 @@ jobs:
           # repo Settings > Secrets and variables > Actions > Variables.
           build-args: |
             NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:8000' }}
+            NEXT_PUBLIC_GILGYEOL_API=${{ vars.NEXT_PUBLIC_GILGYEOL_API || 'mock' }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
 
