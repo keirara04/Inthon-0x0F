@@ -21,7 +21,7 @@ class VisionClient
         unset($schema['$schema'], $schema['$id']); // some providers reject meta keys
 
         $body = [
-            'model' => config('services.openrouter.model'),
+            'model' => config("services.openrouter.{$name}_model") ?: config('services.openrouter.model'),
             'temperature' => 0,
             'reasoning' => ['effort' => 'low'], // ~3x faster than default, same JSON validity in eval
             'messages' => [
