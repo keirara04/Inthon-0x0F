@@ -290,12 +290,24 @@ export default function Floor3D({
       const shafts: THREE.BufferGeometry[] = [];
       const steps: THREE.BufferGeometry[] = [];
       const desks: THREE.BufferGeometry[] = [];
-      for (const n of nodes) {
-        if (n.type !== "room" && n.type !== "stairs" && n.type !== "elevator_hall") continue;
-        const poly: V2[] =
-          n.outline && n.outline.length >= 3
-            ? n.outline.map((p) => ({ x: p.x * LS, z: p.y * LS }))
-            : [[-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9]].map(([ox, oz]) => ({ x: n.x * LS + ox, z: n.y * LS + oz }));
+      const polyOf = (n: GraphNode): V2[] =>
+        n.outline && n.outline.length >= 3
+          ? n.outline.map((p) => ({ x: p.x * LS, z: p.y * LS }))
+          : [[-0.9, -0.9], [0.9, -0.9], [0.9, 0.9], [-0.9, 0.9]].map(([ox, oz]) => ({ x: n.x * LS + ox, z: n.y * LS + oz }));
+      const roomish = nodes.filter((n) => n.type === "room" || n.type === "stairs" || n.type === "elevator_hall");
+      // Label centres, so a name is never wider than the gap to its neighbour's name.
+      const centres = roomish.map((n) => {
+        const b = bbox(polyOf(n));
+        return { id: n.id, x: (b.x0 + b.x1) / 2, z: (b.z0 + b.z1) / 2 };
+      });
+      const gap = (id: string, axis: "x" | "z") => {
+        const me = centres.find((c) => c.id === id)!;
+        const other = axis === "x" ? "z" : "x";
+        const ds = centres.filter((c) => c.id !== id && Math.abs(c[other] - me[other]) < 1.2).map((c) => Math.abs(c[axis] - me[axis]));
+        return ds.length ? Math.min(...ds) : Infinity;
+      };
+      for (const n of roomish) {
+        const poly = polyOf(n);
         const doorNode = level.g.edges.map((e) => (e.a === n.id ? e.b : e.b === n.id ? e.a : null)).map((id) => (id ? at.get(id) : undefined)).find((x) => x && x.type !== "room");
         const restroom = n.type === "room" && /화장실/.test(n.label);
         const kind = restroom ? "restroom" : n.type;
@@ -318,9 +330,15 @@ export default function Floor3D({
         desks.push(...roomDesks);
 
         const { x0, x1, z0, z1 } = bbox(poly);
-        const text = floorText(n.type === "room" ? shortLabel(n) : n.type === "stairs" ? "계단" : "승강기 ▲▼", (x1 - x0) * 0.85, Math.min((z1 - z0) * 0.32, 1.1), restroom ? C.route : C.ink);
+        // Tall, narrow rooms (406–402) carry the name along their long side, like a printed plan.
+        const tall = z1 - z0 > (x1 - x0) * 1.4;
+        const [along, across] = tall ? [z1 - z0, x1 - x0] : [x1 - x0, z1 - z0];
+        const maxW = Math.min(along * 0.85, gap(n.id, tall ? "z" : "x") * 0.9);
+        const maxH = Math.min(across * (tall ? 0.6 : 0.32), gap(n.id, tall ? "x" : "z") * 0.8, 1.1);
+        const text = floorText(n.type === "room" ? shortLabel(n) : n.type === "stairs" ? "계단" : "승강기", maxW, maxH, restroom ? C.route : C.ink);
+        if (tall) text.rotation.y = -Math.PI / 2; // reads bottom-to-top from the default view
         // Stairs: name above the top step. Classrooms with desks: name in the band by the top wall. Else: centre.
-        text.position.set((x0 + x1) / 2, n.type === "stairs" ? 1.12 : 0.07, roomDesks.length ? z0 + 0.85 : (z0 + z1) / 2);
+        text.position.set((x0 + x1) / 2, n.type === "stairs" ? 1.12 : 0.07, roomDesks.length && !tall ? z0 + 0.85 : (z0 + z1) / 2);
         text.renderOrder = 5;
         group.add(text);
       }
