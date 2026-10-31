@@ -14,6 +14,9 @@ class RouteService
 {
     private const STRAIGHT_DEG = 30;
 
+    /** Walk legs shorter than this are heading noise (jogs around estimated walls), not a step worth announcing. */
+    private const MIN_STEP_M = 2;
+
     /** @return array{total_m: float, path: list<string>, steps: list<array>, arrived: array}|null null when unreachable */
     public function route(string $start, string $dest): ?array
     {
@@ -94,6 +97,18 @@ class RouteService
                 $groups[] = [$e];
             }
         }
+        // ponytail: fold micro-legs into the previous walk step; a real short turn (door jog) is lost too, tune MIN_STEP_M if so.
+        $merged = [];
+        foreach ($groups as $g) {
+            $i = count($merged) - 1;
+            if ($i >= 0 && $g[0]->type === 'walk' && $merged[$i][0]->type === 'walk'
+                && array_sum(array_map(fn ($e) => (float) $e->length_m, $g)) < self::MIN_STEP_M) {
+                $merged[$i] = array_merge($merged[$i], $g);
+            } else {
+                $merged[] = $g;
+            }
+        }
+        $groups = $merged;
 
         // Real maps leave corridor junctions unnamed; a step ending at one points to the next named place instead.
         $order = array_merge([$path[0]->from_node], array_map(fn ($e) => $e->to_node, $path));
@@ -130,8 +145,16 @@ class RouteService
             if ($g[0]->type === 'walk') {
                 $heading = $g[0]->heading_deg === null ? null : (float) $g[0]->heading_deg;
                 $turn = ($prevHeading === null || $heading === null) ? null : self::turn(self::delta($prevHeading, $heading));
-                $passed = count($g) > 1 ? trim($nodes[$g[0]->to_node]->label) : '';
+                // First named place passed on the way (any intermediate node, not just the first).
+                $passed = '';
+                foreach (array_slice($g, 0, -1) as $e) {
+                    if (($passed = trim($nodes[$e->to_node]->label)) !== '') {
+                        break;
+                    }
+                }
                 $via = $passed !== '' ? "{$passed} 지나서 " : '';
+                $length = round(array_sum(array_map(fn ($e) => (float) $e->length_m, $g)), 1);
+                $dist = '약 '.max(1, (int) round($length)).'m ';
                 $action = match ($turn) {
                     'left' => '왼쪽으로 돌아 ',
                     'right' => '오른쪽으로 돌아 ',
@@ -142,11 +165,12 @@ class RouteService
                 $step += [
                     'heading_deg' => $heading,
                     'turn' => $turn,
-                    'length_m' => round(array_sum(array_map(fn ($e) => (float) $e->length_m, $g)), 1),
+                    'length_m' => $length,
+                    // Unnamed junction: say how far, not the far-off goal again, or every leg reads the same.
                     'text' => match (true) {
                         $named => $via.$action.$toNode->label.($via || $action ? '까지 가세요' : ' 쪽으로 가세요'),
-                        $goal !== null => "{$via}{$action}{$goal} 쪽으로 가세요",
-                        default => $via.($action !== '' ? $action.'복도를 따라 가세요' : '복도를 따라 가세요'),
+                        $action === '' && $goal !== null => "{$via}{$goal} 쪽으로 {$dist}가세요",
+                        default => "{$via}{$action}복도를 따라 {$dist}가세요",
                     },
                 ];
                 $prevHeading = $heading;

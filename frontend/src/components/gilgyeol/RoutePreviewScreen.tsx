@@ -47,13 +47,17 @@ export function RoutePreviewScreen() {
   const startNode = START_NODES.find((n) => n.id === s.start);
   const [view, setView] = useState<"floors" | "3d">("3d");
 
-  const routeSteps: { t: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = s.steps.map((st) => ({
-    t: `${st.floor} · ${st.title}`,
+  const arrow = { left: "↰ 왼쪽", right: "↱ 오른쪽", back: "↶ 뒤로", straight: "↑ 직진" };
+  const routeSteps: { t: string; floor?: string; meta?: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = s.steps.map((st, i) => ({
+    t: st.title,
+    // Floor only where it changes, so a one-floor route isn't "1층 ·" on every row.
+    floor: i === 0 || st.floor !== s.steps[i - 1].floor ? st.floor : undefined,
+    meta: [st.turnDir ? arrow[st.turnDir] : "", st.lengthM ? `약 ${Math.max(1, Math.round(st.lengthM))}m` : ""].filter(Boolean).join(" · ") || undefined,
     badge:
       st.kind && st.kind !== "walk"
         ? (st.elevator ?? (st.kind === "stairs" ? "계단" : "층 이동"))
         : st.checkpoint
-          ? "표지 확인"
+          ? `${st.checkpoint.kind === "room_no" ? `${st.checkpoint.text}호` : st.checkpoint.text} 표지 확인`
           : undefined,
     tone: st.kind && st.kind !== "walk" ? (s.elevUnverified ? "warn" : "ok") : st.checkpoint ? "cp" : undefined,
   }));
@@ -142,12 +146,14 @@ export function RoutePreviewScreen() {
       {alreadyThere && <p className="m-0 py-4 text-[16px] leading-normal text-muted">현재 위치가 {d}예요. 이동하거나 층을 바꿀 필요가 없어요.</p>}
       <ol className="m-0 flex list-none flex-col p-0" aria-labelledby="gg-steps-title">
         {routeSteps.map((p, i) => (
-          <li key={p.t} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
+          <li key={i} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
             <div className="flex size-7 flex-none items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: i === routeSteps.length - 1 ? C.brand : C.route }}>
               {i + 1}
             </div>
             <div className="flex flex-col gap-1 pt-[3px]">
+              {p.floor && <div className="text-[12px] font-bold text-muted">{p.floor}</div>}
               <div className="text-[16px] font-semibold">{p.t}</div>
+              {p.meta && <div className="text-[13px] text-muted">{p.meta}</div>}
               {p.badge && p.tone && <div className={`self-start rounded-md px-2 py-[3px] text-[12px] font-bold ${badgeCls[p.tone]}`}>{p.badge}</div>}
             </div>
           </li>
