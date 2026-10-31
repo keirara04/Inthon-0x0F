@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { canvasTextMeasure, MAP_FONT, placeMapChips } from "@/lib/gilgyeol/mapLabels";
+import { corridorSegments, facilityGraph } from "@/lib/gilgyeol/facilityGeometry";
 import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C, EDITOR_H, EDITOR_W } from "@/lib/gilgyeol/data";
 import type { GraphNode, NodeType, StartNodeId } from "@/lib/gilgyeol/types";
@@ -15,7 +16,7 @@ const NODE_COLOR: Record<NodeType, string> = {
   stairs: C.route,
   elevator_hall: C.haptic,
   entrance: C.success,
-  exit: C.error,
+  exit: C.success,
   landmark: "#B5B0A4",
 };
 
@@ -40,7 +41,7 @@ export function graphFrame(g: ParsedGraph, photo?: MapPhoto | null) {
     // Margin in drawing units (k), not just %, so chips nudged up a row and the 현위치 tag above
     // the pin (~36k tall) stay inside the crop.
     const k0 = (Math.max(x1 - x0, y1 - y0, 80) * 1.25) / 300;
-    const [padX, padTop, padBottom] = [24 * k0, 42 * k0, 24 * k0];
+    const [padX, padTop, padBottom] = [36 * k0, 44 * k0, 44 * k0];
     let [bx0, bx1, by0, by1] = [x0 - padX, x1 + padX, y0 - padTop, y1 + padBottom];
     if (photo) [bx0, bx1, by0, by1] = [Math.max(0, bx0), Math.min(W, bx1), Math.max(0, by0), Math.min(H, by1)];
     box = { x: bx0, y: by0, w: Math.max(bx1 - bx0, 1), h: Math.max(by1 - by0, 1) };
@@ -100,7 +101,7 @@ function Outlines({ g, f, selected, stroke }: { g: ParsedGraph; f: MapFrame; sel
  * `lite` (for the tilted 3D plane) keeps only corridors and dots, stretched to the box.
  */
 export function MapSketch({
-  g,
+  g: inputGraph,
   frame: f,
   photo,
   variant = "full",
@@ -118,12 +119,12 @@ export function MapSketch({
   /** Chips carry `data-node` and take pointer events, so a viewer can hit-test taps. */
   interactive?: boolean;
 }) {
+  const g = facilityGraph(inputGraph);
   const { k, box } = f;
   const at = new Map(g.nodes.map((n) => [n.id, n]));
-  const isRoom = (id: string) => at.get(id)?.type === "room";
-  const corridors = g.edges.filter((e) => at.has(e.a) && at.has(e.b) && !isRoom(e.a) && !isRoom(e.b));
+  const corridors = corridorSegments(g);
   const cur = g.current_node_id ? at.get(g.current_node_id) : undefined;
-  const line = (a: GraphNode, b: GraphNode) => {
+  const line = (a: { x: number; y: number }, b: { x: number; y: number }) => {
     const [p, q] = [f.pt(a), f.pt(b)];
     return `M${p.x} ${p.y}L${q.x} ${q.y}`;
   };
@@ -133,9 +134,7 @@ export function MapSketch({
     return (
       <svg viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
         <Outlines g={g} f={f} stroke={k} />
-        {corridors.map((e, i) => (
-          <path key={`${e.a}-${e.b}`} d={line(at.get(e.a)!, at.get(e.b)!)} pathLength={1} className="gg-draw-in" stroke={C.route} strokeOpacity={0.55} strokeWidth={7 * k} strokeLinecap="round" style={{ animationDelay: corridorDelay(i) }} />
-        ))}
+        <path d={corridors.map(([a, b]) => line(a, b)).join(" ")} fill="none" pathLength={1} className="gg-draw-in" stroke={C.route} strokeOpacity={0.55} strokeWidth={7 * k} strokeLinecap="round" />
         {g.nodes
           .filter((n) => n.type !== "junction")
           .map((n) => {
@@ -147,7 +146,13 @@ export function MapSketch({
   }
 
   const currentPoint = cur && f.pt(cur);
-  const chips = placeMapChips(g.nodes, { ...f, measure: canvasTextMeasure() }, currentPoint ? [{ x: currentPoint.x, y: currentPoint.y - 10 * k, w: 44 * k, h: 50 * k }] : []);
+  const corridorPts = corridors.map(([a, b]) => [f.pt(a), f.pt(b)] as [{ x: number; y: number }, { x: number; y: number }]);
+  const chips = placeMapChips(
+    g.nodes,
+    { ...f, measure: canvasTextMeasure() },
+    currentPoint ? [{ x: currentPoint.x, y: currentPoint.y - 10 * k, w: 46 * k, h: 52 * k }] : [],
+    corridorPts,
+  );
   const chipsStart = Math.min(corridors.length * 0.03, 0.6) + 0.25;
   const curP = cur && f.pt(cur);
 
@@ -162,23 +167,18 @@ export function MapSketch({
       {/* Hidden with display (not unmounted) so switching layers doesn't replay the entrance. */}
       <g display={layers === "photo" ? "none" : undefined}>
         <Outlines g={g} f={f} selected={selected} stroke={k} />
-      {/* Door stubs: thin lines from a room to the corridor it opens onto. */}
-      {g.edges.map((e) => {
-        const [a, b] = [at.get(e.a), at.get(e.b)];
-        if (!a || !b || isRoom(e.a) === isRoom(e.b)) return null;
-        const [room, door] = isRoom(e.a) ? [a, b] : [b, a];
-        const p = f.pt(room);
-        const q = f.pt(door);
-        return <path key={`s-${e.a}-${e.b}`} d={`M${p.x} ${p.y}L${q.x} ${q.y}`} stroke={C.route} strokeOpacity={0.5} strokeWidth={1.5 * k} strokeLinecap="round" />;
+      {corridors.map(([a, b], i) => (
+        <path key={`c-${i}`} d={line(a, b)} stroke="#fff" strokeWidth={9 * k} strokeLinecap="round" />
+      ))}
+      {corridors.map(([a, b], i) => (
+        <path key={`r-${i}`} d={line(a, b)} pathLength={1} className="gg-draw-in" stroke={C.route} strokeWidth={5 * k} strokeLinecap="round" style={{ animationDelay: corridorDelay(i) }} />
+      ))}
+      {g.nodes.filter((n) => n.door?.length === 2).map((n) => {
+        const [a, b] = n.door!.map(f.pt);
+        return <line key={`door-${n.id}`} data-door-for={n.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={NODE_COLOR[n.type]} strokeWidth={3 * k} strokeLinecap="round" />;
       })}
-      {corridors.map((e) => (
-        <path key={`c-${e.a}-${e.b}`} d={line(at.get(e.a)!, at.get(e.b)!)} stroke="#fff" strokeWidth={9 * k} strokeLinecap="round" />
-      ))}
-      {corridors.map((e, i) => (
-        <path key={`r-${e.a}-${e.b}`} d={line(at.get(e.a)!, at.get(e.b)!)} pathLength={1} className="gg-draw-in" stroke={C.route} strokeWidth={5 * k} strokeLinecap="round" style={{ animationDelay: corridorDelay(i) }} />
-      ))}
-      {chips.filter((c) => Math.hypot(c.x - c.anchor.x, c.y - c.anchor.y) > k).map((c) => (
-        <line key={`label-${c.n.id}`} data-label-for={c.n.id} x1={c.anchor.x} y1={c.anchor.y} x2={c.x} y2={c.y} stroke={C.muted} strokeOpacity={0.7} strokeWidth={k} />
+      {chips.filter((c) => c.callout && c.leader).map((c) => (
+        <line key={`label-${c.n.id}`} data-label-for={c.n.id} x1={c.leader!.from.x} y1={c.leader!.from.y} x2={c.leader!.to.x} y2={c.leader!.to.y} stroke={C.muted} strokeWidth={1.3 * k} strokeLinecap="round" />
       ))}
       {chips.map((c, i) => (
         <g
@@ -190,13 +190,17 @@ export function MapSketch({
           <g className="gg-pop-in" style={{ animationDelay: `${Math.min(chipsStart + i * 0.04, 1.6)}s` }}>
             <title>{c.text}</title>
             <rect
-              x={-c.w / 2} y={-c.h / 2} width={c.w} height={c.h} rx={5 * k}
+              x={-c.w / 2} y={-c.h / 2} width={c.w} height={c.h} rx={5.5 * k}
               fill={selected === c.n.id ? C.brand : c.badge ? NODE_COLOR[c.n.type] : "#fff"}
               stroke={selected === c.n.id ? C.brand : c.badge ? NODE_COLOR[c.n.type] : C.border}
               strokeWidth={selected === c.n.id ? 2 * k : k}
             />
-            <text textAnchor="middle" dominantBaseline="central" fontFamily={MAP_FONT} fontSize={c.fontSize} fontWeight={700} fill={selected === c.n.id || c.badge ? "#fff" : C.ink}>
-              {c.lines.map((line, j) => <tspan key={j} x={0} y={(j - (c.lines.length - 1) / 2) * c.lineHeight}>{line}</tspan>)}
+            <text textAnchor="middle" fontFamily={MAP_FONT} fontSize={c.fontSize} fontWeight={700} fill={selected === c.n.id || c.badge ? "#fff" : C.ink}>
+              {c.lines.map((line, j) => (
+                <tspan key={j} x={0} y={(j - (c.lines.length - 1) / 2) * c.lineHeight + c.fontSize * 0.35}>
+                  {line}
+                </tspan>
+              ))}
             </text>
           </g>
         </g>
@@ -206,8 +210,8 @@ export function MapSketch({
           <g className="gg-pop-in" style={{ animationDelay: `${Math.min(chipsStart + chips.length * 0.04, 1.6) + 0.15}s` }}>
             <circle r={14 * k} fill="none" stroke={C.warning} strokeWidth={2.5 * k} className="gg-pulse" style={{ animationDuration: "1.8s", transformBox: "fill-box", transformOrigin: "center" }} />
             <circle r={6 * k} fill={C.warning} stroke="#fff" strokeWidth={2 * k} />
-            <rect x={-20 * k} y={-33 * k} width={40 * k} height={16 * k} rx={8 * k} fill={C.warning} />
-            <text y={-22 * k} textAnchor="middle" fontSize={9.5 * k} fontWeight={800} fill="#fff">
+            <rect x={-23 * k} y={-35 * k} width={46 * k} height={18 * k} rx={9 * k} fill={C.warning} />
+            <text x={0} y={-26 * k + 9.5 * k * 0.35} textAnchor="middle" fontFamily={MAP_FONT} fontSize={9.5 * k} fontWeight={800} fill="#fff">
               현위치
             </text>
           </g>

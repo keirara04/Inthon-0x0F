@@ -97,6 +97,10 @@ export interface GraphNode {
   ref?: string;
   /** Wall outline of a room/stair/elevator in canvas units, closing edge implicit. Display only, never saved. */
   outline?: { x: number; y: number }[];
+  /** Visible doorway threshold endpoints, in canvas units. */
+  door?: { x: number; y: number }[];
+  /** Visible stair travel axis, perpendicular to the treads. Does not imply ascent direction. */
+  stairFlight?: { x: number; y: number }[];
   /** Outline estimated from spacing (fallbackOutlines), not traced by the AI: no interior detail is drawn. */
   outlineEstimated?: boolean;
 }

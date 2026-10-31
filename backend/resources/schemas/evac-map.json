@@ -46,7 +46,9 @@
           "x",
           "y",
           "ref",
-          "outline"
+          "outline",
+          "door",
+          "stair_flight"
         ],
         "properties": {
           "id": {
@@ -96,6 +98,64 @@
             "description": "room, stairs, elevator_hall 공간의 실제 바깥 벽 모서리. 사진 전체 기준 0~1 좌표, 경계를 따라 순서대로 3~12점, 첫 점 반복 안 함. 각 공간의 서로 다른 폭과 깊이를 보존한다. 경계가 보이지 않거나 다른 노드 type이면 null.",
             "minItems": 3,
             "maxItems": 12,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          "door": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "실제로 보이는 문턱 양 끝 두 점. exit, entrance, stairs, elevator_hall의 문만 기록. 아이콘 테두리나 문 여닫는 곡선이 아니다. 사진 전체 기준 좌표. 안 보이면 null.",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              }
+            }
+          },
+          "stair_flight": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "stairs만: 계단 디딤판 평행선에 수직인 계단 진행 축의 시작·끝 두 점. 계단참 제외, 사진 전체 좌표. 오르막/내리막 추측 안 함. 안 보이면 null.",
+            "minItems": 2,
+            "maxItems": 2,
             "items": {
               "type": "object",
               "additionalProperties": false,

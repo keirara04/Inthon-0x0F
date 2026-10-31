@@ -7,6 +7,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { ParsedGraph } from "@/lib/gilgyeol/api";
 import { C } from "@/lib/gilgyeol/data";
 import { canvasTextMeasure, fitMapText, mapNodeLabel, MAP_FONT } from "@/lib/gilgyeol/mapLabels";
+import { corridorSegments, facilityGraph, portalSegment, stairTreads, visibleSegment } from "@/lib/gilgyeol/facilityGeometry";
 import { fallbackOutlines, roomPolygon, snapOutlines } from "@/lib/gilgyeol/geometry";
 import type { GraphNode } from "@/lib/gilgyeol/types";
 
@@ -42,10 +43,10 @@ function label(text: string, color: string, bg: string | null, scale: number) {
 }
 
 /** Bounded canvas textures retain the full label, including long Korean and English names. */
-function textCanvas(text: string, color: string, fontSize: number, maxWidth: number, maxHeight: number, paddingX: number, paddingY: number, bg: string | null = null) {
+function textCanvas(text: string, color: string, fontSize: number, maxWidth: number, maxHeight: number, paddingX: number, paddingY: number, bg: string | null = null, nowrap = false) {
   const c = document.createElement("canvas");
   const ctx = c.getContext("2d")!;
-  const layout = fitMapText(text, { fontSize, maxWidth, maxHeight, paddingX, paddingY, measure: canvasTextMeasure(800) });
+  const layout = fitMapText(text, { fontSize, maxWidth, maxHeight, paddingX, paddingY, measure: canvasTextMeasure(800), nowrap });
   c.width = Math.max(1, Math.ceil(layout.width));
   c.height = Math.max(1, Math.ceil(layout.height));
   ctx.font = `800 ${layout.fontSize}px ${MAP_FONT}`;
@@ -82,7 +83,7 @@ function wallGeo(a: V2, b: V2, h: number) {
 }
 
 /** Walls along a closed outline, with a door gap on the wall nearest `door` (the corridor point it opens onto). */
-function wallsWithDoor(poly: V2[], door: V2 | null, h: number): THREE.BufferGeometry[] {
+function wallsWithDoor(poly: V2[], door: V2 | null, h: number, doorWidth = DOOR_W): THREE.BufferGeometry[] {
   let doorEdge = -1;
   let doorT = 0;
   if (door) {
@@ -99,7 +100,7 @@ function wallsWithDoor(poly: V2[], door: V2 | null, h: number): THREE.BufferGeom
     const b = poly[(i + 1) % poly.length];
     if (i !== doorEdge) return [wallGeo(a, b, h)];
     const len = Math.hypot(b.x - a.x, b.z - a.z);
-    const gap = Math.min(DOOR_W, len * 0.6);
+    const gap = Math.min(doorWidth, len * 0.9);
     const c = Math.min(len - gap / 2, Math.max(gap / 2, doorT * len));
     const at = (d: number) => ({ x: a.x + ((b.x - a.x) * d) / len, z: a.z + ((b.z - a.z) * d) / len });
     return [c - gap / 2 > 0.05 ? wallGeo(a, at(c - gap / 2), h) : null, len - c - gap / 2 > 0.05 ? wallGeo(at(c + gap / 2), b, h) : null].filter(
@@ -114,17 +115,13 @@ const bbox = (poly: V2[]) => {
   return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
 };
 
-/** A flight of steps rising along the stair room's long side. */
-function stepsGeo(poly: V2[]): THREE.BufferGeometry[] {
-  const { x0, x1, z0, z1 } = bbox(poly);
-  const alongX = x1 - x0 >= z1 - z0;
-  const [len, wid] = alongX ? [x1 - x0, z1 - z0] : [z1 - z0, x1 - x0];
-  const N = 8;
-  return Array.from({ length: N }, (_, i) => {
-    const h = (i + 1) * 0.13;
-    const g = new THREE.BoxGeometry(alongX ? (len / N) * 0.96 : wid * 0.8, h, alongX ? wid * 0.8 : (len / N) * 0.96);
-    const off = (i + 0.5) * (len / N);
-    g.translate(alongX ? x0 + off : (x0 + x1) / 2, h / 2, alongX ? (z0 + z1) / 2 : z0 + off);
+/** Tread lines run along the stairwell's long axis and leave the doorway landing clear. */
+function stepsGeo(node: GraphNode, poly: V2[], scale: number): THREE.BufferGeometry[] {
+  const footprint = poly.map((p) => ({ x: p.x / scale, y: p.z / scale }));
+  return stairTreads(node, footprint).map(([a, b]) => {
+    const g = new THREE.BoxGeometry(Math.hypot(b.x - a.x, b.y - a.y) * scale, 0.035, 0.045);
+    g.rotateY(-Math.atan2(b.y - a.y, b.x - a.x));
+    g.translate((a.x + b.x) * scale / 2, 0.065, (a.y + b.y) * scale / 2);
     return g;
   });
 }
@@ -147,8 +144,8 @@ function desksGeo(poly: V2[]): THREE.BufferGeometry[] {
 }
 
 /** Text painted flat on a floor, fitted inside `maxW` × `maxH` world units. */
-function floorText(text: string, maxW: number, maxH: number, color: string) {
-  const c = textCanvas(text, color, 100, Math.min(1024, maxW * 160), Math.min(512, maxH * 160), 4, 4);
+function floorText(text: string, maxW: number, maxH: number, color: string, nowrap = false) {
+  const c = textCanvas(text, color, 100, Math.min(1024, maxW * 160), Math.min(512, maxH * 160), 4, 4, null, nowrap);
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -251,7 +248,8 @@ export default function Floor3D({
 
     levels.forEach((level, li) => {
       const LS = scales[li];
-      const nodes = snapOutlines(filled[li]);
+      const graph = facilityGraph({ ...level.g, nodes: snapOutlines(filled[li]) });
+      const nodes = graph.nodes;
       const elev = elevOf(level.g);
       const dx = base && elev ? base.x * scales[0] - elev.x * LS : 0;
       const dz = base && elev ? base.y * scales[0] - elev.y * LS : 0;
@@ -275,11 +273,8 @@ export default function Floor3D({
         group.add(tag);
       }
 
-      // Corridors: edges with no room at either end.
-      for (const e of level.g.edges) {
-        const [a, b] = [at.get(e.a), at.get(e.b)];
-        if (a && b && a.type !== "room" && b.type !== "room") group.add(strip(v(a), v(b), 1.1, corridorMat));
-      }
+      // Draw shared spans once, ending at the opening rather than the centre of a stairwell/shaft.
+      for (const [a, b] of corridorSegments(graph)) group.add(strip(v(a), v(b), 1.1, corridorMat));
 
       // Rooms, stairs and elevators as a cutaway: coloured floor, low walls with a door onto the corridor,
       // steps in stair rooms, desks in classroom-sized rooms, the name painted on the floor.
@@ -313,7 +308,7 @@ export default function Floor3D({
       };
       for (const n of roomish) {
         const poly = polyOf(n);
-        const doorNode = level.g.edges.map((e) => (e.a === n.id ? e.b : e.b === n.id ? e.a : null)).map((id) => (id ? at.get(id) : undefined)).find((x) => x && x.type !== "room");
+        const doorNode = graph.edges.map((e) => (e.a === n.id ? e.b : e.b === n.id ? e.a : null)).map((id) => (id ? at.get(id) : undefined)).find((x) => x && x.type !== "room" && x.id !== graph.current_node_id);
         const restroom = n.type === "room" && /화장실/.test(n.label);
         const kind = restroom ? "restroom" : n.type;
 
@@ -327,9 +322,23 @@ export default function Floor3D({
         pickable.push(plate);
         meshes.current.set(n.id, plate);
 
-        const door = doorNode ? { x: doorNode.x * LS, z: doorNode.y * LS } : null;
-        (n.type === "elevator_hall" ? shafts : walls).push(...wallsWithDoor(poly, door, n.type === "elevator_hall" ? SHAFT_H : WALL_H));
-        if (n.type === "stairs") steps.push(...stepsGeo(poly));
+        const threshold = visibleSegment(n.door) ?? (doorNode && ["exit", "entrance"].includes(doorNode.type) ? portalSegment(doorNode, spaces, n, DOOR_W / LS) : null);
+        const door = threshold ? { x: (threshold[0].x + threshold[1].x) * LS / 2, z: (threshold[0].y + threshold[1].y) * LS / 2 } : doorNode ? { x: doorNode.x * LS, z: doorNode.y * LS } : null;
+        const doorWidth = threshold ? Math.hypot(threshold[1].x - threshold[0].x, threshold[1].y - threshold[0].y) * LS : DOOR_W;
+        (n.type === "elevator_hall" ? shafts : walls).push(...wallsWithDoor(poly, door, n.type === "elevator_hall" ? SHAFT_H : WALL_H, doorWidth));
+        if (n.type === "elevator_hall" && threshold) {
+          const liftDoor = new THREE.Group();
+          liftDoor.position.set((threshold[0].x + threshold[1].x) * LS / 2, 0, (threshold[0].y + threshold[1].y) * LS / 2);
+          liftDoor.rotation.y = -Math.atan2(threshold[1].y - threshold[0].y, threshold[1].x - threshold[0].x);
+          const opening = doorWidth;
+          for (const side of [-1, 1]) {
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(opening / 2 - Math.min(0.025, opening * 0.05), 1.8, WALL_T * 0.65), mat("#A8A1B7"));
+            panel.position.set(side * opening / 4, 0.9, 0);
+            liftDoor.add(panel);
+          }
+          group.add(liftDoor);
+        }
+        if (n.type === "stairs") steps.push(...stepsGeo(n, poly, LS));
         // Desks only in the single-floor view; stacked views are about the route, and stay light.
         // Estimated outlines are only a size guess: no desks, so the painted name stays readable.
         const roomDesks = n.type === "room" && !restroom && !n.outlineEstimated && levels.length === 1 ? desksGeo(poly) : [];
@@ -342,10 +351,10 @@ export default function Floor3D({
         // Fit the full name inside the room and the gap to neighbouring labels.
         const maxW = Math.max(0.05, Math.min(along * 0.85, gap(n.id, tall ? "z" : "x") * 0.9));
         const maxH = Math.max(0.05, Math.min(across * (tall ? 0.6 : 0.32), gap(n.id, tall ? "x" : "z") * 0.8, 1.1));
-        const text = floorText(mapNodeLabel(n), maxW, maxH, restroom ? C.route : C.ink);
+        const text = floorText(mapNodeLabel(n), maxW, maxH, restroom ? C.route : C.ink, n.type === "room");
         if (tall) text.rotation.y = -Math.PI / 2; // reads bottom-to-top from the default view
-        // Stairs: name above the top step. Classrooms with desks: name in the band by the top wall. Else: centre.
-        text.position.set((x0 + x1) / 2, n.type === "stairs" ? 1.12 : 0.07, roomDesks.length && !tall ? z0 + 0.85 : (z0 + z1) / 2);
+        // Stairs: name above the tread marks. Classrooms with desks: name in the band by the top wall. Else: centre.
+        text.position.set((x0 + x1) / 2, n.type === "stairs" ? 0.11 : 0.07, roomDesks.length && !tall ? z0 + 0.85 : (z0 + z1) / 2);
         text.renderOrder = 5;
         group.add(text);
       }
@@ -361,21 +370,35 @@ export default function Floor3D({
       merged(steps, mat("#C3D3E6"), true);
       merged(desks, mat("#B89C77"), false);
 
-      // Exits: a green door frame.
-      for (const n of nodes.filter((x) => x.type === "exit")) {
-        const frame = [wallGeo({ x: n.x * LS - 0.6, z: n.y * LS }, { x: n.x * LS - 0.6, z: n.y * LS + 0.01 }, 1.9), wallGeo({ x: n.x * LS + 0.6, z: n.y * LS }, { x: n.x * LS + 0.6, z: n.y * LS + 0.01 }, 1.9)];
-        const top = new THREE.BoxGeometry(1.36, 0.16, WALL_T);
-        top.translate(n.x * LS, 1.9, n.y * LS);
-        group.add(new THREE.Mesh(mergeGeometries([...frame, top]), mat(C.success)));
+      // Exit and main-entrance thresholds remain separate from stairwell footprints.
+      for (const n of nodes.filter((x) => x.type === "exit" || (x.type === "entrance" && visibleSegment(x.door)))) {
+        const approach = graph.edges.flatMap((e) => e.a === n.id ? [at.get(e.b)] : e.b === n.id ? [at.get(e.a)] : []).find((x) => x?.type === "junction" && x.id !== graph.current_node_id);
+        const [a, b] = portalSegment(n, spaces, approach, DOOR_W / LS);
+        const width = Math.hypot(b.x - a.x, b.y - a.y) * LS;
+        const door = new THREE.Group();
+        door.position.set((a.x + b.x) * LS / 2, 0, (a.y + b.y) * LS / 2);
+        door.rotation.y = -Math.atan2(b.y - a.y, b.x - a.x);
+        for (const x of [-width / 2, width / 2]) {
+          const post = new THREE.Mesh(new THREE.BoxGeometry(WALL_T, 1.9, WALL_T), mat(C.success));
+          post.position.set(x, 0.95, 0);
+          door.add(post);
+        }
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(width + WALL_T, WALL_T, WALL_T), mat(C.success));
+        lintel.position.y = 1.9;
+        door.add(lintel);
+        const name = label(mapNodeLabel(n), "#ffffff", C.success, 0.55);
+        name.position.y = 2.35;
+        door.add(name);
+        group.add(door);
       }
 
-      // The user: a small person on 현위치 (single floor) or at the route's start (stacked), with a ground ring,
-      // and a heading cone when the screen knows the compass heading.
+      // Keep the circular base just above the visible corridor or route tube.
       const cur = level.g.current_node_id ? at.get(level.g.current_node_id) : undefined;
       const me = levels.length === 1 ? cur : li === 0 && level.route?.[0] ? at.get(level.route[0]) : undefined;
       if (me) {
         const person = new THREE.Group();
-        person.position.copy(v(me));
+        const markerHeight = levels.reduce((count, l) => count + (l.route?.length ?? 0), 0) >= 2 ? 0.58 : 0.12;
+        person.position.copy(v(me, markerHeight));
         const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.5, 6, 14), mat(C.brand));
         body.position.y = 0.6;
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.21, 20, 14), mat("#F1D7C4"));
@@ -383,13 +406,12 @@ export default function Floor3D({
         const ringGeo = new THREE.RingGeometry(0.5, 0.68, 36);
         ringGeo.rotateX(-Math.PI / 2);
         const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: C.warning, transparent: true, opacity: 0.85 }));
-        ring.position.y = 0.06;
         const tag = label("현위치", "#ffffff", C.warning, 0.75);
         tag.position.y = 2.05;
         const coneGeo = new THREE.CircleGeometry(3, 24, Math.PI / 2 - 0.5, 1);
         coneGeo.rotateX(-Math.PI / 2);
         const cone = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({ color: C.route, transparent: true, opacity: 0.38, depthWrite: false }));
-        cone.position.y = 0.12; // above floor plates and corridor strips
+        cone.position.y = 0.06; // just above the circular base
         cone.visible = false;
         coneRef.current = cone;
         person.add(body, head, ring, tag, cone);
