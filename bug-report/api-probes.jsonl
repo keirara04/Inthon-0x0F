@@ -1,0 +1,13 @@
+{"case":"ping","status":200,"body":{"message":"pong from laravel"}}
+{"case":"search-405","status":200,"body":{"data":[{"id":"4F-405","label":"405호","type":"room","floor":"4F","building":"우정정보관"}]}}
+{"case":"lobby-to-405","status":200,"body":{"data":{"total_m":35,"path":["1F-lobby","1F-101","1F-junc","1F-elev-A","4F-elev-A","4F-junc","4F-405"],"steps":[{"kind":"walk","from":"1F-lobby","to":"1F-elev-A","to_label":"중앙 엘리베이터 홀","floor":"1F","checkpoint":null,"heading_deg":0,"turn":null,"length_m":12,"text":"101호 지나서 중앙 엘리베이터 홀까지 가세요"},{"kind":"elevator","from":"1F-elev-A","to":"4F-elev-A","to_label":"중앙 엘리베이터 홀","floor":"4F","checkpoint":{"kind":"floor_sign","text":"4F"},"elevator":"중앙 엘리베이터","to_floor":"4F","text":"중앙 엘리베이터에 타서 4층에서 내리세요"},{"kind":"walk","from":"4F-elev-A","to":"4F-junc","to_label":"4층 중앙 복도","floor":"4F","checkpoint":null,"heading_deg":180,"turn":null,"length_m":5,"text":"4층 중앙 복도 쪽으로 가세요"},{"kind":"walk","from":"4F-junc","to":"4F-405","to_label":"405호","floor":"4F","checkpoint":{"kind":"room_no","text":"405"},"heading_deg":270,"turn":"right","length_m":18,"text":"오른쪽으로 돌아 405호까지 가세요"}],"arrived":{"node":"4F-405","label":"405호","floor":"4F"}}}}
+{"case":"405-to-401-expected-second-trip","status":200,"body":{"data":{"total_m":28,"path":["4F-405","4F-junc","4F-401"],"steps":[{"kind":"walk","from":"4F-405","to":"4F-401","to_label":"401호","floor":"4F","checkpoint":{"kind":"room_no","text":"401"},"heading_deg":90,"turn":null,"length_m":28,"text":"4층 중앙 복도 지나서 401호까지 가세요"}],"arrived":{"node":"4F-401","label":"401호","floor":"4F"}}}}
+{"case":"same-location","status":200,"body":{"data":{"total_m":0,"path":["1F-lobby"],"steps":[],"arrived":{"node":"1F-lobby","label":"1층 로비","floor":"1F"}}}}
+{"case":"invalid-node","status":422,"body":{"message":"The selected start node is invalid.","errors":{"start_node":["The selected start node is invalid."]}}}
+{"case":"empty-search","status":422,"body":{"message":"The q field is required.","errors":{"q":["The q field is required."]}}}
+{"case":"missing-upload","status":422,"body":{"message":"The image field is required.","errors":{"image":["The image field is required."]}}}
+{"case":"vision-key-not-configured","status":502,"body":{"message":"AI 인식에 실패했어요. 다시 찍어주세요"}}
+{"case":"missing-checkpoint-photo","status":422,"body":{"message":"The image field is required.","errors":{"image":["The image field is required."]}}}
+{"case":"graph-without-admin-token","status":401,"body":{"message":"Admin token required"}}
+{"case":"draft-destination","status":422,"body":{"message":"경로를 찾을 수 없어요"}}
+{"case":"draft-self-route","status":200,"body":{"data":{"total_m":0,"path":["4F-405"],"steps":[],"arrived":{"node":"4F-405","label":"405호","floor":"4F"}}}}
