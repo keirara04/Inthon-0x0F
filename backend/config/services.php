@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'openrouter' => [
+        'key' => env('OPENROUTER_API_KEY'),
+        'model' => env('OPENROUTER_MODEL', 'google/gemini-3.8-flash'),
+    ],
+
+    'admin_token' => env('ADMIN_TOKEN'),
+
     'lablup' => [
         'key' => env('LABLUP_API_KEY'),
         'base_url' => env('LABLUP_BASE_URL', 'https://api.console.lablup.ai/anthropic'),
