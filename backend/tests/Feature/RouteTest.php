@@ -17,30 +17,33 @@ class RouteTest extends TestCase
         $this->seed(GraphSeeder::class);
     }
 
-    public function test_lobby_to_405_uses_an_elevator_that_stops_at_4f(): void
+    public function test_entrance_to_405_takes_the_central_elevator(): void
     {
-        $res = $this->postJson('/api/route', ['start_node' => '1F-lobby', 'dest_node' => '4F-405'])->assertOk();
+        $res = $this->postJson('/api/route', ['start_node' => '1F-entrance', 'dest_node' => '4F-405'])->assertOk();
+        $steps = collect($res->json('data.steps'));
 
-        // East elevator is closer on 1F but skips 4F, so the route must take the central one.
         $this->assertContains('1F-elev-A', $res->json('data.path'));
-        $this->assertNotContains('1F-elev-B', $res->json('data.path'));
-        $elevator = collect($res->json('data.steps'))->firstWhere('kind', 'elevator');
+        $elevator = $steps->firstWhere('kind', 'elevator');
         $this->assertSame('중앙 엘리베이터', $elevator['elevator']);
         $this->assertSame('중앙 엘리베이터에 타서 4층에서 내리세요', $elevator['text']);
+        // A floor sign is only a checkpoint after changing floors.
+        $this->assertSame(['kind' => 'floor_sign', 'text' => '4F'], $elevator['checkpoint']);
+        $this->assertNull($steps->first()['checkpoint']);
         $this->assertSame('4F-405', $res->json('data.arrived.node'));
-        $this->assertSame(['kind' => 'room_no', 'text' => '405'], $res->json('data.steps.3.checkpoint'));
+        $this->assertSame(['kind' => 'room_no', 'text' => '405'], $steps->last()['checkpoint']);
 
-        // Walk steps name where they end; a floor sign is only a checkpoint after changing floors.
-        $this->assertSame('중앙 엘리베이터 홀', $res->json('data.steps.0.to_label'));
-        $this->assertNull($res->json('data.steps.0.checkpoint'));
-        $this->assertSame(['kind' => 'floor_sign', 'text' => '4F'], $res->json('data.steps.1.checkpoint'));
+        // Unnamed corridor junctions never leave holes in the spoken text or the step title.
+        foreach ($steps as $s) {
+            $this->assertNotSame('', $s['to_label']);
+            $this->assertDoesNotMatchRegularExpression('/^\s|\s{2}|\s까지|^쪽으로|지나서 지나서/u', $s['text']);
+        }
     }
 
     public function test_draft_floor_is_not_routable(): void
     {
         DB::table('floors')->where('label', '4F')->update(['status' => 'draft']);
 
-        $this->postJson('/api/route', ['start_node' => '1F-lobby', 'dest_node' => '4F-405'])->assertStatus(422);
+        $this->postJson('/api/route', ['start_node' => '1F-entrance', 'dest_node' => '4F-405'])->assertStatus(422);
     }
 
     public function test_search_matches_every_word(): void

@@ -361,15 +361,15 @@ function toApiGraph(g: FloorGraph, floor: string, status: "draft" | "verified"):
   };
 }
 
-/** Same shape as prod /api/route for 1F-lobby -> 4F-405, so mock mode exercises the real flow. */
+/** Generated from the seeded graph: /api/route for 1F-elev-A (현위치) -> 4F-405, so mock mode exercises the real flow. */
 const MOCK_ROUTE: ApiRoute = {
-  total_m: 35,
-  path: ["1F-lobby", "1F-101", "1F-junc", "1F-elev-A", "4F-elev-A", "4F-junc", "4F-405"],
+  total_m: 18.8,
+  path: ["1F-elev-A", "4F-elev-A", "4F-hall-top-2", "4F-hall-top-3", "4F-hall-top-4", "4F-405"],
   steps: [
-    { kind: "walk", from: "1F-lobby", to: "1F-elev-A", to_label: "중앙 엘리베이터 홀", floor: "1F", checkpoint: null, heading_deg: 0, turn: null, length_m: 12, text: "101호 지나서 중앙 엘리베이터 홀까지 가세요" },
-    { kind: "elevator", from: "1F-elev-A", to: "4F-elev-A", to_label: "중앙 엘리베이터 홀", floor: "4F", checkpoint: { kind: "floor_sign", text: "4F" }, elevator: "중앙 엘리베이터", to_floor: "4F", text: "중앙 엘리베이터에 타서 4층에서 내리세요" },
-    { kind: "walk", from: "4F-elev-A", to: "4F-junc", to_label: "4층 중앙 복도", floor: "4F", checkpoint: null, heading_deg: 180, turn: null, length_m: 5, text: "4층 중앙 복도 쪽으로 가세요" },
-    { kind: "walk", from: "4F-junc", to: "4F-405", to_label: "405호", floor: "4F", checkpoint: { kind: "room_no", text: "405" }, heading_deg: 270, turn: "right", length_m: 18, text: "오른쪽으로 돌아 405호까지 가세요" },
+    {"kind": "elevator", "from": "1F-elev-A", "to": "4F-elev-A", "to_label": "엘리베이터 홀", "floor": "4F", "checkpoint": {"kind": "floor_sign", "text": "4F"}, "elevator": "중앙 엘리베이터", "to_floor": "4F", "text": "중앙 엘리베이터에 타서 4층에서 내리세요"},
+    {"kind": "walk", "from": "4F-elev-A", "to": "4F-hall-top-2", "to_label": "복도", "floor": "4F", "checkpoint": null, "heading_deg": 180, "turn": null, "length_m": 4.1, "text": "복도를 따라 약 4m 가세요"},
+    {"kind": "walk", "from": "4F-hall-top-2", "to": "4F-hall-top-4", "to_label": "복도", "floor": "4F", "checkpoint": null, "heading_deg": 90, "turn": "left", "length_m": 9.7, "text": "왼쪽으로 돌아 복도를 따라 약 10m 가세요"},
+    {"kind": "walk", "from": "4F-hall-top-4", "to": "4F-405", "to_label": "405호", "floor": "4F", "checkpoint": {"kind": "room_no", "text": "405"}, "heading_deg": 5.6, "turn": "left", "length_m": 5, "text": "왼쪽으로 돌아 405호까지 가세요"},
   ],
-  arrived: { node: "4F-405", label: "405호", floor: "4F" },
+  arrived: {"node": "4F-405", "label": "405호", "floor": "4F"},
 };

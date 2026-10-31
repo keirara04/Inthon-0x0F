@@ -106,15 +106,19 @@ class RouteService
             if ($lm && $lm->kind === 'floor_sign' && $g[0]->type === 'walk') {
                 $lm = null;
             }
+            // Traced floors have unnamed corridor junctions; speak those as "복도" and by distance instead.
+            $toLabel = trim((string) $toNode->label);
             $step = [
-                'kind' => $g[0]->type, 'from' => $from, 'to' => $to, 'to_label' => $toNode->label, 'floor' => $toNode->floor,
+                'kind' => $g[0]->type, 'from' => $from, 'to' => $to, 'to_label' => $toLabel !== '' ? $toLabel : '복도', 'floor' => $toNode->floor,
                 'checkpoint' => $lm ? ['kind' => $lm->kind, 'text' => $lm->ocr_text] : null,
             ];
 
             if ($g[0]->type === 'walk') {
                 $heading = $g[0]->heading_deg === null ? null : (float) $g[0]->heading_deg;
                 $turn = ($prevHeading === null || $heading === null) ? null : self::turn(self::delta($prevHeading, $heading));
-                $via = count($g) > 1 ? $nodes[$g[0]->to_node]->label.' 지나서 ' : '';
+                $passed = count($g) > 1 ? trim((string) $nodes[$g[0]->to_node]->label) : '';
+                $via = $passed !== '' ? $passed.' 지나서 ' : '';
+                $metres = round(array_sum(array_map(fn ($e) => (float) $e->length_m, $g)));
                 $action = match ($turn) {
                     'left' => '왼쪽으로 돌아 ',
                     'right' => '오른쪽으로 돌아 ',
@@ -126,7 +130,9 @@ class RouteService
                     'heading_deg' => $heading,
                     'turn' => $turn,
                     'length_m' => round(array_sum(array_map(fn ($e) => (float) $e->length_m, $g)), 1),
-                    'text' => $via.$action.$toNode->label.($via || $action ? '까지 가세요' : ' 쪽으로 가세요'),
+                    'text' => $toLabel === ''
+                        ? $action.'복도를 따라 약 '.max(1, $metres).'m 가세요'
+                        : $via.$action.$toLabel.($via || $action ? '까지 가세요' : ' 쪽으로 가세요'),
                 ];
                 $prevHeading = $heading;
             } else {

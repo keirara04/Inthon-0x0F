@@ -41,15 +41,15 @@ class VisionTest extends TestCase
     {
         $this->fakeVision(
             ['text' => '405호', 'kind' => 'room_no'],
-            ['text' => '401 호', 'kind' => 'room_no'],
+            ['text' => '406 호', 'kind' => 'room_no'],
             ['text' => null, 'kind' => 'none'],
         );
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
             ->assertOk()->assertJsonPath('data.status', 'matched');
 
-        // Expected 405 but camera reads 401: user is elsewhere, node tells the frontend where.
+        // Expected 405 but camera reads 406: user is elsewhere, node tells the frontend where.
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
-            ->assertOk()->assertJsonPath('data.status', 'mismatch')->assertJsonPath('data.node.id', '4F-401');
+            ->assertOk()->assertJsonPath('data.status', 'mismatch')->assertJsonPath('data.node.id', '4F-406');
 
         $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
             ->assertOk()->assertJsonPath('data.status', 'unknown')->assertJsonPath('data.node', null);
@@ -240,7 +240,7 @@ class VisionTest extends TestCase
         $this->putJson('/api/graph', $floor, ['X-Admin-Token' => 'secret'])->assertOk();
 
         // New floor is linked by elevator A (serves 5F) and routable.
-        $this->postJson('/api/route', ['start_node' => '1F-lobby', 'dest_node' => '5F-501'])->assertOk();
+        $this->postJson('/api/route', ['start_node' => '1F-entrance', 'dest_node' => '5F-501'])->assertOk();
 
         // Saving over a verified floor needs replace: true.
         $this->putJson('/api/graph', $floor, ['X-Admin-Token' => 'secret'])->assertStatus(409);
