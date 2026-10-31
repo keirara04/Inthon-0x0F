@@ -262,6 +262,7 @@ function fromApiGraph(g: ApiGraph): ParsedGraph {
       servedFloors: (n.ref && served.get(n.ref)) || "",
       src: "ai",
       ref: n.ref,
+      outline: n.outline?.map((p) => ({ x: clamp01(p.x) * EDITOR_W, y: clamp01(p.y) * EDITOR_H })),
     })),
     edges: g.edges.map((e) => ({
       a: e.from,

@@ -58,7 +58,8 @@ export interface ApiGraph {
   floor: string;
   status: "draft" | "verified";
   current_node_id?: string | null;
-  nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string }[];
+  /** `outline`: wall outline of a room/stair/elevator, 0–1 photo coords, closing edge implicit (display only). */
+  nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string; outline?: { x: number; y: number }[] }[];
   edges: { from: string; to: string; type: "walk"; length_m?: number | null; heading_deg?: number | null }[];
   elevators?: { id: string; name: string; served_floors: string[] }[];
 }
