@@ -5,7 +5,7 @@ import type { ApiRoute } from "@/types/api";
 import { ApiError, fetchRoute, fetchSavedMap, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
 import { BUILDING, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
-import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
+import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
 import { floorName, canUseFloorMap } from "./floorTransition";
 import { useNavigation } from "./useNavigation";
 import type {
@@ -52,6 +52,10 @@ export interface AppState {
   mode: GuideMode;
   vibe: boolean;
   voice: boolean;
+  /** Stereo beep from the side to turn to (iPhone has no vibration). */
+  beep: boolean;
+  /** Korean TTS voice found on this device: true / false (notice shown, speech still tried) / null (unknown yet). */
+  koVoice: boolean | null;
   view: "2d" | "3d";
   dir: DirectionState;
   step: GuideStep;
@@ -106,6 +110,8 @@ const INITIAL: AppState = {
   mode: "both",
   vibe: true,
   voice: true,
+  beep: true,
+  koVoice: null,
   view: "2d",
   dir: "far",
   step: 0,
@@ -502,7 +508,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const beginTrip = useCallback(() => {
     update({ trip: { startedAt: Date.now(), arrivedAt: null, reroutes: 0 }, simDir: null });
-    // Must run inside the tap handler so iOS grants compass access.
+    // Must run inside the tap handler so iOS grants compass access and starts audio for the direction beep.
+    unlockAudio();
     if (ref.current.route) navStart();
     else toast("경로를 먼저 선택해 주세요");
   }, [update, navStart, toast]);
@@ -677,13 +684,32 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     return () => window.removeEventListener("deviceorientation", onOrient);
   }, [state.postureSensor, setRaised]);
 
-  // Direction pulse: the closer to the target heading, the shorter the interval.
+  // Whether this device can speak Korean (the voice list loads late on Chrome).
   useEffect(() => {
-    if (state.screen !== "guide" || state.dir === "unstable" || !state.vibe || state.simNoVibe || !supportsVibration()) return;
+    void koreanVoiceReady().then((koVoice) => update({ koVoice }));
+  }, [update]);
+
+  // Direction pulse: the closer to the target heading, the shorter the interval. Vibration where it exists,
+  // the iPhone haptic tick where it doesn't, and a beep panned toward the turn (read live, not per render).
+  const navDelta = useRef<number | null>(null);
+  useEffect(() => {
+    navDelta.current = nav.delta;
+  });
+  useEffect(() => {
+    if (state.screen !== "guide" || state.dir === "unstable") return;
+    const haptic = state.vibe && !state.simNoVibe;
+    const sound = state.beep && (state.vibe || state.voice); // "화면만" mode stays silent
+    if (!haptic && !sound) return;
     const dir = state.dir;
-    const id = setInterval(() => vibrate(dir === "aligned" ? 70 : 35), DIRECTION[dir].period * 1000);
-    return () => clearInterval(id);
-  }, [state.screen, state.dir, state.vibe, state.simNoVibe]);
+    const period = DIRECTION[dir].period * 1000;
+    const buzz = haptic ? setInterval(() => (supportsVibration() ? vibrate(dir === "aligned" ? 70 : 35) : iosHaptic()), period) : undefined;
+    // Beeps no faster than 0.7 s: three a second when on course is noise, not guidance.
+    const tone = sound ? setInterval(() => beep(navDelta.current === null ? 0 : beepPan(navDelta.current), dir === "aligned"), Math.max(period, 700)) : undefined;
+    return () => {
+      clearInterval(buzz);
+      clearInterval(tone);
+    };
+  }, [state.screen, state.dir, state.vibe, state.voice, state.beep, state.simNoVibe]);
 
   // Hardware/browser back maps to in-app back instead of leaving the app.
   useEffect(() => {
@@ -751,7 +777,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   );
 
   // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.
-  const compass = { heading: nav.heading, delta: nav.delta, calibrated: nav.calibrated, calibrate: nav.calibrate, resetCalibration: nav.resetCalibration };
+  const compass = { heading: nav.heading, delta: nav.delta, disturbed: nav.disturbed, walkedM: nav.walkedM, calibrated: nav.calibrated, calibrate: nav.calibrate, resetCalibration: nav.resetCalibration };
 
   return { state, actions, compass };
 }
