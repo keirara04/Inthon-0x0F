@@ -47,8 +47,25 @@ class EvacMapParser
         return $this->clean($raw, $building, $floor);
     }
 
+    /** The floor printed on the map ("4F", "B1"; also accepts "4층", "지하1층"), or null when unreadable. */
+    private function readFloor(mixed $value): ?string
+    {
+        $v = strtoupper(str_replace(' ', '', is_string($value) ? $value : ''));
+        if (preg_match('/^(B\d+|\d+F)$/', $v)) {
+            return $v;
+        }
+        if (preg_match('/^지하(\d+)층$/u', $v, $m)) {
+            return "B{$m[1]}";
+        }
+
+        return preg_match('/^(\d+)층$/u', $v, $m) ? "{$m[1]}F" : null;
+    }
+
     public function clean(array $raw, string $building, string $floor): array
     {
+        // The prompt says to trust the map over the hint, so keep the floor the model read.
+        $read = $this->readFloor($raw['floor'] ?? null);
+        $floor = $read ?? $floor;
         $ids = []; // LLM id => contract id
         $nodes = [];
         foreach ($raw['nodes'] ?? [] as $n) {
@@ -101,6 +118,7 @@ class EvacMapParser
         return [
             'building' => $building,
             'floor' => $floor,
+            'floor_source' => $read ? 'map' : 'hint', // 'hint' = the floor the app sent, not confirmed by the map
             'status' => 'draft',
             'current_node_id' => $ids[$raw['current_node_id'] ?? ''] ?? null,
             'nodes' => array_values($nodes),

@@ -90,6 +90,8 @@ export async function searchPlaces(q: string): Promise<Room[]> {
 export interface ParsedGraph extends FloorGraph {
   building: string;
   floor: string;
+  /** Whether `floor` was read from the sign or is just the hint the app sent. */
+  floorSource?: "map" | "hint";
   /** Node the evacuation map marked as "현위치" — the default start node. */
   current_node_id: string | null;
   elevators: NonNullable<ApiGraph["elevators"]>;
@@ -250,6 +252,7 @@ function fromApiGraph(g: ApiGraph): ParsedGraph {
   return {
     building: g.building,
     floor: g.floor,
+    floorSource: g.floor_source,
     current_node_id: g.current_node_id ?? null,
     elevators,
     nodes: g.nodes.map((n) => ({

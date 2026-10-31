@@ -164,6 +164,30 @@ class VisionTest extends TestCase
         $this->assertArrayNotHasKey('outline', $res->json('data.nodes.2')); // fewer than 3 points
     }
 
+    public function test_parse_keeps_the_floor_read_from_the_map(): void
+    {
+        $graph = fn (string $floor) => [
+            'floor' => $floor,
+            'current_node_id' => null,
+            'nodes' => [['id' => 'XF-405', 'type' => 'room', 'label' => '405호', 'x' => 0.2, 'y' => 0.5, 'ref' => null]],
+            'edges' => [],
+        ];
+        $parse = fn () => $this->post('/api/evac-map/parse', ['image' => $this->photo(), 'building' => '우정정보관', 'floor' => '1F'])->assertOk();
+
+        $cases = ['4F' => '4F', '4층' => '4F', '지하 1층' => 'B1'];
+        $this->fakeVision(...[...array_map($graph, array_keys($cases)), $graph('비상시 대피 안내')]);
+
+        foreach ($cases as $floor) {
+            $parse()->assertJsonPath('data.floor', $floor)
+                ->assertJsonPath('data.floor_source', 'map')
+                ->assertJsonPath('data.nodes.0.id', "{$floor}-405");
+        }
+        // unreadable: fall back to the hint
+        $parse()->assertJsonPath('data.floor', '1F')
+            ->assertJsonPath('data.floor_source', 'hint')
+            ->assertJsonPath('data.nodes.0.id', '1F-405');
+    }
+
     public function test_sends_prompt_schema_and_falls_back_to_json_mode(): void
     {
         Http::fake(['openrouter.ai/*' => Http::sequence()

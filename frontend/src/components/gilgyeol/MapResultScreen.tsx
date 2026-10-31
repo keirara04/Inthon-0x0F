@@ -22,9 +22,12 @@ export function MapResultScreen() {
   const rooms = shown.nodes.filter((n) => n.type === "room").length;
   const current = shown.nodes.find((n) => n.id === shown.current_node_id);
   const badge = state.mapDemo ? "데모 안내도" : g ? "AI 초안 · 검수 전" : "샘플 결과";
+  const floorText = (shown.floor || "1F").replace(/^B(\d+)$/, "지하 $1층").replace(/F$/, "층");
+  // Demo graph floors are known; a parsed floor is confirmed only when the AI read it off the sign.
+  const floorRead = !g || g.floorSource === "map";
   const stats: [string, string, boolean][] = [
     ["호실", `${rooms}개`, rooms > 0],
-    ["계단·승강기", `${shown.nodes.filter((n) => n.type === "stairs" || n.type === "elevator_hall").length}곳`, true],
+    ["층", floorText, floorRead],
     ["현위치", current ? "찾음" : "못 찾음", !!current],
   ];
 
@@ -79,7 +82,7 @@ export function MapResultScreen() {
         )}
         <p className="m-0 text-[12px] leading-normal text-muted">
           {g
-            ? `${BUILDING} ${(g.floor || "1F").replace("F", "층")}으로 가정했어요. 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
+            ? `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${BUILDING}). 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
             : "데모 안내도예요. 현재 위치는 다음 화면에서 확인해요."}
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">
