@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { START_NODES, scanMeta } from "@/lib/gilgyeol/data";
+import { C, START_NODES, scanMeta } from "@/lib/gilgyeol/data";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { ScanOutcome } from "@/lib/gilgyeol/types";
-import { PrimaryButton, SegButton } from "./ui";
+import { Check, PrimaryButton, SecondaryButton, SegButton, useAlbumPick } from "./ui";
 
 const OUTCOMES: [ScanOutcome, string][] = [
   ["success", "성공"],
@@ -35,6 +35,85 @@ function SampleEvacMap() {
   );
 }
 
+const READ_STEPS: [number, string][] = [
+  [0, "안내도 테두리와 층 번호 찾기"],
+  [4, "복도와 계단 따라가기"],
+  [9, "호실 번호 읽기"],
+  [14, "길 그래프로 정리하기"],
+];
+
+/** Corridor sketch that draws itself while the AI reads the map. Decorative only. */
+const SKETCH_LINES = ["M20 50 H180", "M100 50 V82", "M44 50 V14", "M156 50 V14"];
+const SKETCH_DOTS: [number, number, string][] = [
+  [44, 14, C.route],
+  [156, 14, C.route],
+  [20, 50, C.success],
+  [72, 50, C.ink],
+  [128, 50, C.ink],
+  [100, 50, "#B5B0A4"],
+  [180, 50, C.success],
+  [100, 82, C.ink],
+];
+
+/**
+ * Map-parse wait screen. The AI takes ~15–20 s (ai/eval/results), so show real elapsed time,
+ * steps that advance with it, and a bar that slows near the end instead of pretending to finish.
+ */
+function MapReading({ onCancel }: { onCancel: () => void }) {
+  const [t, setT] = useState(0);
+  useEffect(() => {
+    const t0 = Date.now();
+    const id = setInterval(() => setT((Date.now() - t0) / 1000), 250);
+    return () => clearInterval(id);
+  }, []);
+  const pct = Math.round(92 * (1 - Math.exp(-t / 9))); // ~80% at 18 s, never reaches 100 on its own
+  const step = READ_STEPS.filter(([at]) => t >= at).length - 1;
+  return (
+    <>
+      <div className="relative h-[96px] overflow-hidden rounded-2xl bg-surface" aria-hidden="true">
+        <svg viewBox="0 0 200 96" className="absolute inset-0 size-full">
+          {SKETCH_LINES.map((d, i) => (
+            <path key={d} d={d} pathLength={1} className="gg-draw" fill="none" stroke="#E3E0D7" strokeWidth="9" strokeLinecap="round" style={{ animationDelay: `${i * 0.18}s` }} />
+          ))}
+          {SKETCH_LINES.map((d, i) => (
+            <path key={`r-${d}`} d={d} pathLength={1} className="gg-draw" fill="none" stroke={C.route} strokeWidth="2.5" strokeLinecap="round" style={{ animationDelay: `${0.5 + i * 0.18}s` }} />
+          ))}
+          {SKETCH_DOTS.map(([x, y, c], i) => (
+            <circle key={`${x}-${y}`} cx={x} cy={y} r="5" fill={c} className="gg-pop" style={{ animationDelay: `${0.6 + i * 0.12}s` }} />
+          ))}
+          <circle cx="72" cy="50" r="10" fill="none" stroke={C.warning} strokeWidth="2" strokeDasharray="3 2.5" className="gg-pop" style={{ animationDelay: "1.7s" }} />
+        </svg>
+      </div>
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-[20px] leading-[1.3] font-extrabold">안내도를 읽고 있어요</div>
+        <div className="flex-none font-mono text-[14px] font-semibold text-muted tabular-nums" aria-hidden="true">
+          {Math.floor(t)}초
+        </div>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="안내도 분석 중" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <div className="h-full rounded-[3px] bg-route transition-[width] duration-300 ease-out" style={{ width: `${pct}%` }} />
+      </div>
+      <ol className="m-0 flex list-none flex-col gap-2 p-0">
+        {READ_STEPS.map(([, label], i) => (
+          <li key={label} className="flex items-center gap-2.5 text-[15px]" aria-current={i === step ? "step" : undefined}>
+            <span
+              aria-hidden="true"
+              className={`flex size-5 flex-none items-center justify-center rounded-full ${i < step ? "bg-route" : i === step ? "border-2 border-route" : "border-2 border-line"}`}
+            >
+              {i < step ? <Check size={11} /> : i === step ? <span className="size-2 animate-pulse rounded-full bg-route" /> : null}
+            </span>
+            <span className={i === step ? "font-bold text-ink" : i < step ? "text-muted" : "text-[#9A9D96]"}>{label}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="m-0 text-[13px] leading-normal text-muted">{t < 25 ? "보통 15–20초 걸려요. 이 화면을 켜 둔 채로 기다려 주세요." : "평소보다 오래 걸리고 있어요. 조금만 더 기다리거나 취소 후 데모 안내도로 계속할 수 있어요."}</p>
+      <button type="button" onClick={onCancel} className="h-[50px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
+        취소
+      </button>
+    </>
+  );
+}
+
 /** Live rear-camera preview. A grabbed frame is sent for one checkpoint check and never stored. */
 function useCamera(onDenied: () => void) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -55,7 +134,11 @@ function useCamera(onDenied: () => void) {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        // Ask for a high-res stream: browsers default to ~720p, too small to read room numbers on a map.
+        video: { facingMode: "environment", width: { ideal: 2560 }, height: { ideal: 1920 } },
+        audio: false,
+      });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setOn(true);
@@ -66,10 +149,10 @@ function useCamera(onDenied: () => void) {
   };
 
   /** One JPEG frame from the preview, or null when the camera is not showing a picture yet. */
-  const grab = async (): Promise<Blob | null> => {
+  const grab = async (max = 1280): Promise<Blob | null> => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return null;
-    const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+    const scale = Math.min(1, max / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(video.videoWidth * scale);
     canvas.height = Math.round(video.videoHeight * scale);
@@ -87,11 +170,19 @@ export function CheckpointScanner() {
   const d = useDestName();
   const demo = useDemoTools();
   const m = scanMeta(s.scanTarget, d);
+  const destFloor = `${s.dest?.floor ?? 4}층`;
   const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam, grab } = useCamera(() => actions.update({ scanState: "denied", camDenied: true }));
   const [capturing, setCapturing] = useState(false);
+  const album = useAlbumPick((file) => actions.readMapPhoto(file));
+  // The photo being read: shown under the scan line now, and under the graph on the result screen.
+  const readMap = actions.readMapPhoto;
+  const shot = s.parsedPhoto?.url ?? null;
   const frameColor = { success: "#4CC38A", mismatch: "#F2C37A", fail: "#F2C37A" }[s.scanState as string] ?? "#FFFFFF";
-  // Real recognition needs a frame. ?demo and the map flow keep the simulated outcome so presenters can drive it by hand.
-  const realScan = !demo && s.scanTarget === "sign" && camOn;
+  // Real recognition needs a frame. With the camera on, map photos always go to the AI;
+  // ?demo keeps the simulated sign outcome so presenters can drive it by hand.
+  const isMap = s.scanTarget === "map";
+  const reading = isMap && s.scanState === "analyzing";
+  const realScan = camOn && (isMap || !demo);
 
   /** Live: capture one frame and let the engine judge it. Otherwise: the existing simulated result. */
   const confirmScan = async () => {
@@ -101,8 +192,8 @@ export function CheckpointScanner() {
     }
     setCapturing(true);
     try {
-      const frame = await grab();
-      if (frame) actions.runScan(frame);
+      const frame = await grab(isMap ? 2048 : 1280);
+      if (frame) (isMap ? readMap : actions.runScan)(frame);
       else actions.toast("카메라 화면이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요");
     } finally {
       setCapturing(false);
@@ -114,9 +205,9 @@ export function CheckpointScanner() {
       case "map":
         return [{ label: "데모 안내도 불러오기", pick: () => actions.go("mapResult", { mapDemo: true }) }];
       case "sign":
-        return ["4층 엘리베이터 홀", "4층 서측 복도", "4층 동측 복도"].map((l) => ({
+        return ["엘리베이터 홀", "서측 복도", "동측 복도"].map((p) => `${destFloor} ${p}`).map((l) => ({
           label: l,
-          pick: () => actions.go("offroute", { offState: "confirm", offFloor: "4층", offSign: `${l} · 직접 선택` }),
+          pick: () => actions.go("offroute", { offState: "confirm", offFloor: destFloor, offSign: `${l} · 직접 선택` }),
         }));
     }
   })();
@@ -141,11 +232,25 @@ export function CheckpointScanner() {
           닫기
         </button>
         <h1 className="m-0 text-[15px] font-bold">{m.title}</h1>
-        <div className="rounded border border-[#6B5530] px-1.5 py-[3px] font-mono text-[10px] font-semibold text-[#F2C37A]">데모 모드</div>
+        {demo ? (
+          <div className="rounded border border-[#6B5530] px-1.5 py-[3px] font-mono text-[10px] font-semibold text-[#F2C37A]">데모 모드</div>
+        ) : (
+          <div aria-hidden="true" className="min-w-11" />
+        )}
       </div>
       <div className="gg-hatch-dark relative mx-3 h-[330px] overflow-hidden rounded-[20px]">
         <video ref={videoRef} autoPlay playsInline muted aria-hidden="true" className={`absolute inset-0 size-full object-cover ${camOn ? "" : "hidden"}`} />
         {!camOn && s.scanTarget === "map" && <SampleEvacMap />}
+        {reading && shot && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element -- local blob preview */}
+            <img src={shot} alt="" className="absolute inset-0 size-full bg-camera object-contain" />
+            <div className="absolute inset-0 bg-[linear-gradient(rgba(40,100,160,.10)_1px,transparent_1px),linear-gradient(90deg,rgba(40,100,160,.10)_1px,transparent_1px)] bg-[size:22px_22px]" aria-hidden="true" />
+            <div aria-hidden="true" className="gg-scan pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-transparent to-[rgba(120,180,255,.35)]">
+              <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#9CCBFF] shadow-[0_0_12px_2px_rgba(120,180,255,.8)]" />
+            </div>
+          </>
+        )}
         {!camOn && (
           <div className="absolute top-3 left-3 font-mono text-[10px] font-semibold text-[#A8ABA5]">
             {s.scanTarget === "map" ? "샘플 안내도 · 실제 카메라 미연결" : "후면 카메라 미리보기 자리 · 카메라를 켜면 표지를 확인해요"}
@@ -205,9 +310,17 @@ export function CheckpointScanner() {
             </div>
             )}
             <PrimaryButton onClick={confirmScan} disabled={capturing}>{m.runLabel}</PrimaryButton>
+            {isMap && (
+              <>
+                {album.input}
+                <SecondaryButton onClick={album.open}>앨범에서 안내도 사진 선택</SecondaryButton>
+              </>
+            )}
             <p className="m-0 text-[13px] leading-normal text-muted">
               {realScan
-                ? "지금 찍은 프레임으로 표지 위치를 확인해요. 사진은 확인 요청에만 쓰고 저장하지 않아요."
+                ? isMap
+                  ? "찍은 안내도를 AI가 읽어 층 지도 초안을 만들어요. 사진은 저장하지 않아요."
+                  : "지금 찍은 프레임으로 표지 위치를 확인해요. 사진은 확인 요청에만 쓰고 저장하지 않아요."
                 : "카메라를 켜지 않으면 실제 인식 없이 선택한 결과를 보여줘요. 현장에서는 ‘실제 카메라 켜기’를 눌러주세요."}
             </p>
             {s.scanTarget !== "map" && (
@@ -217,11 +330,12 @@ export function CheckpointScanner() {
             )}
           </>
         )}
-        {s.scanState === "analyzing" && (
+        {reading && <MapReading onCancel={actions.cancelScan} />}
+        {s.scanState === "analyzing" && !reading && (
           <>
             <div className="text-[20px] font-extrabold">{m.analyzing}</div>
             <div className="h-1.5 overflow-hidden rounded-[3px] bg-line" role="progressbar" aria-label="분석 중">
-              <div className="h-full w-[55%] rounded-[3px] bg-route" />
+              <div className="h-full w-[55%] animate-pulse rounded-[3px] bg-route" />
             </div>
             <button type="button" onClick={actions.cancelScan} className="h-[50px] rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
               취소
@@ -260,7 +374,9 @@ export function CheckpointScanner() {
         )}
         {s.scanState === "fail" && (
           <>
-            <div className="text-[21px] leading-[1.35] font-extrabold">표지를 읽지 못했어요. 더 가까이 비춰주세요</div>
+            <div className="text-[21px] leading-[1.35] font-extrabold">
+              {isMap ? "안내도를 읽지 못했어요. 안내도 전체가 보이게 다시 찍어주세요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요"}
+            </div>
             {manualPair}
           </>
         )}

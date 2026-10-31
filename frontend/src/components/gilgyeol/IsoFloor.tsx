@@ -22,8 +22,11 @@ export interface IsoRoom extends IsoRect {
 export interface FloorLayout {
   corridors: IsoRect[];
   rooms: IsoRoom[];
-  elevator: { x: number; y: number };
+  elevator?: { x: number; y: number };
 }
+
+/** Empty plane for drawing a parsed graph on top. */
+export const BLANK_FLOOR: FloorLayout = { corridors: [], rooms: [] };
 
 export const FLOOR1: FloorLayout = {
   corridors: [
@@ -98,11 +101,13 @@ export function IsoPlane({ layout, rot, route, dim, children, scale = 1 }: { lay
       {route?.map((r, i) => (
         <div key={i} className="absolute rounded-sm bg-route" style={{ left: r.x, top: r.y, width: r.w, height: r.h }} />
       ))}
-      <div
-        className="absolute size-5 rounded-[4px] border-2 border-white bg-route"
-        style={{ left: layout.elevator.x - 10, top: layout.elevator.y - 10 }}
-        aria-hidden="true"
-      />
+      {layout.elevator && (
+        <div
+          className="absolute size-5 rounded-[4px] border-2 border-white bg-route"
+          style={{ left: layout.elevator.x - 10, top: layout.elevator.y - 10 }}
+          aria-hidden="true"
+        />
+      )}
       {children}
     </div>
   );

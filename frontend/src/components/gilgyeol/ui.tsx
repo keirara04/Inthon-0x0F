@@ -1,6 +1,6 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 
 function cx(...parts: (string | false | null | undefined)[]) {
@@ -8,6 +8,28 @@ function cx(...parts: (string | false | null | undefined)[]) {
 }
 
 export { cx };
+
+/**
+ * Photo-library picker: render `input` anywhere, call `open()` from a button. No `capture` attribute,
+ * so phones offer the photo library as well as the camera.
+ */
+export function useAlbumPick(onPick: (file: File) => void) {
+  const ref = useRef<HTMLInputElement>(null);
+  const input = (
+    <input
+      ref={ref}
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // lets the same photo be picked again after a failed read
+        if (file) onPick(file);
+      }}
+    />
+  );
+  return { input, open: () => ref.current?.click() };
+}
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement>;
 
@@ -108,7 +130,10 @@ export function SegButton({ on, className, ...p }: BtnProps & { on: boolean }) {
   );
 }
 
+/** Design-handoff label ("… 자리"). Presenter-only, like DemoBox. */
 export function Placeholder({ label, dark }: { label: string; dark?: boolean }) {
+  const demo = useDemoTools();
+  if (!demo) return null;
   return (
     <div className={cx("absolute top-2.5 left-2.5 rounded px-1.5 py-[3px] font-mono text-[10px] font-semibold", dark ? "text-[#A8ABA5]" : "bg-white/85 text-muted")}>
       {label}

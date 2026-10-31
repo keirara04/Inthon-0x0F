@@ -72,7 +72,7 @@ export function DemoPanel({ compact }: { compact?: boolean }) {
     <div className="flex flex-col gap-5">
       {!compact && (
         <div className="flex flex-col gap-1.5">
-          <div className="text-[22px] font-extrabold tracking-[-0.03em] text-brand">길결 · 시연 패널</div>
+          <div className="text-[22px] font-extrabold tracking-[-0.03em] text-brand">어디路 · 시연 패널</div>
           <p className="m-0 text-[13px] leading-[1.55] text-muted">카메라 인식·OCR·방향 센서는 모두 데모 입력이며, 진동과 음성은 기기가 지원하면 실제로 동작합니다.</p>
         </div>
       )}

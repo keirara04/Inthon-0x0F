@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "길결 · 실내 길찾기",
+  title: "어디路 · 실내 길찾기",
   description: "주변 표지와 진동·음성 안내로 건물 안 목적지를 찾는 실내 길찾기",
-  appleWebApp: { capable: true, title: "길결", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "어디路", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

@@ -38,7 +38,7 @@ export function RoutePreviewScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
   const startNode = START_NODES.find((n) => n.id === s.start);
-  const [view, setView] = useState<"floors" | "3d">("floors");
+  const [view, setView] = useState<"floors" | "3d">("3d");
 
   const routeSteps: { t: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = s.steps.map((st) => ({
     t: `${st.floor} · ${st.title}`,
