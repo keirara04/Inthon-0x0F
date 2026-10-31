@@ -1,0 +1,8 @@
+﻿image,floor,has_truth,latency_s,cost_usd,format,error,completion_tokens,reasoning_tokens,json_valid,schema_errors,cleanup_issues,connected,n_nodes,n_edges,n_rooms,corridor_axis_ok,outline_coverage,floor_read,floor_ok,n_elevators,elevator_count_ok,outline_iou,room_recall,room_precision,rooms_missed,rooms_extra,current_node_ok,vertical_found,ref_missing,ref_match,pred_refs,truth_refs
+evac_1F_front.jpg,1F,True,16.91,0.01206375,json_schema,,2584,0,True,,0,True,20,19,9,0.8,0.0,1F,True,1,True,,1.0,1.0,,,True,1.0,0,True,eleva:elev-1 stair:stairs-1 stair:stairs-2,eleva:elev-1 stair:stairs-1 stair:stairs-2
+evac_2F_angle.jpg,2F,False,12.59,0.0095475,json_schema,,1913,0,True,,0,True,19,18,10,0.6666666666666666,0.0,2F,,,,,,,,,,,,,,
+evac_2F_far.jpg,2F,False,14.78,0.01099125,json_schema,,2298,0,True,,0,True,18,17,9,0.6,0.0,2F,,,,,,,,,,,,,,
+evac_2F_front.jpg,2F,False,19.19,0.01401,json_schema,,3103,0,True,,0,True,24,23,10,1.0,0.0,2F,,,,,,,,,,,,,,
+evac_4F_angle.jpg,4F,True,15.34,0.01114875,json_schema,,2340,0,True,,0,True,23,22,14,0.0,0.0,4F,True,1,True,,0.875,1.0,412 413,,True,1.0,0,True,eleva:elev-1 stair:stairs-1 stair:stairs-2,eleva:elev-1 stair:stairs-1 stair:stairs-2
+evac_4F_far.jpg,4F,True,18.75,0.01326,json_schema,,2903,0,True,,0,True,28,27,16,1.0,0.0,4F,True,1,True,,1.0,1.0,,,True,1.0,0,True,eleva:elev-1 stair:stairs-1 stair:stairs-2,eleva:elev-1 stair:stairs-1 stair:stairs-2
+evac_4F_front.jpg,4F,True,24.33,0.01808625,json_schema,,4190,0,True,,0,True,33,32,16,1.0,0.0,4F,True,1,True,,1.0,1.0,,,True,1.0,0,True,eleva:elev-1 stair:stairs-1 stair:stairs-2,eleva:elev-1 stair:stairs-1 stair:stairs-2

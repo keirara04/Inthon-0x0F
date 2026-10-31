@@ -16,7 +16,7 @@ import re
 from pathlib import Path
 
 from common import (DATA_DIR, RESULTS_DIR, call_vision, fmt, list_images, load_image, load_prompt,
-                    load_schema, load_truth, mean, model_tag, print_table, run_stamp, schema_errors, to_data_url, write_csv,
+                    load_schema, load_truth, truth_version, mean, model_tag, print_table, run_stamp, schema_errors, to_data_url, write_csv,
                     write_summary_json)
 
 
@@ -69,7 +69,7 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, d
     csv_path = RESULTS_DIR / f"scene_{model_tag(model, args.reasoning)}_{stamp}.csv"
     write_csv(csv_path, rows)
     summary = {
-        "task": "scene", "model": model + (f" (reasoning={args.reasoning})" if args.reasoning else ""), "run": stamp, "n_images": len(rows),
+        "task": "scene", "model": model + (f" (reasoning={args.reasoning})" if args.reasoning else ""), "run": stamp, "n_images": len(rows), "truth_version": truth_version(args.building),
         "json_valid": mean([float(r["json_valid"]) for r in rows]),
         "top1_acc": mean([float(r["top1_ok"]) for r in rows]),
         "top3_acc": mean([float(r["top3_ok"]) for r in rows]),

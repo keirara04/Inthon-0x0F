@@ -25,7 +25,7 @@ import statistics
 from pathlib import Path
 
 from common import (DATA_DIR, RESULTS_DIR, call_vision, fmt, image_data_url, list_images, load_image, load_prompt,
-                    load_schema, load_truth_floors, mean, model_tag, print_table, run_stamp, schema_errors,
+                    load_schema, load_truth_floors, truth_version, mean, model_tag, print_table, run_stamp, schema_errors,
                     write_csv, write_summary_json)
 from matcher import canonical, landmarks_from_graphs, match
 
@@ -138,7 +138,7 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, l
     csv_path = RESULTS_DIR / f"checkpoint_{tag}_{stamp}.csv"
     write_csv(csv_path, rows)
     summary = {
-        "task": "checkpoint", "run": stamp, "n_images": len(rows), "n_sign": len(signs), "n_none": len(nones),
+        "task": "checkpoint", "run": stamp, "truth_version": truth_version(args.building), "n_images": len(rows), "n_sign": len(signs), "n_none": len(nones),
         "model": model + (f" (reasoning={args.reasoning})" if args.reasoning else "") + f" {args.max_side or 'raw'}px",
         "json_valid": mean([float(r["json_valid"]) for r in rows]),
         "read_rate": mean([float(r["read_ok"]) for r in signs]),

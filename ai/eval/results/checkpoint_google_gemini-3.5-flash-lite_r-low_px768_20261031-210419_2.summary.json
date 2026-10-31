@@ -1,0 +1,22 @@
+{
+  "task": "checkpoint",
+  "run": "20261031-210419_2",
+  "truth_version": "a0620d64",
+  "n_images": 20,
+  "n_sign": 16,
+  "n_none": 4,
+  "model": "google/gemini-3.5-flash-lite (reasoning=low) 768px",
+  "json_valid": 1.0,
+  "read_rate": 1.0,
+  "matched_rate": 1.0,
+  "mismatch_detected": 1.0,
+  "false_match": 0,
+  "false_match_checks": 467,
+  "none_rate": 1.0,
+  "latency_s_mean": 1.8989999999999998,
+  "latency_s_p50": 1.76,
+  "latency_s_max": 3.1,
+  "cost_usd_total": 0.011158600000000001,
+  "rooms_from_photos": false,
+  "csv": "checkpoint_google_gemini-3.5-flash-lite_r-low_px768_20261031-210419_2.csv"
+}

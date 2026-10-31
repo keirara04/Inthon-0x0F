@@ -1,0 +1,12 @@
+{
+  "task": "e2e_evac",
+  "model": "deployed https://inthon-api.hakeemiridza.com 1280px",
+  "run": "20261031-211825",
+  "n_images": 7,
+  "n_ok": 6,
+  "latency_s_mean": 25.93166666666667,
+  "latency_s_p50": 25.11,
+  "latency_s_max": 29.42,
+  "latency_s_min": 23.27,
+  "csv": "e2e_evac_px1280_20261031-211825.csv"
+}

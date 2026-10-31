@@ -72,6 +72,16 @@ def load_truth(building: str, floor: str) -> dict | None:
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
 
+def truth_version(building: str) -> str:
+    """시드 파일들의 짧은 해시. summary에 남겨 어떤 정답으로 채점했는지 구분한다."""
+    import hashlib
+    h = hashlib.sha1()
+    for p in sorted(TRUTH_DIR.glob(f"{building}-*.json")):
+        h.update(p.name.encode())
+        h.update(p.read_bytes().replace(b"\r\n", b"\n"))  # CRLF/LF가 달라도 같은 해시
+    return h.hexdigest()[:8]
+
+
 def load_truth_floors(building: str) -> list[dict]:
     return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(TRUTH_DIR.glob(f"{building}-*.json"))]
 

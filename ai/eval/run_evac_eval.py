@@ -17,7 +17,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from common import (DATA_DIR, RESULTS_DIR, call_vision, fmt, image_data_url, list_images, load_image, load_prompt,
-                    load_schema, load_truth, mean, model_tag, normalize_room, print_table, run_stamp, schema_errors,
+                    load_schema, load_truth, truth_version, mean, model_tag, normalize_room, print_table, run_stamp, schema_errors,
                     write_csv, write_summary_json)
 
 NODE_TYPES = {"room", "junction", "stairs", "elevator_hall", "entrance", "exit", "landmark"}
@@ -339,6 +339,7 @@ def run_model(model: str, images: list[Path], args, system: str, schema: dict, s
     rate = lambda key, rs: mean([float(r[key]) for r in rs if r.get(key) is not None])
     summary = {
         "task": "evac", "model": model + (f" (reasoning={args.reasoning})" if args.reasoning else "") + f" {args.max_side or 'raw'}px", "run": stamp, "n_images": len(rows), "n_with_truth": len(truth_rows),
+        "truth_version": truth_version(args.building),
         "json_valid": rate("json_valid", rows),
         "room_recall": rate("room_recall", truth_rows),
         "room_precision": rate("room_precision", truth_rows),

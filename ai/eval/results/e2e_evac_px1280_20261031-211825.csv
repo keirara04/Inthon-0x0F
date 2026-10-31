@@ -1,0 +1,8 @@
+﻿image,upload_kb,http,seconds,floor,n_nodes,floor_source,error
+evac_1F_front.jpg,170,200,23.27,1F,17,map,
+evac_2F_angle.jpg,204,200,25.09,2F,19,map,
+evac_2F_far.jpg,220,200,27.73,2F,20,map,
+evac_2F_front.jpg,162,200,24.95,2F,21,map,
+evac_4F_angle.jpg,248,200,25.13,4F,20,map,
+evac_4F_far.jpg,178,200,29.42,4F,25,map,
+evac_4F_front.jpg,171,500,31.44,4F,0,,Server Error

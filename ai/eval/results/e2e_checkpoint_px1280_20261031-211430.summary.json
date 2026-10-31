@@ -1,0 +1,12 @@
+{
+  "task": "e2e_checkpoint",
+  "model": "deployed https://inthon-api.hakeemiridza.com 1280px",
+  "run": "20261031-211430",
+  "n_images": 20,
+  "n_ok": 20,
+  "latency_s_mean": 2.5695,
+  "latency_s_p50": 2.54,
+  "latency_s_max": 3.17,
+  "latency_s_min": 1.94,
+  "csv": "e2e_checkpoint_px1280_20261031-211430.csv"
+}
