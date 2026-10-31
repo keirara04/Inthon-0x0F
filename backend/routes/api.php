@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\GraphController;
+use App\Http\Controllers\NavigationController;
+use App\Http\Controllers\VisionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
@@ -8,6 +11,14 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 Route::get('/ping', fn () => ['message' => 'pong from laravel']);
+
+Route::get('/search', [NavigationController::class, 'search']);
+Route::post('/route', [NavigationController::class, 'route']);
+
+// Every vision call costs money. Generous checkpoint limit: venue phones share one public IP.
+Route::post('/evac-map/parse', [VisionController::class, 'parse'])->middleware('throttle:10,1');
+Route::post('/checkpoint', [VisionController::class, 'checkpoint'])->middleware('throttle:60,1');
+Route::put('/graph', [GraphController::class, 'save'])->middleware('throttle:30,1');
 
 // Starter AI call (Lablup, Anthropic Messages format). Throttled: every call costs tokens.
 Route::get('/ai/test', function (Request $request) {
