@@ -74,14 +74,11 @@ form.addEventListener("submit", async (event) => {
   button.textContent = "Converting…";
   form.setAttribute("aria-busy", "true");
   status.textContent = "Detecting the map, correcting perspective, and extracting geometry…";
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 210000);
   try {
     const response = await fetch("/api/vectorize", {
       method: "POST",
       headers: { "Content-Type": selectedFile.type },
       body: selectedFile,
-      signal: controller.signal,
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Conversion failed. Please try again.");
@@ -104,10 +101,9 @@ form.addEventListener("submit", async (event) => {
     results.hidden = false;
     status.textContent = "Conversion complete. Review the vector, then download SVG and JSON.";
   } catch (failure) {
-    showError(failure.name === "AbortError" ? "Conversion timed out. Try a clearer or smaller photo." : failure.message || "Cannot reach the local conversion server.");
+    showError(failure.message || "Cannot reach the local conversion server.");
     status.textContent = "Conversion didn’t complete. No extracted result was substituted.";
   } finally {
-    clearTimeout(timer);
     running = false;
     input.disabled = false;
     button.disabled = !selectedFile;

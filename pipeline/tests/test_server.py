@@ -37,17 +37,27 @@ class ServerTests(unittest.TestCase):
         fixture = json.loads((EXAMPLES / 'evacuation-photo.trace.json').read_text())
         frame = {'corners': [{'x': 5, 'y': 5}, {'x': 95, 'y': 5}, {'x': 95, 'y': 95}, {'x': 5, 'y': 95}], 'warnings': []}
         plan = copy.deepcopy(fixture['plan']); plan['warnings'] = []
+        plan['outlines'] = []
         paths = []
         def record(path, key, model):
             paths.append(path)
             self.assertEqual(key, 'secret-test-key')
             self.assertEqual(model, 'test-model')
             return actual_convert_photo(path, key, model)
-        with patch('pipeline.server.convert_photo', side_effect=record), patch('pipeline.vectorize.request_structured_image', side_effect=[frame, plan]) as analyze:
+        with patch.dict('os.environ', {'MAP_EXTRACTION_MODE':'simple'}), patch('pipeline.server.convert_photo', side_effect=record), patch('pipeline.vectorize.request_structured_image', side_effect=[frame, plan]) as analyze:
             result = convert_upload(payload, api_key='secret-test-key', model='test-model')
         self.assertEqual(analyze.call_count, 2)
-        self.assertEqual(result['plan']['extraction'], {'method': 'vision', 'model': 'test-model'})
+        self.assertEqual(result['plan']['extraction'], {'method': 'vision', 'model': 'test-model', 'mode':'detailed'})
+        self.assertTrue(result['plan']['walls'])
+        self.assertTrue(result['plan']['markings'])
         self.assertEqual(result['plan']['source']['sha256'], hashlib.sha256(payload).hexdigest())
+        rectification = result['plan']['rectification']
+        self.assertEqual(rectification['padding_fraction'],.1)
+        width,height = result['plan']['source']['width'],result['plan']['source']['height']
+        self.assertEqual(rectification['detected_source_corners'],
+                         [[width*.05,height*.05],[width*.95,height*.05],
+                          [width*.95,height*.95],[width*.05,height*.95]])
+        self.assertEqual(rectification['source_corners'],[[0,0],[width,0],[width,height],[0,height]])
         self.assertNotIn('<image', result['svg'])
         self.assertIn('<image', result['overlay_svg'])
         self.assertTrue(result['review_required'])

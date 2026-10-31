@@ -164,6 +164,8 @@ def main(argv=None):
     print(f"Map conversion button: http://127.0.0.1:{args.port}", flush=True)
     print(f"Image API: {base_url} ({api_format})", flush=True)
     print(f"Vision model: {vision_model()}", flush=True)
+    print("Extraction mode: detailed (no application output-token cap; provider defaults apply)", flush=True)
+    print("Conversion wait: no application timeout; provider/network timeouts may still apply.", flush=True)
     if not os.environ.get("OPENAI_API_KEY", "").strip():
         print("API key is missing. Use bash pipeline/start.sh to enter your Lablup key privately.", flush=True)
     try:

@@ -54,3 +54,31 @@ def frame_transforms(corners, source_width, source_height, width=1200, height=76
         raise PipelineError("Rectified canvas dimensions must be integers between 200 and 3000.")
     target = [(0, 0), (width, 0), (width, height), (0, height)]
     return homography(corners, target), homography(target, corners)
+
+
+def padded_frame(corners, source_width, source_height, fraction=.10):
+    """Expand in the map's plane without cutting off any detected corner.
+
+    Keep perspective when possible. At source-image limits, use a conservative
+    rectangular crop if clamping a projected corner would cut the old frame.
+    """
+    frame_transforms(corners, source_width, source_height)
+    if isinstance(fraction, bool) or not isinstance(fraction, (float, int)) or not math.isfinite(fraction) or not 0 <= fraction <= .3:
+        raise PipelineError("Frame padding must be a finite fraction between 0 and 0.3.")
+    if fraction == 0:
+        return [list(p) for p in corners]
+    transform = homography([(0,0),(1,0),(1,1),(0,1)], corners)
+    try:
+        candidate = [project(transform,p) for p in [(-fraction,-fraction),(1+fraction,-fraction),(1+fraction,1+fraction),(-fraction,1+fraction)]]
+        expanded = [[max(0,min(source_width,x)),max(0,min(source_height,y))] for x,y in candidate]
+        frame_transforms(expanded, source_width, source_height)
+        for a,b in zip(expanded,expanded[1:]+expanded[:1]):
+            if any((b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]) < -1e-6 for p in corners):
+                raise PipelineError("Clamping would trim the detected frame.")
+        return expanded
+    except PipelineError:
+        xs,ys = [p[0] for p in corners],[p[1] for p in corners]
+        dx,dy = (max(xs)-min(xs))*fraction,(max(ys)-min(ys))*fraction
+        left,right = max(0,min(xs)-dx),min(source_width,max(xs)+dx)
+        top,bottom = max(0,min(ys)-dy),min(source_height,max(ys)+dy)
+        return [[left,top],[right,top],[right,bottom],[left,bottom]]

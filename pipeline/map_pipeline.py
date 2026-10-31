@@ -192,7 +192,7 @@ def extract_diagram(image: MapImage, api_key: str, model: str, *, transport=None
     return diagram
 
 
-def request_structured_image(image: MapImage, api_key: str, model: str, prompt: str, schema: dict, schema_name: str, *, transport=None, max_output_tokens=6000) -> dict:
+def request_structured_image(image: MapImage, api_key: str, model: str, prompt: str, schema: dict, schema_name: str, *, transport=None, max_output_tokens=None) -> dict:
     """One shared image-to-JSON transport for graph and vector extraction."""
     if not api_key.strip():
         raise PipelineError("Set OPENAI_API_KEY for automatic image extraction.")
@@ -207,8 +207,9 @@ def request_structured_image(image: MapImage, api_key: str, model: str, prompt: 
             {"type": "input_image", "image_url": image.data_url, "detail": "high"},
         ]}],
         "text": {"format": {"type": "json_schema", "name": schema_name, "strict": True, "schema": schema}},
-        "max_output_tokens": max_output_tokens,
     }
+    if max_output_tokens is not None:
+        payload["max_output_tokens"] = max_output_tokens
     if api_format == "chat_completions":
         payload = {
             "model": model,
@@ -220,9 +221,10 @@ def request_structured_image(image: MapImage, api_key: str, model: str, prompt: 
                 ]},
             ],
             "response_format": {"type": "json_object"},
-            "max_tokens": max_output_tokens,
             "stream": False,
         }
+        if max_output_tokens is not None:
+            payload["max_tokens"] = max_output_tokens
         payload.update(thinking_parameters(model, base_url))
     suffix = "/responses" if api_format == "responses" else "/chat/completions"
     request = urllib.request.Request(
@@ -231,7 +233,7 @@ def request_structured_image(image: MapImage, api_key: str, model: str, prompt: 
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
     )
     try:
-        with (transport or _verified_urlopen)(request, timeout=90) as response:
+        with (transport or _verified_urlopen)(request, timeout=None) as response:
             raw = response.read(2_000_001)
         if len(raw) > 2_000_000:
             raise PipelineError("Image analysis returned an oversized response.")
@@ -282,7 +284,8 @@ def request_structured_image(image: MapImage, api_key: str, model: str, prompt: 
             details = usage.get("completion_tokens_details") if isinstance(usage, dict) else None
             reasoning = details.get("reasoning_tokens") if isinstance(details, dict) else None
             note = f" Reasoning used {reasoning} tokens." if isinstance(reasoning, int) and not isinstance(reasoning, bool) and reasoning > 0 else ""
-            raise PipelineError(f"{stage}: the model reached its {max_output_tokens}-token output limit before completing the JSON. This is not an explicit refusal.{note}")
+            limit = f"the model reached its {max_output_tokens}-token output limit" if max_output_tokens is not None else "the provider reported a generation length limit; this app sent no output-token cap"
+            raise PipelineError(f"{stage}: {limit} before completing the JSON. This is not an explicit refusal.{note}")
         if finish_reason != "stop":
             reason = finish_reason if isinstance(finish_reason, str) and re.fullmatch(r"[a-zA-Z0-9_-]{1,40}", finish_reason) else "missing or invalid"
             raise PipelineError(f"{stage}: the API did not finish normally (finish_reason={reason}). No explicit refusal was reported.")

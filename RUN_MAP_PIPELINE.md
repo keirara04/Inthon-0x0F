@@ -15,6 +15,8 @@ Upload floor-plan photo
 
 The API produces JSON, not SVG. The earlier SVG-first experiment was undone. Recognition uses the configured external API; perspective correction, validation, and rendering run locally. This workflow does not implement surroundings-photo localization, route guidance, 3D visualization, or continuous tracking.
 
+Before export, Python also regularizes the layout: named rooms become right-angled rectangles, neighboring edges align, overlapping room proposals are clipped, and unassigned interior areas become low-confidence halls. The same cleaned polygons are used in SVG and JSON. This keeps room proportions; it does not force all rooms to equal-sided squares. Exterior boundaries are needed to guarantee interior coverage. Inferred halls and changed geometry must be reviewed against the photo. Cleanup metadata is recorded in `layout`; raw model geometry remains in `trace.json`.
+
 ## 1. Get the shared code
 
 **Handoff status when this guide was written:** the author's local checkout was on `main`, with `pipeline/` untracked. The new pipeline must be committed and pushed to a shared feature branch before another person can clone it. This guide does not publish those changes.
@@ -61,11 +63,15 @@ Expected startup output includes:
 Map conversion button: http://127.0.0.1:8765
 Image API: https://api.console.lablup.ai/v1 (chat_completions)
 Vision model: DeepSeek-V4.1-Flash-B300
+Extraction mode: detailed (no application output-token cap; provider defaults apply)
+Conversion wait: no application timeout; provider/network timeouts may still apply.
 ```
 
 Open [the local conversion page](http://127.0.0.1:8765/). Keep the terminal running. Choose a floor-plan photo and click **Convert to SVG + JSON** once.
 
-Supported inputs: JPG, PNG, or WebP, up to 6 MB and 20 million pixels. Start with one floor and readable room labels. The pipeline makes two sequential API requests, each with a 90-second network timeout; conversion can take time. One conversion runs at a time. There are no automatic paid retries.
+Supported inputs: JPG, PNG, or WebP, up to 6 MB and 20 million pixels. Start with one floor and readable room labels. The pipeline makes two sequential API requests without an application-level request timeout or output-token cap. The browser no longer aborts conversion after 3.5 minutes. Provider defaults, model limits, and network/browser timeouts can still end a request. One conversion runs at a time. There are no automatic paid retries.
+
+Extraction requests the full visible floor: rooms, halls, stairs, elevators, bathrooms, separating walls, exit doors, and the exterior perimeter. Elevator spaces use `kind: elevator`; exit-door markers are rendered as outlined rectangles with visible Exit door text labels; ordinary interior-door markers are omitted. The simplified prompt and its five-place selection have been removed. Old `MAP_EXTRACTION_MODE` settings are ignored. Image requests omit `max_tokens` and `max_output_tokens`, letting the provider choose its defaults; this does not promise unlimited generation, disable reasoning, or guarantee a successful run.
 
 After success, review the vector against the photo and download:
 
@@ -115,17 +121,22 @@ Then open [the alternate local page](http://127.0.0.1:8766/). The server binds o
 
 ## 5. Edit the extraction prompt
 
-Edit `DEFAULT_EXTRACTION_PROMPT` near the top of [`pipeline/vectorize.py`](pipeline/vectorize.py). This controls geometry extraction after perspective correction. The `prompt` inside `detect_frame()` in the same file controls the separate map-cropping request.
+Edit `DEFAULT_EXTRACTION_PROMPT` near the top of [`pipeline/vectorize.py`](pipeline/vectorize.py). It preserves the detailed instructions and your earlier edits. This controls geometry extraction after perspective correction. The `prompt` inside `detect_frame()` in the same file controls the separate map-cropping request.
 
-`GEOMETRY_FORMAT_RULES` is appended to the geometry prompt, and `PLAN_SCHEMA` is sent separately to the API. Changing prose does not change the accepted JSON structure. The current rules include:
+Automatic crops include a 10% margin on each side of the detected drawing, bounded by the uploaded photo. `FRAME_PADDING_FRACTION` in the same file controls this margin. Cropping requests include complete outer walls, stairs, landings, exit thresholds, and service-room projections. Enclosed unnumbered rooms stay separate as `Unlabeled room`; only open circulation becomes Hall. The JSON `rectification` object records `detected_source_corners`, the padded `source_corners`, and `padding_fraction`. Existing reviewed traces keep their original frame and coordinates. Run a new conversion from the original photo to recover details excluded by an earlier crop.
+
+The request appends `GEOMETRY_FORMAT_RULES` and `EXTRACTION_COVERAGE_RULES` and sends `PLAN_SCHEMA`. Changing prose does not change the accepted JSON structure. The geometry rules are:
 
 - Space polygons: 3–80 distinct ordered vertices, without repeating the closing vertex.
-- Walls and evacuation routes: 2–80 ordered points.
-- Exit, door, fire-equipment, and you-are-here symbols: exactly one center point.
-- Space kinds: `room`, `corridor`, or `stairs`. Elevators can use `kind: room` with an elevator label; halls use `kind: corridor`.
+- Walls: 2–80 ordered points. Omit bathroom-internal dividers and fixtures; keep each bathroom as one enclosing labeled area.
+- Exit-door markings only: exactly one center point. Do not copy red evacuation lines, arrows, red dots, equipment, or location markers.
+- Space kinds: `room`, `corridor`, `stairs`, `bathroom`, or `elevator`. Halls use `kind: corridor`. Bathroom areas with visible toilet cubicles use `kind: bathroom`; elevators use `kind: elevator` and an Elevator label.
+- Exterior building outlines: separate `outlines` polygons with 3–160 vertices, following visible recesses and stair projections. Empty or missing outlines produce a warning that perimeter coverage is unverified.
 - Coordinates: percentages from 0 to 100, with the origin at the top left.
 
 Restart the Python server after saving prompt edits. There is currently no prompt editor on the conversion page.
+
+Simplified mode has been removed. Start with `bash pipeline/start.sh`; no extraction-mode variable is needed.
 
 ## 6. Optional: save all artifacts through the CLI
 
@@ -161,7 +172,7 @@ Run the local tests:
 python3 -m unittest discover -s pipeline/tests -v
 ```
 
-The latest local verification passed 39 tests. API responses in these tests are mocked; passing tests does not prove that the remote model will extract a particular photo correctly.
+The latest local verification passed 50 tests, including crop-margin pixel retention, frame bounds, geometric coverage, overlap, exterior clipping, wall constraints, and right-angle checks. API responses in these tests are mocked; passing tests does not prove that the remote model will extract a particular photo correctly.
 
 For an offline smoke test of the separate diagram-to-graph workflow:
 
@@ -184,8 +195,8 @@ This uses a hand-authored fixture, not live image recognition. It exports a diag
 | HTTP 403 | The key may lack access to this model. Check the provider's Connect settings. |
 | HTTP 429 | Check the page message: a local conversion may already be running, or the provider may report a rate/quota limit. |
 | HTTP 502 | Read the page and terminal error. The provider may return an upstream gateway error; local network errors can also map to 502. This alone is not a model refusal. |
-| Timeout / HTTP 504 | The model or connection did not respond within the allowed time. A failed run does not export a replacement sample. |
-| Output-token limit | The model ended before completing JSON. Geometry requests currently allow 32,768 output tokens, including any reasoning the provider counts against that budget. |
+| Timeout / HTTP 504 | No local conversion deadline is set, but the provider or network can still time out. A failed run does not export a replacement sample. |
+| Output-token limit | The provider ended generation before completing JSON. The app sends no output-token cap; provider defaults and model/context limits still apply. |
 | `Invalid number of shape vertices` | The API returned geometry but Python rejected a point count. Updated messages name the shape, kind, actual count, and expected count. Check the prompt rules; an icon outline is not a single center point. |
 | `Address already in use` | Stop the old server or choose another port with `--port`. |
 | Python edits seem ignored | Restart the running Python server; refreshing the browser alone does not reload Python modules. |

@@ -31,6 +31,9 @@ class TransportTests(unittest.TestCase):
             self.assertEqual(body['response_format']['type'], 'json_object')
             self.assertNotIn('store', body)
             self.assertNotIn('input', body)
+            self.assertNotIn('max_tokens', body)
+            self.assertNotIn('max_output_tokens', body)
+            self.assertIsNone(timeout)
             return io.BytesIO(json.dumps({'choices': [{'finish_reason': 'stop', 'message': {'content': '{"floor":"2F"}'}}]}).encode())
         with patch.dict('os.environ', {'OPENAI_BASE_URL': 'https://gateway.example/hackathon/v1/', 'OPENAI_API_FORMAT': 'chat_completions'}):
             self.assertEqual(self.call(transport), {'floor': '2F'})
@@ -39,6 +42,8 @@ class TransportTests(unittest.TestCase):
         def transport(request, timeout):
             self.assertEqual(request.full_url, 'https://gateway.example/v1/responses')
             self.assertEqual(json.loads(request.data)['model'], 'exact-hackathon-model')
+            self.assertNotIn('max_output_tokens', json.loads(request.data))
+            self.assertIsNone(timeout)
             return io.BytesIO(json.dumps({'status': 'completed', 'output': [{'content': [{'type': 'output_text', 'text': '{"ok":true}'}]}]}).encode())
         with patch.dict('os.environ', {'OPENAI_BASE_URL': 'https://gateway.example/v1', 'OPENAI_API_FORMAT': 'responses'}):
             self.assertEqual(self.call(transport), {'ok': True})
@@ -76,7 +81,7 @@ class TransportTests(unittest.TestCase):
 
     def test_refusal_and_output_limit_are_distinct_and_identify_the_stage(self):
         cases = [
-            ({'choices': [{'finish_reason': 'length', 'message': {'content': ''}}], 'usage': {'completion_tokens_details': {'reasoning_tokens': 5999}}}, 'Locating the map:.*6000-token output limit.*not an explicit refusal.*5999'),
+            ({'choices': [{'finish_reason': 'length', 'message': {'content': ''}}], 'usage': {'completion_tokens_details': {'reasoning_tokens': 5999}}}, 'Locating the map:.*provider reported a generation length limit.*no output-token cap.*not an explicit refusal.*5999'),
             ({'choices': [{'finish_reason': 'stop', 'message': {'refusal': 'private provider text', 'content': None}}]}, 'Locating the map:.*explicitly refused'),
             ({'choices': [{'finish_reason': 'content_filter', 'message': {'content': ''}}]}, 'Locating the map:.*explicitly refused'),
             ({'choices': [{'finish_reason': 'tool_calls', 'message': {'content': ''}}]}, 'finish_reason=tool_calls.*No explicit refusal'),

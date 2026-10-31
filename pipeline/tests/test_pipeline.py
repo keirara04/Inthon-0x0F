@@ -181,7 +181,7 @@ class PipelineTests(unittest.TestCase):
             self.assertFalse(payload['store'])
             self.assertTrue(payload['text']['format']['strict'])
             self.assertEqual(payload['model'], 'configured-model')
-            self.assertEqual(timeout, 90)
+            self.assertIsNone(timeout)
             return io.BytesIO(json.dumps({'status': 'completed', 'output': [{'type': 'message', 'content': [{'type': 'output_text', 'text': json.dumps(example())}]}]}).encode())
         extracted = extract_diagram(self.image, 'test-key', 'configured-model', transport=transport)
         self.assertEqual(len(calls), 1)
