@@ -54,6 +54,13 @@ export function WelcomeScreen() {
         >
           지도 만들기 · 관리자<span className="text-[14px] font-medium text-muted">그래프 편집</span>
         </button>
+        <button
+          type="button"
+          onClick={() => actions.go("landing")}
+          className="flex h-12 items-center justify-between border-t border-line bg-transparent p-0 text-[15px] font-semibold text-ink"
+        >
+          서비스 소개<span className="text-[14px] font-medium text-muted">3분 체험 안내</span>
+        </button>
         <p className="m-0 text-[12px] leading-normal text-muted">길결은 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
       </div>
     </div>
