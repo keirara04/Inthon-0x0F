@@ -65,7 +65,19 @@ export function GuidanceScreen() {
   return (
     <div className="flex flex-col gap-3.5 px-5 pt-1.5 pb-6">
       <div className="flex min-h-8 items-center justify-between gap-2">
-        <div className="min-w-0 truncate text-[15px] font-bold">우정정보관 · {st.floor}</div>
+        <div className="flex min-w-0 items-center gap-1">
+          {/* Logo = home. Asks first, since a stray tap mid-walk would drop the route. */}
+          <button
+            type="button"
+            onClick={() => window.confirm("안내를 끝내고 시작 화면으로 갈까요?") && actions.endGuide()}
+            aria-label="어디路 홈 (안내 종료)"
+            className="-ml-2 flex size-11 flex-none items-center justify-center border-none bg-transparent p-0"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
+            <img src="/mascot/head.png" alt="" aria-hidden="true" width={28} height={28} />
+          </button>
+          <div className="min-w-0 truncate text-[15px] font-bold">우정정보관 · {st.floor}</div>
+        </div>
         <div className="flex flex-none items-center gap-2">
           <div role="status" className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: locColor }}>
             <StatusDot color={locColor} />
