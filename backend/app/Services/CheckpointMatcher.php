@@ -39,18 +39,20 @@ class CheckpointMatcher
     }
 
     /**
-     * "405호" => "405", "4층"/"4F" => "4F", "지하1층"/"B1" => "B1", "405 강의실" => "405"; anything else => null.
-     * Exact forms first, then a 3–4 digit room number or a floor sign inside longer text.
+     * Shared by GraphImporter (stored room/floor landmarks) and the camera side, so both always agree.
+     * "405호" => "405", "401A호"/"401 A" => "401A", "B101호" => "B101" (basement room),
+     * "4층"/"4F" => "4F", "지하1층"/"B1" => "B1" (floor: B + 1–2 digits only), "401A 강의실" => "401A";
+     * anything else => null. Exact forms first, then a room number or floor sign inside longer text.
      */
     public static function canonical(string $text): ?string
     {
         $t = strtoupper(preg_replace('/\s+/', '', $text));
 
         return match (true) {
-            (bool) preg_match('/^(?:지하|B)(\d+)(?:층|F)?$/u', $t, $m) => "B{$m[1]}",
+            (bool) preg_match('/^(?:지하(\d{1,2})층?|B(\d{1,2})(?:층|F)?)$/u', $t, $m) => 'B'.($m[1] ?: $m[2]),
             (bool) preg_match('/^(\d{1,2})(?:층|F)$/u', $t, $m) => "{$m[1]}F",
-            (bool) preg_match('/^(\d{2,4})(?:호실?)?$/u', $t, $m) => $m[1],
-            (bool) preg_match('/(?<!\d)(\d{3,4})(?!\d)/u', $t, $m) => $m[1],
+            (bool) preg_match('/^(B?\d{2,4}[A-Z]?)(?:호실?)?$/u', $t, $m) => $m[1],
+            (bool) preg_match('/(?<![\dA-Z])(B?\d{3,4}[A-Z]?)(?![\dA-Z])/u', $t, $m) => $m[1],
             (bool) preg_match('/(?<!\d)(\d{1,2})(?:층|F)(?![A-Z])/u', $t, $m) => "{$m[1]}F",
             default => null,
         };

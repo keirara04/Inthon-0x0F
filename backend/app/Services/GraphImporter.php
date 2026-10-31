@@ -37,7 +37,7 @@ class GraphImporter
                 ]);
 
                 $landmark = match ($n['type']) {
-                    'room' => ['kind' => 'room_no', 'ocr_text' => preg_replace('/\D/', '', $n['label']) ?: $n['label']],
+                    'room' => ['kind' => 'room_no', 'ocr_text' => CheckpointMatcher::canonical($n['label']) ?? $n['label']],
                     'elevator_hall', 'stairs' => ['kind' => 'floor_sign', 'ocr_text' => $graph['floor']],
                     default => null,
                 };

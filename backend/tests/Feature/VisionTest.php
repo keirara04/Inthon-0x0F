@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Services\CheckpointMatcher;
+use App\Services\GraphImporter;
 use Database\Seeders\GraphSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -69,6 +70,43 @@ class VisionTest extends TestCase
         $this->assertNull(CheckpointMatcher::canonical('엘리베이터'));
         $this->assertSame('405', CheckpointMatcher::canonical('405 강의실'));
         $this->assertSame('4F', CheckpointMatcher::canonical('4층 엘리베이터'));
+        $this->assertSame('401A', CheckpointMatcher::canonical('401A호'));
+        $this->assertSame('401A', CheckpointMatcher::canonical('401 A'));
+        $this->assertSame('401A', CheckpointMatcher::canonical('401A 강의실'));
+        $this->assertSame('B101', CheckpointMatcher::canonical('B101호'));
+        $this->assertSame('B1', CheckpointMatcher::canonical('B1'));
+        $this->assertSame('B1', CheckpointMatcher::canonical('B1F'));
+        $this->assertSame('B1', CheckpointMatcher::canonical('지하 1층'));
+        $this->assertNull(CheckpointMatcher::canonical('6')); // elevator position indicator
+    }
+
+    public function test_room_letters_are_kept_apart(): void
+    {
+        app(GraphImporter::class)->importFloor([
+            'building' => '우정정보관', 'floor' => '3F',
+            'nodes' => [
+                ['id' => '3F-j', 'type' => 'junction', 'label' => '복도', 'x' => 0.5, 'y' => 0.5],
+                ['id' => '3F-301A', 'type' => 'room', 'label' => '301A호', 'x' => 0.2, 'y' => 0.5],
+                ['id' => '3F-301B', 'type' => 'room', 'label' => '301B호', 'x' => 0.8, 'y' => 0.5],
+            ],
+            'edges' => [
+                ['from' => '3F-j', 'to' => '3F-301A', 'length_m' => 5, 'heading_deg' => 270],
+                ['from' => '3F-j', 'to' => '3F-301B', 'length_m' => 5, 'heading_deg' => 90],
+            ],
+        ]);
+
+        $this->fakeVision(
+            ['text' => '301A', 'kind' => 'room_no'],
+            ['text' => '301B호', 'kind' => 'room_no'],
+            ['text' => '301', 'kind' => 'room_no'],
+        );
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '3F-301A'])
+            ->assertJsonPath('data.status', 'matched');
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '3F-301A'])
+            ->assertJsonPath('data.status', 'mismatch')->assertJsonPath('data.node.id', '3F-301B');
+        // Bare "301" can't tell A from B: ask for another photo rather than guess.
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '3F-301A'])
+            ->assertJsonPath('data.status', 'unknown');
     }
 
     public function test_multiline_door_sign_matches(): void
@@ -146,7 +184,7 @@ class VisionTest extends TestCase
         $floor = [
             'building' => '우정정보관', 'floor' => '5F', 'status' => 'verified',
             'nodes' => [
-                ['id' => '5F-elev-A', 'type' => 'elevator_hall', 'label' => '중앙 엘리베이터 홀', 'x' => 0.5, 'y' => 0.45, 'ref' => 'elev-A'],
+                ['id' => '5F-elev-A', 'type' => 'elevator_hall', 'label' => '중앙 엘리베이터 홀', 'x' => 0.5, 'y' => 0.45, 'ref' => 'elev-1'],
                 ['id' => '5F-501', 'type' => 'room', 'label' => '501호', 'x' => 0.2, 'y' => 0.6],
             ],
             'edges' => [['from' => '5F-elev-A', 'to' => '5F-501', 'type' => 'walk', 'length_m' => 10, 'heading_deg' => 270]],
