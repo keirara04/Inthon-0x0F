@@ -3,13 +3,11 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { parseEvacMap, saveFloorGraph } from "@/lib/gilgyeol/api";
-import { C, EDITOR_H, EDITOR_W, NODE_TYPES } from "@/lib/gilgyeol/data";
+import { C, EDITOR_H, EDITOR_W, FLOOR_STATUS, NODE_TYPES, SAMPLE_AI_GRAPH } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { GraphEdge, GraphError, GraphNode, NodeType } from "@/lib/gilgyeol/types";
 import { BackHeader, Badge } from "./ui";
 
-const FLOOR = 4;
-const FLOOR_ID = "woojung-4f";
 
 type Phase = "empty" | "ready" | "loading" | "draft";
 
@@ -18,7 +16,7 @@ interface Snapshot {
   edges: GraphEdge[];
 }
 
-export function validateGraph(nodes: GraphNode[], edges: GraphEdge[]): GraphError[] {
+export function validateGraph(nodes: GraphNode[], edges: GraphEdge[], floor: number): GraphError[] {
   const ids = new Set(nodes.map((n) => n.id));
   const out: GraphError[] = [];
   edges.forEach((e) => {
@@ -32,7 +30,7 @@ export function validateGraph(nodes: GraphNode[], edges: GraphEdge[]): GraphErro
       const floors = n.servedFloors.split(/[,\s]+/).filter(Boolean);
       if (!floors.length) out.push({ nodeId: n.id, text: `${n.label} · served_floors가 입력되지 않았어요` });
       else if (floors.some((f) => !/^-?\d+$/.test(f))) out.push({ nodeId: n.id, text: `${n.label} · served_floors는 숫자로 입력해 주세요 (예: 1,2,3)` });
-      else if (!floors.includes(String(FLOOR))) out.push({ nodeId: n.id, text: `${n.label} · 현재 층(${FLOOR}층)이 정차 층에 없어요` });
+      else if (!floors.includes(String(floor))) out.push({ nodeId: n.id, text: `${n.label} · 현재 층(${floor}층)이 정차 층에 없어요` });
     }
     if (n.type === "room" && !/^\d{3}호$/.test(n.label)) out.push({ nodeId: n.id, text: `${n.label} · 호실 번호 형식을 확인해 주세요 (예: 405호)` });
   });
@@ -56,6 +54,8 @@ export function GraphEditorScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
+  const [floor, setFloor] = useState(4);
+  const stopsRef = useRef<HTMLInputElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; moved: boolean; sx: number; sy: number } | null>(null);
   const nextId = useRef(1);
@@ -68,7 +68,7 @@ export function GraphEditorScreen() {
     [img],
   );
 
-  const errors = phase === "draft" ? validateGraph(nodes, edges) : [];
+  const errors = phase === "draft" ? validateGraph(nodes, edges, floor) : [];
   const errIds = new Set(errors.map((e) => e.nodeId));
   const selN = nodes.find((n) => n.id === sel);
 
@@ -122,7 +122,7 @@ export function GraphEditorScreen() {
     setSaving(true);
     setSaveError(null);
     try {
-      await saveFloorGraph(FLOOR_ID, { nodes, edges }, status);
+      await saveFloorGraph(`woojung-${floor}f`, { nodes, edges }, status);
       setSaved(status);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : "저장하지 못했어요");
@@ -204,6 +204,56 @@ export function GraphEditorScreen() {
     setTouched(true);
   };
 
+  const switchFloor = (f: number, status: "verified" | "draft" | "none") => {
+    if (f === floor) return;
+    if (touched && !saved) {
+      actions.toast(`${floor}층 수정 사항을 먼저 저장해 주세요`);
+      return;
+    }
+    if (status === "verified") {
+      actions.toast(`${f}층은 검수 완료된 데이터예요. 시연에서는 요약만 볼 수 있어요`);
+      return;
+    }
+    reset();
+    setFloor(f);
+    if (status === "draft") {
+      // Demo: reopen the floor's saved AI draft for review.
+      const g = structuredClone(SAMPLE_AI_GRAPH);
+      setNodes(g.nodes);
+      setEdges(g.edges);
+      setPhase("draft");
+      setSaved("draft");
+    }
+  };
+
+  const editElevatorStops = () => {
+    const el = nodes.find((n) => n.type === "elevator_hall");
+    if (!el) {
+      actions.toast("엘리베이터 노드가 없어요. 노드 추가에서 elevator_hall을 추가해 주세요");
+      return;
+    }
+    setSel(el.id);
+    setConn(null);
+    requestAnimationFrame(() => {
+      stopsRef.current?.focus();
+      stopsRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+  };
+
+  const sessionStatus: "verified" | "draft" | "none" = saved === "verified" ? "verified" : phase === "draft" ? "draft" : "none";
+  const floorRows = [...FLOOR_STATUS, { floor: 4, status: "none" as const, summary: "평면도 없음" }]
+    .map((r) =>
+      r.floor === floor
+        ? { ...r, status: sessionStatus, summary: phase === "draft" ? `노드 ${nodes.length} · 간선 ${edges.length}${touched && !saved ? " · 저장 안 됨" : ""}` : "편집 중 · 안내도 업로드 전" }
+        : r,
+    )
+    .sort((a, b) => a.floor - b.floor);
+  const statusBadge = {
+    verified: { label: "검수 완료", tone: "ok" as const },
+    draft: { label: "초안", tone: "warn" as const },
+    none: { label: "데이터 없음", tone: "neutral" as const },
+  };
+
   const phaseBadge =
     saved === "verified"
       ? { label: "verified · 검수 완료", tone: "ok" as const }
@@ -225,12 +275,40 @@ export function GraphEditorScreen() {
           label={
             <span className="flex flex-col gap-px">
               <span className="text-[17px] font-extrabold text-ink">지도 만들기</span>
-              <span className="text-[12px] font-semibold text-muted">관리자 · 우정정보관 · 4층 · 좌표 0–1 비율</span>
+              <span className="text-[12px] font-semibold text-muted">관리자 · 우정정보관 · {floor}층 · 좌표 0–1 비율</span>
             </span>
           }
           onBack={actions.back}
         />
       </div>
+
+      <section aria-label="층별 지도 데이터" className="flex flex-col overflow-hidden rounded-2xl bg-surface">
+        {floorRows.map((r) => {
+          const cur = r.floor === floor;
+          const b = statusBadge[r.status];
+          return (
+            <button
+              type="button"
+              key={r.floor}
+              aria-current={cur ? "true" : undefined}
+              onClick={() => switchFloor(r.floor, r.status)}
+              className={`flex min-h-14 items-center justify-between gap-3 border-0 border-b border-divider px-4 py-2 text-left last:border-b-0 ${cur ? "bg-[#F7EEF1]" : "bg-surface"}`}
+            >
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[16px] font-bold text-ink">
+                  {r.floor}F{cur && <span className="ml-1.5 text-[12px] font-bold text-brand">편집 중</span>}
+                </span>
+                <span className="text-[12px] text-muted">{r.summary}</span>
+              </span>
+              {r.status === "none" && !cur ? (
+                <span className="flex h-9 items-center rounded-[10px] border-[1.5px] border-brand px-3 text-[13px] font-bold text-brand">업로드</span>
+              ) : (
+                <Badge tone={b.tone}>{b.label}</Badge>
+              )}
+            </button>
+          );
+        })}
+      </section>
 
       {phase === "draft" && (
         <div className="flex flex-wrap gap-1.5">
@@ -244,7 +322,7 @@ export function GraphEditorScreen() {
           <div className="text-[13px] font-bold text-muted">1 · 건물·층</div>
           <div className="flex gap-2">
             <div className="flex h-12 flex-1 items-center rounded-xl bg-app-bg px-3.5 text-[15px] font-semibold">우정정보관</div>
-            <div className="flex h-12 w-[84px] items-center justify-center rounded-xl bg-app-bg text-[15px] font-bold">4층</div>
+            <div className="flex h-12 w-[84px] items-center justify-center rounded-xl bg-app-bg text-[15px] font-bold">{floor}층</div>
           </div>
           <div className="pt-1.5 text-[13px] font-bold text-muted">2 · 피난안내도 이미지</div>
           <label className="flex h-[52px] cursor-pointer items-center justify-center rounded-[14px] border-[1.5px] border-ink bg-surface text-[15px] font-bold focus-within:outline-3 focus-within:outline-route">
@@ -471,7 +549,7 @@ export function GraphEditorScreen() {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <div className={labelCls}>
-                  층<div className="flex h-11 items-center rounded-[10px] bg-app-bg px-2.5 text-[15px] font-medium text-ink">4층</div>
+                  층<div className="flex h-11 items-center rounded-[10px] bg-app-bg px-2.5 text-[15px] font-medium text-ink">{floor}층</div>
                 </div>
                 <div className={labelCls}>
                   위치 (0–1)
@@ -487,7 +565,7 @@ export function GraphEditorScreen() {
               {selN.type === "elevator_hall" && (
                 <label className={labelCls}>
                   served_floors · 정차 층 (현장 확인 후 입력)
-                  <input value={selN.servedFloors} onChange={(e) => updateSel({ servedFloors: e.target.value })} placeholder="예: 1,2,3,4,5" inputMode="numeric" className={field} />
+                  <input ref={stopsRef} value={selN.servedFloors} onChange={(e) => updateSel({ servedFloors: e.target.value })} placeholder="예: 1,2,3,4,5" inputMode="numeric" className={field} />
                 </label>
               )}
             </div>
@@ -503,6 +581,9 @@ export function GraphEditorScreen() {
               {saveError} · 다시 저장해 주세요
             </div>
           )}
+          <button type="button" onClick={editElevatorStops} className="h-12 rounded-[14px] border-[1.5px] border-edge bg-surface text-[15px] font-semibold text-ink">
+            엘리베이터 정차 층 편집
+          </button>
           <div className="grid grid-cols-[1fr_1.3fr] gap-2">
             <button type="button" disabled={saving} onClick={() => save("draft")} className="h-[54px] rounded-2xl border-[1.5px] border-ink bg-surface text-[15px] font-bold text-ink">
               {saving ? "저장 중…" : "draft 저장"}

@@ -1,13 +1,44 @@
 "use client";
 
+import { useState } from "react";
 import { C, START_NODES } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
+import { FLOOR1, IsoPlane, ROUTE4, RotateButtons, floor4, useIsoRotation } from "./IsoFloor";
 import { BackHeader, PrimaryButton } from "./ui";
+
+/** 1F and 4F stacked, joined by the elevator shaft, with where each floor's data came from. */
+function StackedRoute({ dest, mapDemo }: { dest: string; mapDemo: boolean }) {
+  const iso = useIsoRotation();
+  return (
+    <div
+      className="relative h-[340px] touch-none overflow-hidden rounded-2xl bg-[#FAF9F6] [perspective:900px]"
+      role="img"
+      aria-label={`1층에서 엘리베이터로 4층에 올라가 왼쪽 복도로 ${dest}까지 가는 3D 경로 도식`}
+      {...iso.handlers}
+    >
+      <div className="absolute inset-x-0 top-[240px] h-0">
+        <IsoPlane layout={FLOOR1} rot={iso.rot} dim scale={0.85} route={[{ x: 35, y: 84, w: 97, h: 7 }, { x: 31, y: 84, w: 8, h: 64 }]} />
+      </div>
+      <div className="absolute top-[100px] left-1/2 h-[140px] w-1 -translate-x-1/2 rounded bg-route" aria-hidden="true" />
+      <div className="absolute inset-x-0 top-[100px] h-0">
+        <IsoPlane layout={floor4(dest)} rot={iso.rot} route={ROUTE4} scale={0.85} />
+      </div>
+      <span className="absolute top-3 left-3 rounded-lg bg-surface px-2.5 py-1 text-[13px] font-bold text-ink">4F</span>
+      <span className="absolute top-3 right-3 rounded-md bg-haptic-tint px-2 py-1 text-[11px] font-semibold text-haptic-ink">저장된 건물 데이터 · 시연용</span>
+      <span className="absolute top-[200px] left-3 rounded-lg bg-surface px-2.5 py-1 text-[13px] font-bold text-muted">1F</span>
+      <span className="absolute bottom-3 left-3 rounded-md bg-warn-tint px-2 py-1 text-[11px] font-semibold text-warn-ink">
+        {mapDemo ? "데모 안내도" : "방금 촬영한 안내도"}
+      </span>
+      <RotateButtons setRot={iso.setRot} />
+    </div>
+  );
+}
 
 export function RoutePreviewScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
   const startNode = START_NODES.find((n) => n.id === s.start);
+  const [view, setView] = useState<"floors" | "3d">("floors");
 
   const steps: { t: string; badge?: string; tone?: "warn" | "cp" | "ok" }[] = [
     { t: `1층 ${startNode?.label ?? "출발 위치"}에서 출발` },
@@ -37,7 +68,25 @@ export function RoutePreviewScreen() {
           <div className="text-[13px] text-muted">4층</div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="flex items-center justify-between">
+        <div className="text-[15px] font-bold">층별 경로</div>
+        <div role="tablist" aria-label="경로 보기" className="flex gap-0.5 rounded-[10px] bg-[#ECEAE3] p-[3px]">
+          {(["floors", "3d"] as const).map((v) => (
+            <button
+              type="button"
+              role="tab"
+              key={v}
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={`h-9 min-w-[52px] rounded-lg border-none px-2 text-[13px] font-bold text-ink ${view === v ? "bg-surface" : "bg-transparent"}`}
+            >
+              {v === "floors" ? "2D" : "3D 보기"}
+            </button>
+          ))}
+        </div>
+      </div>
+      {view === "3d" && <StackedRoute dest={d} mapDemo={s.mapDemo} />}
+      <div className={`grid grid-cols-2 gap-2.5 ${view === "3d" ? "hidden" : ""}`}>
         <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
           <div className="text-[13px] font-bold">1층</div>
           <svg viewBox="0 0 150 90" className="h-auto w-full" role="img" aria-label="1층: 현위치에서 엘리베이터 홀까지">
@@ -66,7 +115,11 @@ export function RoutePreviewScreen() {
           <div className="text-[12px] text-muted">층 표지 → 왼쪽 복도 → {d}</div>
         </div>
       </div>
-      <ol className="m-0 flex list-none flex-col rounded-[18px] bg-surface px-[18px] py-1.5" aria-label="경로 단계">
+      <div className="rounded-[18px] bg-surface px-[18px] py-1.5">
+      <h2 id="gg-steps-title" className="m-0 border-b border-divider pt-3 pb-2.5 text-[17px] font-bold">
+        {d}까지 {steps.length}단계
+      </h2>
+      <ol className="m-0 flex list-none flex-col p-0" aria-labelledby="gg-steps-title">
         {steps.map((p, i) => (
           <li key={p.t} className="flex items-start gap-3.5 border-b border-divider py-3 last:border-b-0">
             <div className="flex size-7 flex-none items-center justify-center rounded-full text-[13px] font-bold text-white" style={{ background: i === steps.length - 1 ? C.brand : C.route }}>
@@ -79,6 +132,7 @@ export function RoutePreviewScreen() {
           </li>
         ))}
       </ol>
+      </div>
       <p className="m-0 text-[13px] leading-normal text-muted">예상 시간과 거리는 아직 측정하지 않아 층 이동 단계로 보여드려요.</p>
       <PrimaryButton tall onClick={() => actions.go("mode")}>
         안내 방식 선택

@@ -5,6 +5,15 @@ import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { DirectionState } from "@/lib/gilgyeol/types";
 import { GhostButton, Notice, PrimaryButton, SegButton, DemoBox, StatusDot } from "./ui";
 
+/** Pulse strength shown as bars — more bars means the target heading is closer. */
+const STRENGTH: Record<DirectionState, number> = { far: 1, near: 3, aligned: 4, unstable: 0 };
+const PULSE_TEXT: Record<DirectionState, string> = {
+  far: "방향 벗어남 · 진동 느리게",
+  near: "방향 가까움 · 진동 조금 빠르게",
+  aligned: "방향 맞음 · 진동 빠르게",
+  unstable: "방향 확인 불가 · 방향 진동 멈춤",
+};
+
 const DIR_BTNS: [DirectionState, string][] = [
   ["far", "벗어남"],
   ["near", "가까움"],
@@ -49,6 +58,23 @@ export function GuidanceScreen() {
           <StatusDot color={locColor} />
           {locText}
         </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 rounded-[14px] bg-warm-panel py-1.5 pr-1.5 pl-3">
+        <span className="text-[13px] font-semibold text-ink">
+          {s.raised ? "폰 들음 · 카메라 켜짐" : "폰 내림 · 카메라 꺼짐"}
+          <span className="block text-[12px] font-medium text-muted">
+            {s.postureSensor ? "폰을 들면 카메라가 켜져 표지를 읽어요" : "자세 감지가 꺼져 있어요"}
+          </span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={s.postureSensor}
+          onClick={actions.enablePosture}
+          className={`h-11 flex-none rounded-[10px] border-[1.5px] px-3 text-[13px] font-bold ${s.postureSensor ? "border-ink bg-ink text-white" : "border-edge bg-surface text-ink"}`}
+        >
+          {s.postureSensor ? "자세 감지 켜짐" : "자세 감지 켜기"}
+        </button>
       </div>
       {s.vibe && !actions.canVibe() && <Notice tone="warn">이 기기에서는 진동 안내를 사용할 수 없어 음성으로 안내합니다</Notice>}
 
@@ -97,6 +123,32 @@ export function GuidanceScreen() {
           {st.sub}
         </div>
         {st.turn && <div className="self-start rounded-lg bg-haptic-tint px-2.5 py-[5px] text-[13px] font-bold text-haptic-ink">{st.turn}</div>}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-2xl bg-surface px-4 py-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[15px] font-bold" style={{ color: unstable ? C.warning : C.haptic }}>
+            {s.vibe && actions.canVibe() ? PULSE_TEXT[s.dir] : "진동 꺼짐 · 음성·화면으로 안내"}
+          </span>
+          <span className="flex items-end gap-1" aria-hidden="true">
+            {[10, 16, 22, 28].map((h, i) => (
+              <span key={h} className="w-1.5 rounded-sm" style={{ height: h, background: i < STRENGTH[s.dir] ? C.haptic : C.line }} />
+            ))}
+          </span>
+        </div>
+        <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px] text-muted">
+          {[
+            ["왼쪽", "짧게·짧게"],
+            ["오른쪽", "길게·길게"],
+            ["층 이동", "짧게 3번"],
+            ["도착", "길게 1 + 짧게 2"],
+          ].map(([k, v]) => (
+            <div key={k} className="flex gap-1">
+              <dt className="font-semibold text-ink">{k}</dt>
+              <dd className="m-0">{v}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
 
       <div className="flex items-center justify-between rounded-2xl bg-surface px-4 py-3.5">
@@ -182,6 +234,13 @@ export function GuidanceScreen() {
             </SegButton>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={() => actions.setRaised(true)}
+          className="h-11 rounded-xl border-[1.5px] border-edge bg-surface text-[14px] font-bold text-ink"
+        >
+          폰 들어 표지 비추기
+        </button>
         {st.offDemo && (
           <button type="button" onClick={actions.toOffroute} className="h-11 rounded-xl border-[1.5px] border-[#E5B9B5] bg-err-tint text-[14px] font-bold text-error">
             반대 복도로 이동해 보기

@@ -21,7 +21,7 @@ export type ScanOutcome = "success" | "mismatch" | "fail";
 export type ScanState = "aim" | "analyzing" | ScanOutcome | "denied";
 export type OffrouteState = "alert" | "floor" | "confirm";
 export type GuideStep = 0 | 1 | 2;
-export type HapticPattern = "dir" | "left" | "right" | "floor" | "arrive" | "off";
+export type HapticPattern = "dir" | "left" | "right" | "floor" | "confirm" | "arrive" | "off";
 
 export type RoomCategory = "강의실" | "행정실" | "엘리베이터" | "계단";
 
@@ -93,4 +93,10 @@ export interface FloorGraph {
 export interface GraphError {
   nodeId: string;
   text: string;
+}
+
+export interface FloorStatus {
+  floor: number;
+  status: "verified" | "draft" | "none";
+  summary: string;
 }

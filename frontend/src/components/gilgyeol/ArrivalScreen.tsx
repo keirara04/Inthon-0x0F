@@ -1,11 +1,25 @@
 "use client";
 
+import { useState } from "react";
+import { EXITS_4F } from "@/lib/gilgyeol/data";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
 import { Badge, GhostButton, PrimaryButton } from "./ui";
+
+function duration(from: number | null, to: number | null) {
+  if (!from || !to) return "—";
+  const sec = Math.max(0, Math.round((to - from) / 1000));
+  return sec < 60 ? `${sec}초` : `${Math.floor(sec / 60)}분 ${sec % 60}초`;
+}
 
 export function ArrivalScreen() {
   const { state: s, actions } = useGilgyeol();
   const d = useDestName();
+  const [exitsOpen, setExitsOpen] = useState(false);
+  const stats = [
+    { k: "소요 시간", v: duration(s.trip.startedAt, s.trip.arrivedAt) },
+    { k: "체크포인트", v: `${s.trip.checkpoints}곳 확인` },
+    { k: "경로 재확인", v: `${s.trip.reroutes}회` },
+  ];
   return (
     <div className="flex min-h-full flex-col gap-[18px] p-5 pt-6">
       <div className="flex flex-1 flex-col items-start justify-center gap-[18px]">
@@ -19,11 +33,43 @@ export function ArrivalScreen() {
           <br />
           도착했어요
         </h1>
-        <div className="text-[18px] text-muted">우정정보관 · 4층</div>
+        <div className="text-[18px] text-muted">{s.arrivedManual ? "우정정보관 · 4층" : `${d} 문패를 확인했어요 · 4층`}</div>
         <div className="flex flex-wrap gap-1.5">
           <Badge tone="haptic">진동 · 길게 1회 + 짧게 2회</Badge>
           {s.arrivedManual && <Badge tone="warn">직접 확인으로 완료</Badge>}
         </div>
+      </div>
+      <dl className="m-0 grid grid-cols-3 gap-2 rounded-[18px] bg-surface px-3 py-4 text-center">
+        {stats.map((x) => (
+          <div key={x.k} className="flex flex-col gap-1">
+            <dt className="text-[12px] text-muted">{x.k}</dt>
+            <dd className="m-0 text-[17px] font-bold">{x.v}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="overflow-hidden rounded-2xl bg-surface">
+        <button
+          type="button"
+          aria-expanded={exitsOpen}
+          onClick={() => setExitsOpen((o) => !o)}
+          className="flex min-h-[52px] w-full items-center justify-between border-none bg-surface px-4 text-[15px] font-bold text-ink"
+        >
+          이 층 비상구 보기
+          <span className="text-[13px] font-semibold text-muted">{exitsOpen ? "접기" : "안전 정보"}</span>
+        </button>
+        {exitsOpen && (
+          <div className="flex flex-col gap-2 px-4 pb-4">
+            <ul className="m-0 flex list-none flex-col gap-2 p-0">
+              {EXITS_4F.map((e) => (
+                <li key={e.name} className="flex flex-col gap-0.5 rounded-xl bg-app-bg px-3 py-2.5">
+                  <span className="text-[15px] font-bold">{e.name}</span>
+                  <span className="text-[13px] leading-normal text-muted">{e.where}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="m-0 text-[12px] leading-normal text-warn-ink">현장 확인 전 시연 데이터예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.</p>
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-2">
         <GhostButton className="h-[52px] rounded-2xl" onClick={actions.replay}>

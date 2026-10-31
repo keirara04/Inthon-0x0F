@@ -3,6 +3,7 @@
 import type {
   DirectionState,
   FloorGraph,
+  FloorStatus,
   HapticPattern,
   NodeType,
   Room,
@@ -33,6 +34,7 @@ export const PATTERNS: Record<HapticPattern, { name: string; label: string; p: n
   left: { name: "왼쪽 회전", label: "짧게–짧게", p: [80, 90, 80] },
   right: { name: "오른쪽 회전", label: "길게–길게", p: [320, 140, 320] },
   floor: { name: "층 이동", label: "짧게 3회", p: [90, 70, 90, 70, 90] },
+  confirm: { name: "체크포인트 확인", label: "짧게 1회", p: [60] },
   arrive: { name: "도착", label: "길게 1회 + 짧게 2회", p: [520, 160, 90, 110, 90] },
   off: { name: "이탈 경고", label: "아주 짧게 3회", p: [40, 50, 40, 50, 40] },
 };
@@ -104,6 +106,10 @@ export function routeSteps(dest: string, elevUnverified: boolean): RouteStep[] {
 
 export interface ScanMeta {
   title: string;
+  /** Text the (demo) recognizer read off the sign. */
+  read: string;
+  /** Instruction shown after a successful match. */
+  next: string;
   expect: string;
   guide: string;
   ok: string;
@@ -119,13 +125,13 @@ export function scanMeta(target: ScanTarget, dest: string): ScanMeta {
   const analyzing = "표지를 분석하고 있어요";
   switch (target) {
     case "map":
-      return { title: "안내도 촬영", expect: "층별 안내도 전체", guide: "안내도 전체가 프레임 안에 들어오게 맞춰주세요", ok: "우정정보관 1층 안내도를 찾았어요", okCta: "인식 결과 보기", mis: "인식: 다른 건물 안내도", runLabel: "촬영 · 데모 인식", analyzing: "층·복도·엘리베이터 정보를 읽고 있어요", manualLabel: "데모 안내도 사용" };
+      return { title: "안내도 촬영", read: "안내도 “우정정보관 1층”", next: "현재 위치를 확인한 뒤 목적지를 찾아요.", expect: "층별 안내도 전체", guide: "안내도 전체가 프레임 안에 들어오게 맞춰주세요", ok: "우정정보관 1층 안내도를 찾았어요", okCta: "인식 결과 보기", mis: "인식: 다른 건물 안내도", runLabel: "촬영 · 데모 인식", analyzing: "층·복도·엘리베이터 정보를 읽고 있어요", manualLabel: "데모 안내도 사용" };
     case "floor4":
-      return { title: "체크포인트 확인", expect: "4층 층 표지", guide: "층 표지나 호실 번호를 화면에 맞춰주세요", ok: "4층 확인됨", okCta: "다음 안내 듣기", mis: "인식: 3층", runLabel: run, analyzing, manualLabel: "층 직접 선택" };
+      return { title: "체크포인트 확인", read: "층 표지 “4F”", next: `왼쪽 복도로 가세요. 다음 확인: ${dest} 문패`, expect: "4층 층 표지", guide: "층 표지나 호실 번호를 화면에 맞춰주세요", ok: "4층 확인됨", okCta: "다음 안내 듣기", mis: "인식: 3층", runLabel: run, analyzing, manualLabel: "층 직접 선택" };
     case "sign":
-      return { title: "체크포인트 확인", expect: "주변 층·호실 표지", guide: "현재 위치를 다시 확인할게요", ok: "4층 동측 복도 표지 확인됨", okCta: "복구 결과 보기", mis: "인식: 5층 표지", runLabel: run, analyzing, manualLabel: "직접 선택" };
+      return { title: "체크포인트 확인", read: "방향 표지 “401–404 →”", next: "현재 위치에서 경로를 다시 계산해요.", expect: "주변 층·호실 표지", guide: "현재 위치를 다시 확인할게요", ok: "4층 동측 복도 표지 확인됨", okCta: "복구 결과 보기", mis: "인식: 5층 표지", runLabel: run, analyzing, manualLabel: "직접 선택" };
     case "door":
-      return { title: "체크포인트 확인", expect: `${dest} 문패`, guide: "호실 번호를 화면에 맞춰주세요", ok: `${dest} 확인됨`, okCta: "도착 완료", mis: "인식: 404호", runLabel: run, analyzing, manualLabel: "직접 확인" };
+      return { title: "체크포인트 확인", read: `문패 “${dest}”`, next: "목적지에 도착했어요.", expect: `${dest} 문패`, guide: "호실 번호를 화면에 맞춰주세요", ok: `${dest} 확인됨`, okCta: "도착 완료", mis: "인식: 404호", runLabel: run, analyzing, manualLabel: "직접 확인" };
   }
 }
 
@@ -161,3 +167,20 @@ export const SAMPLE_AI_GRAPH: FloorGraph = {
     { a: "C2", b: "R405", src: "ai" },
   ],
 };
+
+/** Demo status of each floor's map data, shown in the admin floor list. 4F is the live editing session. */
+export const FLOOR_STATUS: FloorStatus[] = [
+  { floor: 1, status: "verified", summary: "노드 24 · 간선 31" },
+  { floor: 2, status: "draft", summary: "AI 초안 · 수정 필요" },
+  { floor: 3, status: "none", summary: "평면도 없음" },
+  { floor: 5, status: "none", summary: "평면도 없음" },
+];
+
+/** 4F emergency exits — demo data, not field-verified. */
+export const EXITS_4F = [
+  { name: "계단 A", where: "서측 복도 끝 · 405호에서 왼쪽으로 약 10걸음" },
+  { name: "계단 B", where: "동측 복도 끝 · 엘리베이터 홀 지나 오른쪽" },
+];
+
+/** Off-route rule (PRD): shown to explain why the warning fired. */
+export const DETECTION_RULE = "목표 방향과 60° 넘게 다른 쪽으로 5초 이상 걸었어요.";

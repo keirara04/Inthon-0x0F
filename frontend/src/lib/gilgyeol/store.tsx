@@ -49,6 +49,11 @@ export interface AppState {
   offFloor: string;
   offSign: string;
   arrivedManual: boolean;
+  // phone posture: lowered = vibration guidance, raised = camera reads signs
+  raised: boolean;
+  postureSensor: boolean;
+  // trip stats for the arrival summary
+  trip: { startedAt: number | null; arrivedAt: number | null; checkpoints: number; reroutes: number };
   // demo-panel fallback simulations
   simNoVibe: boolean;
   camDenied: boolean;
@@ -85,6 +90,9 @@ const INITIAL: AppState = {
   offFloor: "4층",
   offSign: "",
   arrivedManual: false,
+  raised: false,
+  postureSensor: false,
+  trip: { startedAt: null, arrivedAt: null, checkpoints: 0, reroutes: 0 },
   simNoVibe: false,
   camDenied: false,
   elevUnverified: false,
@@ -214,10 +222,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     timers.current.scan = setTimeout(() => {
       const o = ref.current.outcome;
       update({ scanState: o });
+      if (o === "success" && ref.current.scanTarget !== "map") cue("confirm");
       const m = scanMeta(ref.current.scanTarget, destName());
       say(o === "success" ? m.ok : o === "mismatch" ? "예상한 표지와 달라요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요");
     }, 1300);
-  }, [update, destName, say]);
+  }, [update, destName, say, cue]);
 
   const cancelScan = useCallback(() => {
     clearTimeout(timers.current.scan);
@@ -226,7 +235,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   const arrive = useCallback(
     (manual: boolean) => {
-      go("arrive", { arrivedManual: manual });
+      go("arrive", { arrivedManual: manual, trip: { ...ref.current.trip, arrivedAt: Date.now() } });
       cue("arrive");
       say(`우정정보관 ${destName()}에 도착했어요`);
     },
@@ -234,7 +243,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   );
 
   const toOffroute = useCallback(() => {
-    go("offroute", { offState: "alert" });
+    go("offroute", { offState: "alert", trip: { ...ref.current.trip, reroutes: ref.current.trip.reroutes + 1 } });
     cue("off");
     say("경로와 다른 쪽인 것 같아요. 멈춰서 주변 표지를 비춰주세요");
   }, [go, cue, say]);
@@ -242,13 +251,64 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const scanNext = useCallback(
     (manual: boolean) => {
       const t = ref.current.scanTarget;
+      if (t !== "map") update({ trip: { ...ref.current.trip, checkpoints: ref.current.trip.checkpoints + 1 } });
       if (t === "map") go("mapResult", { mapDemo: false });
       else if (t === "floor4") startGuide(1);
       else if (t === "sign") go("offroute", { offState: "confirm", offFloor: "4층", offSign: manual ? "직접 선택" : "4층 동측 복도 표지" });
       else arrive(manual);
     },
-    [go, startGuide, arrive],
+    [go, update, startGuide, arrive],
   );
+
+  const beginTrip = useCallback(() => {
+    update({ trip: { startedAt: Date.now(), arrivedAt: null, checkpoints: 0, reroutes: 0 } });
+    startGuide(0);
+  }, [update, startGuide]);
+
+  // Raising the phone opens the camera on the next checkpoint; lowering it returns to vibration guidance.
+  const setRaised = useCallback(
+    (raised: boolean) => {
+      const s = ref.current;
+      // With the sensor off, the demo button may "raise" repeatedly.
+      if (s.raised === raised && s.postureSensor) return;
+      update({ raised });
+      if (raised) {
+        if (s.screen === "guide" && s.step === 0) toast("엘리베이터 홀에 도착하면 폰을 들어 표지를 비춰주세요");
+        else if (s.screen === "guide") openScan("door");
+        else if (s.screen === "elevator") openScan("floor4");
+        else if (s.screen === "offroute" && s.offState === "alert") openScan("sign");
+      } else if (s.screen === "scan" && s.scanTarget !== "map" && (s.scanState === "aim" || s.scanState === "denied")) {
+        clearTimeout(timers.current.scan);
+        go(s.scanFrom === "scan" ? "guide" : s.scanFrom);
+      }
+    },
+    [update, toast, openScan, go],
+  );
+
+  const enablePosture = useCallback(async () => {
+    if (ref.current.postureSensor) {
+      update({ postureSensor: false, raised: false });
+      return;
+    }
+    if (typeof window === "undefined" || !("DeviceOrientationEvent" in window)) {
+      toast("이 기기에서는 자세 감지를 쓸 수 없어요. 화면 버튼으로 표지를 확인해 주세요");
+      return;
+    }
+    // iOS requires an explicit permission prompt triggered by a tap.
+    const Orientation = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<"granted" | "denied"> };
+    if (typeof Orientation.requestPermission === "function") {
+      try {
+        if ((await Orientation.requestPermission()) !== "granted") {
+          toast("움직임 센서 권한이 거부됐어요. 화면 버튼으로 표지를 확인해 주세요");
+          return;
+        }
+      } catch {
+        toast("움직임 센서 권한을 요청하지 못했어요");
+        return;
+      }
+    }
+    update({ postureSensor: true });
+  }, [update, toast]);
 
   const pickDest = useCallback(
     (room: Room) => {
@@ -337,6 +397,19 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     update({ voice: !ref.current.voice });
   }, [update]);
 
+  // Posture sensor: phone tilted upright (beta > 60°) counts as raised; below 35° as lowered.
+  useEffect(() => {
+    if (!state.postureSensor) return;
+    const onOrient = (e: DeviceOrientationEvent) => {
+      if (e.beta == null) return;
+      const tilt = Math.abs(e.beta);
+      if (tilt > 60) setRaised(true);
+      else if (tilt < 35) setRaised(false);
+    };
+    window.addEventListener("deviceorientation", onOrient);
+    return () => window.removeEventListener("deviceorientation", onOrient);
+  }, [state.postureSensor, setRaised]);
+
   // Direction pulse: the closer to the target heading, the shorter the interval.
   useEffect(() => {
     if (state.screen !== "guide" || state.dir === "unstable" || !state.vibe || state.simNoVibe || !supportsVibration()) return;
@@ -395,8 +468,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       playPattern,
       toggleVoice,
       ensureDest,
+      beginTrip,
+      setRaised,
+      enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, openScan, runScan, cancelScan, scanNext, arrive, toOffroute, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   return { state, actions };

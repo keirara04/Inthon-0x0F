@@ -12,6 +12,28 @@ const OUTCOMES: [ScanOutcome, string][] = [
   ["fail", "실패"],
 ];
 
+/** Sample evacuation map drawn in the viewfinder while the real camera is off (map scan only). */
+function SampleEvacMap() {
+  return (
+    <div aria-hidden="true" className="absolute top-1/2 left-1/2 -mt-[110px] -ml-[85px] flex h-[196px] w-[170px] -rotate-3 flex-col overflow-hidden rounded-md bg-[#F8F7F3] shadow-[0_12px_30px_rgba(0,0,0,.45)]">
+      <div className="bg-[#1F7A45] px-2.5 py-1.5 text-[11px] font-bold text-white">피난안내도 · 우정정보관 1층</div>
+      <div className="relative m-2 flex-1 border-2 border-[#3A3F3B] text-[9px] text-[#3A3F3B]">
+        <div className="absolute inset-x-0 top-[46%] h-3.5 bg-[#D9D6CE]" />
+        <div className="absolute inset-y-0 left-[46%] w-3.5 bg-[#D9D6CE]" />
+        <div className="absolute top-1.5 left-1.5 h-16 w-14 border-[1.5px] border-[#5E625D] p-1">101</div>
+        <div className="absolute top-1.5 right-1.5 h-16 w-14 border-[1.5px] border-[#5E625D] p-1">102</div>
+        <div className="absolute bottom-1.5 left-1.5 h-16 w-14 border-[1.5px] border-[#5E625D] p-1">103</div>
+        <div className="absolute right-1.5 bottom-1.5 h-16 w-14 border-[1.5px] border-[#5E625D] p-1">계단</div>
+        <div className="absolute top-[44%] left-[43%] flex size-5 items-center justify-center border-[1.5px] border-[#3A3F3B] bg-white text-[7px]">EV</div>
+        <div className="absolute -bottom-0.5 left-[40%] flex flex-col items-center gap-0.5">
+          <span className="text-[8px] font-bold text-[#B3261E]">현위치</span>
+          <span className="size-2.5 rounded-full bg-[#B3261E]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Live rear-camera preview. Frames are never captured or stored; recognition is still simulated. */
 function useCamera(onDenied: () => void) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -103,7 +125,17 @@ export function CheckpointScanner() {
       </div>
       <div className="gg-hatch-dark relative mx-3 h-[330px] overflow-hidden rounded-[20px]">
         <video ref={videoRef} autoPlay playsInline muted aria-hidden="true" className={`absolute inset-0 size-full object-cover ${camOn ? "" : "hidden"}`} />
-        {!camOn && <div className="absolute top-3 left-3 font-mono text-[10px] font-semibold text-[#A8ABA5]">후면 카메라 미리보기 자리 · 실제 카메라 미연결</div>}
+        {!camOn && s.scanTarget === "map" && <SampleEvacMap />}
+        {!camOn && (
+          <div className="absolute top-3 left-3 font-mono text-[10px] font-semibold text-[#A8ABA5]">
+            {s.scanTarget === "map" ? "샘플 안내도 · 실제 카메라 미연결" : "후면 카메라 미리보기 자리 · 실제 카메라 미연결"}
+          </div>
+        )}
+        {s.scanState === "success" && (
+          <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-md bg-[#4CC38A] px-2.5 py-1 text-[12px] font-bold whitespace-nowrap text-ink">
+            인식: {m.read}
+          </span>
+        )}
         {s.scanState !== "denied" && (
           <button
             type="button"
@@ -113,7 +145,10 @@ export function CheckpointScanner() {
             {camOn ? "카메라 끄기" : "실제 카메라 켜기"}
           </button>
         )}
-        <div className="absolute top-1/2 left-1/2 -mt-[65px] -ml-[100px] h-[130px] w-[200px]" aria-hidden="true">
+        <div
+          className={`absolute top-1/2 left-1/2 ${s.scanTarget === "map" ? "-mt-[115px] -ml-[96px] h-[210px] w-[192px]" : "-mt-[65px] -ml-[100px] h-[130px] w-[200px]"}`}
+          aria-hidden="true"
+        >
           {[
             "top-0 left-0 border-t-4 border-l-4 rounded-tl-lg",
             "top-0 right-0 border-t-4 border-r-4 rounded-tr-lg",
@@ -122,9 +157,15 @@ export function CheckpointScanner() {
           ].map((c) => (
             <div key={c} className={`absolute size-7 ${c}`} style={{ borderColor: frameColor }} />
           ))}
-          <div className="absolute inset-0 flex items-center justify-center text-[13px] font-semibold text-[#C9CCC6] [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">찾는 표지 · {m.expect}</div>
+          {!(s.scanTarget === "map" && !camOn) && (
+            <div className="absolute inset-0 flex items-center justify-center text-[13px] font-semibold text-[#C9CCC6] [text-shadow:0_1px_3px_rgba(0,0,0,.6)]">찾는 표지 · {m.expect}</div>
+          )}
         </div>
-        <div className="absolute right-4 bottom-4 left-4 text-center text-[17px] leading-[1.4] font-bold text-white [text-shadow:0_1px_4px_rgba(0,0,0,.6)]">{m.guide}</div>
+        {s.scanState !== "success" && (
+          <div className="absolute right-3 bottom-3 left-3 flex justify-center">
+            <span className="rounded-2xl bg-[rgba(21,23,21,.82)] px-3.5 py-1.5 text-center text-[16px] leading-[1.4] font-bold text-white">{m.guide}</span>
+          </div>
+        )}
       </div>
       {camError && <div className="mx-3 mt-2 rounded-xl bg-warn-tint px-3 py-2 text-[13px] font-semibold text-warn-ink">{camError}</div>}
 
@@ -143,6 +184,11 @@ export function CheckpointScanner() {
             </div>
             <PrimaryButton onClick={actions.runScan}>{m.runLabel}</PrimaryButton>
             <p className="m-0 text-[13px] leading-normal text-muted">실제 서비스에서는 카메라를 표지 확인에만 사용해요. 지금은 실제 인식 없이 선택한 결과를 보여줘요.</p>
+            {s.scanTarget !== "map" && (
+              <p className="m-0 text-center text-[13px] font-semibold text-muted">
+                {s.postureSensor ? "폰을 내리면 카메라가 꺼지고 진동 안내로 돌아가요" : "‘닫기’를 누르면 진동 안내로 돌아가요"}
+              </p>
+            )}
           </>
         )}
         {s.scanState === "analyzing" && (
@@ -166,6 +212,12 @@ export function CheckpointScanner() {
               </div>
               <div className="text-[22px] leading-[1.3] font-extrabold text-ok-ink">{m.ok}</div>
             </div>
+            {s.scanTarget !== "map" && (
+              <div className="flex flex-col gap-1 rounded-2xl border border-[#BFDCC9] bg-ok-tint px-4 py-3">
+                <p className="m-0 text-[16px] leading-normal text-ink">{m.next}</p>
+                <p className="m-0 text-[13px] font-semibold text-ok-ink">위치를 확정했어요 · 진동 짧게 1회</p>
+              </div>
+            )}
             <PrimaryButton onClick={() => actions.scanNext(false)}>{m.okCta}</PrimaryButton>
           </>
         )}
