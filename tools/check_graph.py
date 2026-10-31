@@ -207,6 +207,10 @@ def check_building(floors):
 
 
 def main(paths):
+    # Windows consoles default to cp949/cp1252 and crash on the emoji below; force UTF-8 output.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     if not paths:
         paths = sorted(glob.glob("backend/database/seeders/data/*.json"))
     if not paths:
