@@ -2,6 +2,7 @@
 
 import { useDemoTools } from "@/lib/gilgyeol/demo";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { Mascot } from "./Mascot";
 import { PrimaryButton } from "./ui";
 
 export function WelcomeScreen() {
@@ -26,11 +27,11 @@ export function WelcomeScreen() {
         </button>
       </div>
       <div className="flex flex-1 flex-col justify-center gap-[18px]">
-        <div aria-hidden="true" className="relative size-[132px]">
+        {/* Alienie inside the haptic rings: the brand mark */}
+        <div aria-hidden="true" className="relative flex size-[150px] items-end justify-center">
           <div className="absolute inset-0 rounded-full border-2 border-[#DCD7F2]" />
-          <div className="absolute inset-[22px] rounded-full border-2 border-[#B3A9E3]" />
-          <div className="absolute inset-[44px] rounded-full border-[2.5px] border-haptic" />
-          <div className="absolute top-[58px] left-[58px] size-4 rounded-full bg-brand" />
+          <div className="absolute inset-[20px] rounded-full border-2 border-[#B3A9E3]" />
+          <Mascot pose="main" height={118} motion="bob" className="relative -mb-1" />
         </div>
         <div className="text-[64px] leading-none font-extrabold tracking-[-0.05em] text-brand">어디路</div>
         <h1 className="m-0 text-[26px] leading-[1.35] font-bold tracking-[-0.02em]">

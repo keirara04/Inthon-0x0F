@@ -3,6 +3,7 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { SeekingCompass, useReveal } from "./landing-motion";
+import { Mascot } from "./Mascot";
 import { PrimaryButton, SecondaryButton } from "./ui";
 
 /** Animation delay for gl-* motion classes (see the Landing motion block in globals.css). */
@@ -65,6 +66,8 @@ export function LandingScreen() {
     <div className="relative">
       <header className="sticky top-0 z-[5] flex items-center justify-between gap-2 border-b border-line bg-app-bg py-2.5 pr-3.5 pl-5">
         <div className="flex min-w-0 items-baseline gap-1 whitespace-nowrap">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
+          <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} className="flex-none self-center" />
           <span className="text-[24px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
           {/* hidden on very narrow phones (320px) so the header CTA still fits on one line */}
           <span className="text-[12px] font-semibold text-muted max-[359px]:hidden">(어디로)</span>
@@ -115,7 +118,11 @@ export function LandingScreen() {
       )}
 
       <section className="flex flex-col gap-[18px] px-5 pt-5 pb-2">
-        <SeekingCompass />
+        {/* Alienie looks through the telescope while the compass finds the way */}
+        <div className="flex items-end justify-center gap-1">
+          <Mascot pose="main" height={104} motion="bob" />
+          <SeekingCompass />
+        </div>
         <div style={d(0)} className="gl-rise inline-flex items-center gap-1.5 self-start rounded-lg bg-haptic-tint px-2.5 py-1.5 text-[13px] font-bold text-haptic-ink">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-haptic" />
           로그인 없이 · 샘플 경로 체험
@@ -286,7 +293,11 @@ export function LandingScreen() {
       </section>
 
       <footer className="flex flex-col gap-2 border-t border-line px-5 pt-6 pb-8">
-        <div className="text-[20px] font-extrabold tracking-[-0.04em] text-brand">어디路</div>
+        <div className="flex items-center gap-1.5 text-[20px] font-extrabold tracking-[-0.04em] text-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
+          <img src="/mascot/head.png" alt="" aria-hidden="true" width={26} height={26} className="flex-none self-center" />
+          어디路
+        </div>
         <div className="text-[12px] leading-[1.55] text-muted">
           어디路는 일상 길찾기 도구예요. 비상 시에는 공식 경보와 현장 안내를 따르세요.
         </div>
