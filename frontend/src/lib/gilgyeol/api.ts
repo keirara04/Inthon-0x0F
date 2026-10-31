@@ -1,7 +1,7 @@
 // API adapter. Screens call these functions instead of fetching directly.
 // Mock mode is the default; set NEXT_PUBLIC_GILGYEOL_API=live to call the Laravel API at NEXT_PUBLIC_API_URL.
 // Live responses are converted to the UI types here, so screens don't care which mode is on.
-import type { ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
+import type { ApiBuilding, ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNodeType, ApiRoute, ApiSearchResult, ApiStartFloor, ApiStep } from "@/types/api";
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
 import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
 
@@ -95,6 +95,16 @@ export interface ParsedGraph extends FloorGraph {
   /** Node the evacuation map marked as "현위치" — the default start node. */
   current_node_id: string | null;
   elevators: NonNullable<ApiGraph["elevators"]>;
+  buildingId?: number;
+  /** Set when this map was loaded from the server instead of read from a photo. */
+  savedAt?: string;
+}
+
+/** Which building the user is in (picked or typed), and the phone's location if they allowed it. */
+export interface Place {
+  id: number | null;
+  name: string;
+  coords: { lat: number; lng: number } | null;
 }
 
 /**
@@ -117,16 +127,21 @@ export function fetchFloorGraph(floor: string): Promise<ParsedGraph | null> {
 }
 
 /**
- * Parses an evacuation-map image into a draft graph. Results always start as draft. Nothing is saved.
+ * Parses an evacuation-map image into a draft graph. Results always start as draft. The backend keeps a good read
+ * (the map, not the photo) under the building so the next visitor can load it; it never becomes routable.
  * Sent at 2048px long side: the AI evals (ai/README.md) measured map reading at that size.
  */
-export async function parseEvacMap(image: Blob | null, floor: number = 4, signal?: AbortSignal): Promise<ParsedGraph> {
+export async function parseEvacMap(image: Blob | null, floor: number = 4, signal?: AbortSignal, place?: Place): Promise<ParsedGraph> {
   if (API_MODE === "live") {
     if (!image) throw new Error("피난안내도 이미지를 먼저 선택해 주세요");
     const body = new FormData();
     body.append("image", await downscale(image, 2048, MAP_JPEG_QUALITY));
-    body.append("building", BUILDING);
+    body.append("building", place?.name || BUILDING);
     body.append("floor", floorLabel(floor));
+    if (place?.coords) {
+      body.append("lat", String(place.coords.lat));
+      body.append("lng", String(place.coords.lng));
+    }
     return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
   }
   await delay(1500);
@@ -165,6 +180,18 @@ export async function saveFloorGraph(floor: number, graph: FloorGraph, status: "
     return;
   }
   await delay(400);
+}
+
+/** Buildings matching `q` (all when empty), nearest first when `coords` is given. Mock mode: the demo building only. */
+export async function fetchBuildings(q: string, coords: Place["coords"]): Promise<ApiBuilding[]> {
+  if (API_MODE !== "live") return [{ id: 1, name: BUILDING, distance_m: null, saved_floors: [] }];
+  const p = new URLSearchParams({ q, ...(coords ? { lat: String(coords.lat), lng: String(coords.lng) } : {}) });
+  return request<ApiBuilding[]>(`/api/buildings?${p}`);
+}
+
+/** The latest map someone saved for this building's floor. */
+export async function fetchSavedMap(buildingId: number, floor: string): Promise<ParsedGraph> {
+  return fromApiGraph(await request<ApiGraph>(`/api/evac-map/saved?building_id=${buildingId}&floor=${encodeURIComponent(floor)}`));
 }
 
 export async function fetchRoute(startNode: string, destNode: string): Promise<ApiRoute> {
@@ -319,6 +346,8 @@ function fromApiGraph(g: ApiGraph): ParsedGraph {
     building: g.building,
     floor: g.floor,
     floorSource: g.floor_source,
+    buildingId: g.building_id,
+    savedAt: g.saved_at,
     current_node_id: g.current_node_id ?? null,
     elevators,
     nodes: g.nodes.map((n) => ({

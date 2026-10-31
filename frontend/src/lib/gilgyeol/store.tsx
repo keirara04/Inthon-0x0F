@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiRoute } from "@/types/api";
-import { ApiError, fetchRoute, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph } from "./api";
-import { DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
+import { ApiError, fetchRoute, fetchSavedMap, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
+import { BUILDING, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { cancelSpeech, speak, stopVibration, supportsVibration, vibrate } from "./feedback";
 import { floorName, canUseFloorMap } from "./floorTransition";
@@ -30,6 +30,8 @@ export interface AppState {
   mapDemo: boolean;
   /** Destination floor awaiting a fresh plan; the active route stays paused. */
   floorMapTarget: string | null;
+  /** Building the evac maps are saved under and loaded from. */
+  place: Place;
   /** AI draft of the photographed evacuation map. Shown on the map result; routing still uses the verified graph. */
   parsed: ParsedGraph | null;
   /** The photo `parsed` was read from (object URL + pixel size), drawn under the graph. */
@@ -89,6 +91,7 @@ const INITIAL: AppState = {
   screen: "landing",
   mapDemo: false,
   floorMapTarget: null,
+  place: { id: null, name: BUILDING, coords: null },
   parsed: null,
   parsedPhoto: null,
   pendingPhoto: null,
@@ -338,6 +341,21 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [go, ensureDest, destName, say],
   );
 
+  /** A freshly read or saved map: wrong floor while switching floors, else the result screen. */
+  const showParsed = useCallback(
+    (g: ParsedGraph, spoken: string) => {
+      const target = ref.current.floorMapTarget;
+      if (target && !canUseFloorMap(target, g)) {
+        go("wrongFloor", { mapDemo: false, parsed: g });
+        say(`${floorName(g.floor)} 안내도예요. ${floorName(target)} 안내도를 다시 찍어주세요`);
+        return;
+      }
+      say(spoken);
+      go("mapResult", { mapDemo: false, parsed: g, ...(target ? {} : { start: startFromParsed(g) }) });
+    },
+    [go, say],
+  );
+
   /**
    * Checkpoint scan. With a camera frame the engine sends it to POST /api/checkpoint and owns the result;
    * without one (demo panel, map flow, desktop without a camera) the old simulated outcome is used.
@@ -350,16 +368,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         parseCtl.current = ctl;
         const timeout = setTimeout(() => ctl.abort(), 70_000); // backend gives the model 60 s
         try {
-          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : 1, ctl.signal);
+          const place = ref.current.place;
+          const g = await parseEvacMap(frame, ref.current.floorMapTarget ? floorNumber(ref.current.floorMapTarget) : 1, ctl.signal, place);
           if (parseCtl.current !== ctl || ref.current.screen !== "scan") return;
-          const target = ref.current.floorMapTarget;
-          if (target && !canUseFloorMap(target, g)) {
-            go("wrongFloor", { mapDemo: false, parsed: g });
-            say(`${floorName(g.floor)} 안내도예요. ${floorName(target)} 안내도를 다시 찍어주세요`);
-            return;
-          }
-          say("안내도를 읽었어요. 결과를 확인해 주세요");
-          go("mapResult", { mapDemo: false, parsed: g, ...(target ? {} : { start: startFromParsed(g) }) });
+          if (g.buildingId) update({ place: { ...place, id: g.buildingId, name: g.building } });
+          showParsed(g, "안내도를 읽었어요. 결과를 확인해 주세요");
         } catch (e) {
           if (parseCtl.current !== ctl) return; // cancelled by the user
           if (ref.current.screen === "scan" && e instanceof ApiError && e.code === "NOT_FLOOR_PLAN") {
@@ -400,7 +413,24 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         say(o === "success" ? m.ok : o === "mismatch" ? "예상한 표지와 달라요" : "표지를 읽지 못했어요. 더 가까이 비춰주세요");
       }, 1300);
     },
-    [update, go, navConfirm, cue, say, toast, destName],
+    [update, go, navConfirm, cue, say, toast, destName, showParsed],
+  );
+
+  /** Someone already photographed this floor: use their map, no camera or AI read. */
+  const loadSavedMap = useCallback(
+    async (floor: string) => {
+      const id = ref.current.place.id;
+      if (id === null) return;
+      try {
+        const g = await fetchSavedMap(id, floor);
+        if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+        update({ parsedPhoto: null }); // the photo isn't stored, only the map
+        showParsed(g, "저장된 안내도를 불러왔어요. 결과를 확인해 주세요");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "저장된 안내도를 불러오지 못했어요");
+      }
+    },
+    [update, showParsed, toast],
   );
 
   const cancelScan = useCallback(() => {
@@ -697,6 +727,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       confirmMap,
       openScan,
       runScan,
+      loadSavedMap,
       readMapPhoto,
       cancelScan,
       scanNext,
@@ -716,7 +747,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       setRaised,
       enablePosture,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, loadSavedMap, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture],
   );
 
   // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.

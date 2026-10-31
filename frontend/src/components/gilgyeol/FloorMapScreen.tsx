@@ -2,11 +2,15 @@
 
 import { floorName } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { useBuildings } from "./BuildingPicker";
 import { Badge, GhostButton, PrimaryButton, SecondaryButton, Title, useAlbumPick } from "./ui";
 
 export function FloorMapScreen() {
   const { state, actions } = useGilgyeol();
-  const floor = floorName(state.floorMapTarget ?? "");
+  const target = state.floorMapTarget ?? "";
+  const floor = floorName(target);
+  const rows = useBuildings(state.place.name, null);
+  const saved = !!target && !!rows?.find((b) => b.id === state.place.id)?.saved_floors.includes(target);
   const album = useAlbumPick((file) => {
     actions.openScan("map");
     actions.update({ pendingPhoto: file });
@@ -23,6 +27,7 @@ export function FloorMapScreen() {
       <div className="flex-1" />
       {album.input}
       <PrimaryButton onClick={() => actions.openScan("map")}>새 층 안내도 촬영</PrimaryButton>
+      {saved && <SecondaryButton onClick={() => actions.loadSavedMap(target)}>저장된 {floor} 안내도 사용</SecondaryButton>}
       <SecondaryButton onClick={album.open}>앨범에서 선택</SecondaryButton>
       <GhostButton onClick={actions.endGuide}>안내 종료</GhostButton>
     </div>

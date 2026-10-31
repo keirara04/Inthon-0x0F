@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BUILDING, C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
+import { C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
 import { floorName, canUseFloorMap } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { WrongFloorScreen } from "./WrongFloorScreen";
@@ -114,7 +114,7 @@ export function MapResultScreen() {
               ? `${floorName(target)} 안내도를 확인했어요. 기존 목적지까지 안내를 계속해요.`
               : `사진에서 층 번호를 확인하지 못했어요. 현재 계신 ${floorName(target)}의 안내도가 맞다면 계속할 수 있어요.`
             : g
-              ? `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${BUILDING}). 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
+              ? `${g.savedAt ? `${g.building}에 저장된 ${floorText} 안내도예요` : `${floorRead ? `안내도에서 ${floorText}을 읽었어요` : `층 표시를 못 읽어 ${floorText}으로 가정했어요`} (${g.building})`}. 길 안내는 검수된 건물 지도로 하고, 현재 위치는 다음 화면에서 확인해요.`
               : "데모 안내도예요. 현재 위치는 다음 화면에서 확인해요."}
         </p>
         <div className="grid grid-cols-[1fr_auto] gap-2">

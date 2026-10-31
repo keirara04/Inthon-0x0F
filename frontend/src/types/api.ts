@@ -78,4 +78,15 @@ export interface ApiGraph {
   nodes: { id: string; type: ApiNodeType; label: string; x: number; y: number; ref?: string; outline?: { x: number; y: number }[] }[];
   edges: { from: string; to: string; type: "walk"; length_m?: number | null; heading_deg?: number | null }[];
   elevators?: { id: string; name: string; served_floors: string[] }[];
+  /** parse / saved map: the building it was saved under, and when (saved map only). */
+  building_id?: number;
+  saved_at?: string;
+}
+
+/** GET /api/buildings: nearest first when a location was sent, with the floors that have a saved map. */
+export interface ApiBuilding {
+  id: number;
+  name: string;
+  distance_m: number | null;
+  saved_floors: string[];
 }
