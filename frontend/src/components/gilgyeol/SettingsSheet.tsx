@@ -109,6 +109,40 @@ export function SettingsSheet() {
           </div>
           {!supportsVibration() && <div className="text-[13px] leading-normal text-warn-ink">이 브라우저는 진동을 지원하지 않아요. 음성과 화면으로 안내합니다.</div>}
         </div>
+        {/* Account lives with the other app-wide settings, not on the guidance screens. */}
+        <div className="flex flex-col gap-2">
+          <div className="text-[13px] font-bold text-muted">계정</div>
+          {s.user ? (
+            <div className="flex min-h-[60px] items-center justify-between gap-3 rounded-2xl bg-surface px-4">
+              <span className="flex min-w-0 flex-col gap-0.5">
+                <span className="truncate text-[16px] font-semibold text-ink">{s.user.nickname}</span>
+                <span className="text-[12px] text-muted">로그인됨 · 이 기기에만 저장</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => void actions.logout()}
+                className="h-10 flex-none rounded-[10px] border-[1.5px] border-edge bg-surface px-3 text-[13px] font-semibold text-ink"
+              >
+                로그아웃
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                actions.go("auth");
+              }}
+              className="flex min-h-[52px] items-center justify-between rounded-2xl border-none bg-surface px-4 text-left text-[15px] font-semibold text-ink"
+            >
+              <span className="flex flex-col gap-0.5">
+                로그인 / 회원가입
+                <span className="text-[12px] font-normal text-muted">닉네임과 비밀번호로 계정 만들기</span>
+              </span>
+              <span aria-hidden="true" className="text-[18px] text-muted">›</span>
+            </button>
+          )}
+        </div>
         {/* Admin tools live here instead of on the user's home screen. */}
         <div className="flex flex-col gap-2">
           <div className="text-[13px] font-bold text-muted">관리자</div>

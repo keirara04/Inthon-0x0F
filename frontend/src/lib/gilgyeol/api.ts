@@ -15,7 +15,8 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/** JSON request shared with the auth module; unwraps Laravel's `{ data }` envelope. */
+export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
@@ -73,7 +74,7 @@ export async function searchPlaces(q: string): Promise<Room[]> {
   if (API_MODE === "live") {
     // `q` is required by the backend. The building name matches every node in it, so an empty
     // search still returns a browsable list; SearchScreen applies the category/floor filters locally.
-    const rows = await request<ApiSearchResult[]>(`/api/search?q=${encodeURIComponent(query || BUILDING)}`);
+    const rows = await apiRequest<ApiSearchResult[]>(`/api/search?q=${encodeURIComponent(query || BUILDING)}`);
     return rows.map((r) => ({
       id: r.id, // node id ("4F-405"), pass it to fetchRoute
       name: r.label,
@@ -115,7 +116,7 @@ const floorCache = new Map<string, Promise<ParsedGraph | null>>();
 export function fetchFloorGraph(floor: string): Promise<ParsedGraph | null> {
   if (API_MODE !== "live") return Promise.resolve(null);
   if (!floorCache.has(floor)) {
-    const p = request<ApiGraph>(`/api/floors/${encodeURIComponent(floor)}/graph?building=${encodeURIComponent(BUILDING)}`)
+    const p = apiRequest<ApiGraph>(`/api/floors/${encodeURIComponent(floor)}/graph?building=${encodeURIComponent(BUILDING)}`)
       .then(fromApiGraph)
       .catch(() => {
         floorCache.delete(floor); // let a later visit retry
@@ -142,7 +143,7 @@ export async function parseEvacMap(image: Blob | null, floor: number = 4, signal
       body.append("lat", String(place.coords.lat));
       body.append("lng", String(place.coords.lng));
     }
-    return fromApiGraph(await request<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
+    return fromApiGraph(await apiRequest<ApiGraph>("/api/evac-map/parse", { method: "POST", body, signal }));
   }
   await delay(1500);
   return {
@@ -162,7 +163,7 @@ export async function parseEvacMap(image: Blob | null, floor: number = 4, signal
 export async function saveFloorGraph(floor: number, graph: FloorGraph, status: "draft" | "verified"): Promise<void> {
   if (API_MODE === "live") {
     const put = (replace: boolean) =>
-      request("/api/graph", {
+      apiRequest("/api/graph", {
         method: "PUT",
         headers: { "X-Admin-Token": adminToken() },
         body: JSON.stringify({ ...toApiGraph(graph, floorLabel(floor), status), replace }),
@@ -186,17 +187,17 @@ export async function saveFloorGraph(floor: number, graph: FloorGraph, status: "
 export async function fetchBuildings(q: string, coords: Place["coords"]): Promise<ApiBuilding[]> {
   if (API_MODE !== "live") return [{ id: 1, name: BUILDING, distance_m: null, saved_floors: [] }];
   const p = new URLSearchParams({ q, ...(coords ? { lat: String(coords.lat), lng: String(coords.lng) } : {}) });
-  return request<ApiBuilding[]>(`/api/buildings?${p}`);
+  return apiRequest<ApiBuilding[]>(`/api/buildings?${p}`);
 }
 
 /** The latest map someone saved for this building's floor. */
 export async function fetchSavedMap(buildingId: number, floor: string): Promise<ParsedGraph> {
-  return fromApiGraph(await request<ApiGraph>(`/api/evac-map/saved?building_id=${buildingId}&floor=${encodeURIComponent(floor)}`));
+  return fromApiGraph(await apiRequest<ApiGraph>(`/api/evac-map/saved?building_id=${buildingId}&floor=${encodeURIComponent(floor)}`));
 }
 
 export async function fetchRoute(startNode: string, destNode: string): Promise<ApiRoute> {
   if (API_MODE === "live") {
-    return request<ApiRoute>("/api/route", { method: "POST", body: JSON.stringify({ start_node: startNode, dest_node: destNode }) });
+    return apiRequest<ApiRoute>("/api/route", { method: "POST", body: JSON.stringify({ start_node: startNode, dest_node: destNode }) });
   }
   await delay(300);
   return mockRoute(startNode, destNode);
@@ -249,7 +250,7 @@ export function photoGraph(g: ParsedGraph): ApiGraph {
 export async function fetchPhotoRoute(graph: ApiGraph, startNode: string, destNode: string): Promise<ApiRoute> {
   if (API_MODE === "live") {
     const body = { graph: { floor: graph.floor, nodes: graph.nodes, edges: graph.edges }, start_node: startNode, dest_node: destNode };
-    return request<ApiRoute>("/api/route/photo", { method: "POST", body: JSON.stringify(body) });
+    return apiRequest<ApiRoute>("/api/route/photo", { method: "POST", body: JSON.stringify(body) });
   }
   await delay(300);
   return { ...mockRoute(startNode, destNode), draft: true };
@@ -261,7 +262,7 @@ export async function postCheckpoint(image: Blob, expectedNode: string): Promise
     const body = new FormData();
     body.append("image", await downscale(image), "frame.jpg");
     body.append("expected_node", expectedNode);
-    return request<ApiCheckpointResult>("/api/checkpoint", { method: "POST", body });
+    return apiRequest<ApiCheckpointResult>("/api/checkpoint", { method: "POST", body });
   }
   await delay(1200);
   return { status: "matched", texts: [], node: { id: expectedNode, label: "", floor: "" } };
@@ -273,7 +274,7 @@ export async function locate(image: Blob): Promise<ApiLocateResult> {
     const body = new FormData();
     body.append("image", await downscale(image), "sign.jpg");
     body.append("building", BUILDING);
-    return request<ApiLocateResult>("/api/locate", { method: "POST", body });
+    return apiRequest<ApiLocateResult>("/api/locate", { method: "POST", body });
   }
   await delay(1200);
   return { status: "found", texts: ["101"], node: { id: "1F-101", label: "101호", floor: "1F" }, floor: "1F" };
@@ -281,7 +282,7 @@ export async function locate(image: Blob): Promise<ApiLocateResult> {
 
 /** Entrances, exits, elevator halls and stairs to start from ("다른 입구에 계신가요?"). */
 export async function startPoints(): Promise<ApiStartFloor[]> {
-  if (API_MODE === "live") return request<ApiStartFloor[]>(`/api/start-points?building=${encodeURIComponent(BUILDING)}`);
+  if (API_MODE === "live") return apiRequest<ApiStartFloor[]>(`/api/start-points?building=${encodeURIComponent(BUILDING)}`);
   await delay(200);
   return [
     {

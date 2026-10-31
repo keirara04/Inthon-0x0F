@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { GilgyeolProvider, useGilgyeol } from "@/lib/gilgyeol/store";
 import type { Screen } from "@/lib/gilgyeol/types";
 import { ArrivalScreen } from "./ArrivalScreen";
+import { AuthScreen } from "./AuthScreen";
 import { BuildingScreen } from "./BuildingScreen";
 import { CaptureIntroScreen } from "./CaptureIntroScreen";
 import { CheckpointScanner } from "./CheckpointScanner";
@@ -29,6 +30,7 @@ import { WelcomeScreen } from "./WelcomeScreen";
 
 const SCREENS: Record<Screen, () => ReactNode> = {
   landing: LandingScreen,
+  auth: AuthScreen,
   trial: TrialScreen,
   welcome: WelcomeScreen,
   building: BuildingScreen,

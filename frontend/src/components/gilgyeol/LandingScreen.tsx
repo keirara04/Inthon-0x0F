@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { SeekingCompass, useReveal } from "./landing-motion";
 import { Mascot } from "./Mascot";
-import { PrimaryButton } from "./ui";
+import { PrimaryButton, SecondaryButton } from "./ui";
 
 /** Animation delay for gl-* motion classes (see the Landing motion block in globals.css). */
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
@@ -50,7 +50,7 @@ const FAQS = [
 ];
 
 export function LandingScreen() {
-  const { actions, scrollRef } = useGilgyeol();
+  const { state: s, actions, scrollRef } = useGilgyeol();
   const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState(-1);
   const secRefs = useRef<Record<Sec, HTMLElement | null>>({ trial: null, faq: null });
@@ -166,6 +166,10 @@ export function LandingScreen() {
         </p>
         <div ref={heroCta} style={d(340)} className="gl-rise flex flex-col gap-2">
           <PrimaryButton onClick={startTrial} className="gl-cta">3분 체험해보기 →</PrimaryButton>
+          {/* Same 58px spec as the primary CTA, outlined so the trial stays the lead action. */}
+          <SecondaryButton tall brand onClick={() => actions.go("auth")}>
+            {s.user ? `${s.user.nickname}님 · 내 계정` : "로그인 / 회원가입"}
+          </SecondaryButton>
         </div>
         <div ref={revealRoute} data-reveal className="flex flex-col rounded-[22px] bg-surface px-[18px] pt-[18px] pb-1.5">
           <div className="flex items-center justify-between pb-3.5">

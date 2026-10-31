@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiGraph, ApiRoute } from "@/types/api";
 import { API_MODE, ApiError, fetchFloorGraph, fetchPhotoRoute, fetchRoute, photoGraph, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
+import { loginAccount, logoutAccount, registerAccount, restoreSession, type AuthUser } from "./auth";
 import { BUILDING, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
@@ -26,6 +27,8 @@ import type {
 
 export interface AppState {
   screen: Screen;
+  /** Signed-in nickname account (null while the 3-minute trial is used without signing in). */
+  user: AuthUser | null;
   /** Guided 3-minute trial: the overlay walks through the real screens until the route preview. */
   trialOn: boolean;
   // start / location
@@ -102,6 +105,7 @@ export interface AppState {
 
 const INITIAL: AppState = {
   screen: "landing",
+  user: null,
   trialOn: false,
   mapDemo: false,
   floorMapTarget: null,
@@ -152,6 +156,7 @@ const INITIAL: AppState = {
 };
 
 const BACK: Partial<Record<Screen, Screen>> = {
+  auth: "landing",
   trial: "landing",
   building: "welcome",
   captureIntro: "welcome", // building screen is skipped while there is only one building
@@ -793,6 +798,34 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     [update, navLoad, scrollRef, toast],
   );
 
+  /** Signs in and continues to the app; throws the API's message so the form can show it. */
+  const login = useCallback(
+    async (nickname: string, password: string) => {
+      const user = await loginAccount(nickname, password);
+      update({ user });
+      go("welcome");
+      toast(`${user.nickname}님, 다시 만나서 반가워요`);
+    },
+    [go, toast, update],
+  );
+
+  /** Creates the account, signs in and continues to the app. */
+  const register = useCallback(
+    async (nickname: string, password: string, passwordConfirmation: string) => {
+      const user = await registerAccount(nickname, password, passwordConfirmation);
+      update({ user });
+      go("welcome");
+      toast(`${user.nickname}님, 환영해요`);
+    },
+    [go, toast, update],
+  );
+
+  const logout = useCallback(async () => {
+    await logoutAccount();
+    update({ user: null });
+    toast("로그아웃했어요");
+  }, [toast, update]);
+
   const back = useCallback(() => {
     const s = ref.current;
     // Leaving any guided screen ends the trial; the overlay must not reappear later in the trip.
@@ -900,6 +933,17 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     return () => window.removeEventListener("deviceorientation", onOrient);
   }, [state.postureSensor, setRaised]);
 
+  // Restore the nickname account saved by a previous visit (token lives in this browser only).
+  useEffect(() => {
+    let alive = true;
+    void restoreSession().then((user) => {
+      if (alive && user) update({ user });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [update]);
+
   // Whether this device can speak Korean (the voice list loads late on Chrome).
   useEffect(() => {
     void koreanVoiceReady().then((koVoice) => update({ koVoice }));
@@ -992,8 +1036,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       startTrial,
       enterTrial,
       endTrial,
+      login,
+      register,
+      logout,
     }),
-    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, loadSavedMap, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, chooseFloorScope, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture, startTrial, enterTrial, endTrial],
+    [update, go, back, toast, canVibe, startGuide, setDir, toElevator, advance, leaveElevator, confirmMap, openScan, runScan, loadSavedMap, readMapPhoto, cancelScan, scanNext, arrive, toOffroute, dismissOffroute, rerouteFromPin, pickDest, chooseFloorScope, endGuide, setMode, replay, testVibe, playPattern, toggleVoice, ensureDest, beginTrip, setRaised, enablePosture, startTrial, enterTrial, endTrial, login, register, logout],
   );
 
   // Live compass for screens: corrected heading, signed turn to the step's corridor, calibration.

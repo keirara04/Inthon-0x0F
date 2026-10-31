@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\GraphController;
 use App\Http\Controllers\NavigationController;
 use App\Http\Controllers\SavedMapController;
@@ -12,6 +13,14 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 Route::get('/ping', fn () => ['message' => 'pong from laravel']);
+
+// Nickname accounts. Throttled: guessing a password should not be cheap.
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::post('/auth/logout', [AuthController::class, 'logout']);
+});
 
 Route::get('/search', [NavigationController::class, 'search']);
 Route::post('/route', [NavigationController::class, 'route']);

@@ -49,14 +49,16 @@ export function PrimaryButton({ className, tall, dark, ...p }: BtnProps & { tall
   );
 }
 
-export function SecondaryButton({ className, dashed, ...p }: BtnProps & { dashed?: boolean }) {
+/** Outline secondary button (52px; `tall` = 58px, matching PrimaryButton). `brand` colours the outline and label. */
+export function SecondaryButton({ className, dashed, tall, brand, ...p }: BtnProps & { dashed?: boolean; tall?: boolean; brand?: boolean }) {
   return (
     <button
       type="button"
       {...p}
       className={cx(
-        "h-[52px] rounded-2xl border-[1.5px] bg-surface text-[16px] font-semibold text-ink",
-        dashed ? "border-dashed border-[#BDB8AC]" : "border-edge",
+        "border-[1.5px] bg-surface font-semibold disabled:opacity-50",
+        tall ? "h-[58px] rounded-[18px] text-[17px]" : "h-[52px] rounded-2xl text-[16px]",
+        brand ? "border-brand text-brand" : dashed ? "border-dashed border-[#BDB8AC] text-ink" : "border-edge text-ink",
         className,
       )}
     />

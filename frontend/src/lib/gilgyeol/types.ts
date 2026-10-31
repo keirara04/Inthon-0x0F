@@ -1,5 +1,6 @@
 export type Screen =
   | "landing"
+  | "auth"
   | "trial"
   | "welcome"
   | "building"
