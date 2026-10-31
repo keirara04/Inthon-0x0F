@@ -67,6 +67,16 @@ class VisionTest extends TestCase
         $this->assertSame('4F', CheckpointMatcher::canonical('4 층'));
         $this->assertSame('B1', CheckpointMatcher::canonical('지하1층'));
         $this->assertNull(CheckpointMatcher::canonical('엘리베이터'));
+        $this->assertSame('405', CheckpointMatcher::canonical('405 강의실'));
+        $this->assertSame('4F', CheckpointMatcher::canonical('4층 엘리베이터'));
+    }
+
+    public function test_multiline_door_sign_matches(): void
+    {
+        // Real prod answer before this fix: "405\n강의실" came back as unknown.
+        $this->fakeVision(['text' => "405\n강의실", 'kind' => 'room_no']);
+        $this->post('/api/checkpoint', ['image' => $this->photo(), 'expected_node' => '4F-405'])
+            ->assertOk()->assertJsonPath('data.status', 'matched');
     }
 
     public function test_parse_cleans_llm_output_and_saves_nothing(): void
