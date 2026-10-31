@@ -815,6 +815,6 @@
     }
   ],
   "elevators": [
-    { "id": "elev-1", "name": "엘리베이터", "served_floors": ["1F", "4F"] }
+    { "id": "elev-1", "name": "엘리베이터", "served_floors": ["B1", "1F", "2F", "3F", "4F", "5F", "6F"] }
   ]
 }
