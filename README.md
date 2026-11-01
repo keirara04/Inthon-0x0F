@@ -1,4 +1,4 @@
-# 어디路 (길결) — InThon 2026 0x0F
+# 어디路 — InThon 2026 0x0F
 
 > 보지 않고 느끼며 찾는 실내 길. Indoor navigation that turns the evacuation map already posted on every floor into a route, then guides you there with vibration and voice, so you don't have to keep looking at the screen.
 
