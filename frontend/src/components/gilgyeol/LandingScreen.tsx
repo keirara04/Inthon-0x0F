@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { SeekingCompass, useReveal } from "./landing-motion";
 import { Mascot } from "./Mascot";
-import { PrimaryButton } from "./ui";
+import { PrimaryButton, SecondaryButton } from "./ui";
 
 /** Animation delay for gl-* motion classes (see the Landing motion block in globals.css). */
 const d = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
@@ -50,14 +50,16 @@ const FAQS = [
 ];
 
 export function LandingScreen() {
-  const { actions, scrollRef } = useGilgyeol();
+  const { state: s, actions, scrollRef } = useGilgyeol();
   const [menu, setMenu] = useState(false);
   const [faq, setFaq] = useState(-1);
   const secRefs = useRef<Record<Sec, HTMLElement | null>>({ trial: null, faq: null });
   const revealRoute = useReveal<HTMLDivElement>();
   const revealTrial = useReveal<HTMLOListElement>();
 
-  const startTrial = () => actions.enterTrial();
+  const user = s.user;
+  // Logged in, the landing is personal: one 길찾기 시작 instead of the 3-minute trial, in all three spots.
+  const cta = user ? { label: "길찾기 시작 →", run: () => actions.go("welcome") } : { label: "3분 체험해보기 →", run: () => actions.enterTrial() };
   const [heroCtaVisible, setHeroCtaVisible] = useState(true);
   const heroCta = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -96,14 +98,14 @@ export function LandingScreen() {
           {/* Shown only once the hero CTA has scrolled away, so the first screen never has two of it. */}
           <button
             type="button"
-            onClick={startTrial}
+            onClick={cta.run}
             tabIndex={heroCtaVisible ? -1 : 0}
             aria-hidden={heroCtaVisible}
             className={`h-11 rounded-[14px] border-none bg-brand px-3.5 text-[14px] font-bold whitespace-nowrap text-white transition-[opacity,transform] duration-200 ${
               heroCtaVisible ? "pointer-events-none translate-y-1 opacity-0" : "opacity-100"
             }`}
           >
-            3분 체험해보기 →
+            {cta.label}
           </button>
           <button
             type="button"
@@ -154,7 +156,7 @@ export function LandingScreen() {
         </div>
         <div style={d(0)} className="gl-rise inline-flex items-center gap-1.5 self-start rounded-lg bg-haptic-tint px-2.5 py-1.5 text-[13px] font-bold text-haptic-ink">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-haptic" />
-          가입 없이 바로 체험
+          {user ? `안녕하세요, ${user.name}님` : "가입 없이 바로 체험"}
         </div>
         <h1 className="m-0 text-[33px] leading-[1.24] font-extrabold tracking-[-0.035em] text-pretty">
           <span style={d(80)} className="gl-rise inline-block">처음 온 건물에서도,</span>
@@ -165,7 +167,16 @@ export function LandingScreen() {
           어디路는 주변 표지와 층 정보를 바탕으로 목적지까지 길을 안내해요. 화면을 계속 보지 않아도 되도록 음성·진동으로도 안내해요.
         </p>
         <div ref={heroCta} style={d(340)} className="gl-rise flex flex-col gap-2">
-          <PrimaryButton onClick={startTrial} className="gl-cta">3분 체험해보기 →</PrimaryButton>
+          <PrimaryButton onClick={cta.run} className="gl-cta">
+            {cta.label}
+          </PrimaryButton>
+          {user ? (
+            <button type="button" onClick={() => actions.update({ user: null })} className="h-11 rounded-xl border-none bg-transparent text-[14px] font-semibold text-muted underline decoration-line underline-offset-4">
+              로그아웃
+            </button>
+          ) : (
+            <SecondaryButton onClick={() => actions.update({ loginSheet: true })}>로그인</SecondaryButton>
+          )}
         </div>
         <div ref={revealRoute} data-reveal className="flex flex-col rounded-[22px] bg-surface px-[18px] pt-[18px] pb-1.5">
           <div className="flex items-center justify-between pb-3.5">
@@ -246,16 +257,26 @@ export function LandingScreen() {
       <section className="px-5 pt-11 pb-6">
         <div className="flex flex-col gap-3.5 rounded-[24px] bg-ink px-[22px] py-[26px]">
           <div className="text-[24px] leading-[1.3] font-extrabold tracking-[-0.02em] text-white">
-            하은과 함께
-            <br />
-            405호까지 가볼까요?
+            {user ? (
+              <>
+                {user.name}님,
+                <br />
+                오늘은 어디로 갈까요?
+              </>
+            ) : (
+              <>
+                하은과 함께
+                <br />
+                405호까지 가볼까요?
+              </>
+            )}
           </div>
           <button
             type="button"
-            onClick={startTrial}
+            onClick={cta.run}
             className="h-[58px] rounded-[18px] border-none bg-white text-[17px] font-extrabold text-brand"
           >
-            3분 체험해보기 →
+            {cta.label}
           </button>
         </div>
       </section>
