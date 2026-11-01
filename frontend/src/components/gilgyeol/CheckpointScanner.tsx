@@ -304,6 +304,8 @@ export function CheckpointScanner() {
   const demo = useDemoTools();
   const baseMeta = scanMeta(s.scanTarget, d);
   const floorCapture = s.scanTarget === "map" && !!s.floorMapTarget;
+  // No demo map shortcut on a next-floor capture or once logged in: those photograph the real map.
+  const noDemo = floorCapture || !!s.user;
   const m = floorCapture ? { ...baseMeta, title: `${floorName(s.floorMapTarget!)} 안내도 촬영`, guide: `${floorName(s.floorMapTarget!)} 표시와 안내도 전체가 보이게 비춰주세요` } : baseMeta;
   const destFloor = `${s.dest?.floor ?? 4}층`;
   const { videoRef, on: camOn, error: camError, start: startCam, stop: stopCam, grab, torch, toggleTorch } = useCamera(() =>
@@ -419,7 +421,7 @@ export function CheckpointScanner() {
   const manualOpts: { label: string; pick: () => void }[] = (() => {
     switch (s.scanTarget) {
       case "map":
-        return floorCapture ? [{ label: "앨범에서 안내도 사진 선택", pick: album.open }] : [{ label: "데모 안내도 불러오기", pick: () => actions.go("mapResult", { mapDemo: true }) }];
+        return noDemo ? [{ label: "앨범에서 안내도 사진 선택", pick: album.open }] : [{ label: "데모 안내도 불러오기", pick: () => actions.go("mapResult", { mapDemo: true }) }];
       case "sign":
         return ["엘리베이터 홀", "서측 복도", "동측 복도"].map((p) => `${destFloor} ${p}`).map((l) => ({
           label: l,
@@ -643,10 +645,10 @@ export function CheckpointScanner() {
                 </svg>
                 <span className="absolute inset-[9px] rounded-full bg-white transition-transform duration-100 active:scale-90" />
               </button>
-              <div className={`flex flex-col items-center gap-1 justify-self-end ${floorCapture ? "invisible" : ""}`}>
+              <div className={`flex flex-col items-center gap-1 justify-self-end ${noDemo && isMap ? "invisible" : ""}`}>
                 <button
                   type="button"
-                  disabled={floorCapture}
+                  disabled={noDemo && isMap}
                   onClick={() => (isMap ? actions.go("mapResult", { mapDemo: true }) : actions.update({ manual: true }))}
                   aria-label={isMap ? "데모 안내도 불러오기" : "직접 선택"}
                   className={iconBtn}

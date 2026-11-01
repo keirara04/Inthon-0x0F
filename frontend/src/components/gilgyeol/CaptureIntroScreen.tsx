@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { C, EXAMPLE_4F_GRAPH, EXAMPLE_PHOTO } from "@/lib/gilgyeol/data";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
-import { BuildingPicker } from "./BuildingPicker";
 import { MapSketch, graphFrame } from "./MapSketch";
 import { BackHeader, PrimaryButton, SecondaryButton, Title, useAlbumPick } from "./ui";
 
@@ -101,7 +100,7 @@ export function CaptureIntroScreen() {
         대피 안내도를 찍어주세요
       </Title>
       <p className="m-0 text-[16px] leading-[1.55] text-muted">엘리베이터 홀이나 복도 벽에 층별 안내도가 있어요.</p>
-      {/* The photo buttons come first: they are this screen's job; example, tips and saved maps support them. */}
+      {/* The photo buttons come first: they are this screen's job; the example and tips support them. */}
       {album.input}
       {s.trialOn ? (
         <>
@@ -118,10 +117,12 @@ export function CaptureIntroScreen() {
           </SecondaryButton>
         </>
       )}
-      <SecondaryButton dashed onClick={demo}>
-        데모 안내도 불러오기
-      </SecondaryButton>
-      <BuildingPicker />
+      {/* The demo map is for the logged-out trial; a logged-in user photographs the real map. */}
+      {!s.user && (
+        <SecondaryButton dashed onClick={demo}>
+          데모 안내도 불러오기
+        </SecondaryButton>
+      )}
       <ExampleShot />
       <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0" aria-label="촬영 팁">
         {TIPS.map(([icon, label]) => (
