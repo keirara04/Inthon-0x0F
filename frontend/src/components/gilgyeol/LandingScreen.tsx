@@ -57,7 +57,7 @@ export function LandingScreen() {
   const revealRoute = useReveal<HTMLDivElement>();
   const revealTrial = useReveal<HTMLOListElement>();
 
-  const startTrial = () => actions.go("login");
+  const startTrial = () => actions.enterTrial();
   const [heroCtaVisible, setHeroCtaVisible] = useState(true);
   const heroCta = useRef<HTMLDivElement>(null);
   useEffect(() => {

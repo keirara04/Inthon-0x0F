@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchFloorGraph, type ParsedGraph } from "./api";
+import { DEMO_1F_GRAPH, fetchFloorGraph, type ParsedGraph } from "./api";
 import { mapKey } from "./confirmedMaps";
-import { DEMO_1F_GRAPH, EXAMPLE_4F_GRAPH } from "./data";
+import { EXAMPLE_4F_GRAPH } from "./data";
 import { useGilgyeol } from "./store";
 
 /** Confirmed uploads and saved maps take priority over the verified floor endpoint. */

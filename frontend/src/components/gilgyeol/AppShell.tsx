@@ -29,8 +29,8 @@ import { WrongFloorScreen } from "./WrongFloorScreen";
 import { WelcomeScreen } from "./WelcomeScreen";
 
 const SCREENS: Record<Screen, () => ReactNode> = {
-  landing: LandingScreen,
   login: LoginScreen,
+  landing: LandingScreen,
   trial: TrialScreen,
   welcome: WelcomeScreen,
   building: BuildingScreen,

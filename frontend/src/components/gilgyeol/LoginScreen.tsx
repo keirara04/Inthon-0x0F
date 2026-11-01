@@ -4,7 +4,7 @@ import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { Mascot } from "./Mascot";
 import { PrimaryButton } from "./ui";
 
-/** Demo login: the name comes prefilled, so one tap on 시작하기 goes on. No account, nothing sent to the server. */
+/** Demo login, the first screen: the name comes prefilled, so one tap on 시작하기 opens the landing. No account, nothing sent to the server. */
 export function LoginScreen() {
   const { state: s, actions } = useGilgyeol();
   const name = s.nickname.trim();
@@ -12,22 +12,15 @@ export function LoginScreen() {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (name) actions.enterTrial();
+        if (name) actions.go("landing");
       }}
       className="flex min-h-full flex-col gap-4 px-5 pt-2 pb-5"
     >
-      {/* Same header as the welcome screen: logo = home. */}
-      <header className="flex items-center">
-        <button
-          type="button"
-          onClick={() => actions.go("landing")}
-          aria-label="어디路 홈"
-          className="flex min-h-11 items-center gap-1.5 border-none bg-transparent p-0"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
-          <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} />
-          <span className="text-[22px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
-        </button>
+      {/* First screen: the mark is not a home link, or it would skip the login. */}
+      <header className="flex min-h-11 items-center gap-1.5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- 96px mascot head mark */}
+        <img src="/mascot/head.png" alt="" aria-hidden="true" width={30} height={30} />
+        <span className="text-[22px] font-extrabold tracking-[-0.04em] text-brand">어디路</span>
       </header>
 
       <div aria-hidden="true" className="flex min-h-[180px] flex-1 items-center justify-center rounded-[26px] bg-haptic-tint">
