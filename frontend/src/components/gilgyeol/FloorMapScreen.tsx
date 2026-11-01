@@ -2,6 +2,7 @@
 
 import { floorName } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
+import { SavedMapSelect } from "./SavedMapSelect";
 import { ExampleShot } from "./CaptureIntroScreen";
 import { useBuildings } from "./BuildingPicker";
 import { BackHeader, Badge, GhostButton, PrimaryButton, SecondaryButton, Title, useAlbumPick } from "./ui";
@@ -17,7 +18,7 @@ export function FloorMapScreen() {
   const key = (n: string) => n.replace(/\s+/g, "").toLowerCase();
   const building = rows?.find((b) => (state.place.id !== null ? b.id === state.place.id : key(b.name) === key(state.place.name)));
   const savedFloors = building?.saved_floors ?? [];
-  const saved = !!target && savedFloors.includes(target);
+  const availableFloors = ride ? savedFloors : savedFloors.filter((f) => f === target);
   const album = useAlbumPick((file) => {
     actions.openScan("map");
     actions.update({ pendingPhoto: file });
@@ -44,13 +45,9 @@ export function FloorMapScreen() {
       {album.input}
       <PrimaryButton onClick={album.open}>앨범에서 선택</PrimaryButton>
       <SecondaryButton onClick={() => actions.openScan("map")}>카메라로 찍기</SecondaryButton>
-      {saved && <SecondaryButton onClick={() => actions.loadSavedMap(target)}>저장된 {floor} 안내도 사용</SecondaryButton>}
-      {ride &&
-        savedFloors.map((f) => (
-          <SecondaryButton key={f} onClick={() => building && actions.loadSavedMap(f, building.id)}>
-            저장된 {floorName(f)} 안내도 사용
-          </SecondaryButton>
-        ))}
+      <SavedMapSelect floors={availableFloors} loading={rows === null} onSelect={async (f) => {
+        if (building) await actions.loadSavedMap(f, building.id);
+      }} />
       <section aria-label="현재 건물" className="flex flex-col gap-1 rounded-[18px] bg-surface p-4">
         <span className="text-[13px] font-semibold text-muted">지금 있는 건물</span>
         <span className="text-[16px] font-bold">{state.place.name}</span>

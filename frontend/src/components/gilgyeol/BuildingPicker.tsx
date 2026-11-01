@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fetchBuildings, floorNumber, type Place } from "@/lib/gilgyeol/api";
-import { floorName } from "@/lib/gilgyeol/floorTransition";
+import { SavedMapSelect } from "./SavedMapSelect";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { ApiBuilding } from "@/types/api";
 
@@ -35,7 +35,6 @@ export function BuildingPicker() {
   const place = state.place;
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [showSaved, setShowSaved] = useState(false); // saved maps are a shortcut, folded so the photo stays the main path
   // Kept here until a pick, so a late location fix can't overwrite a building chosen meanwhile.
   const [coords, setCoords] = useState(place.coords);
   const rows = useBuildings(open ? q : place.name, coords);
@@ -115,29 +114,10 @@ export function BuildingPicker() {
         </div>
       )}
 
-      {!open && saved.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <button type="button" aria-expanded={showSaved} onClick={() => setShowSaved((v) => !v)} className="flex min-h-11 items-center justify-between text-left text-[15px] font-bold text-ok-ink">
-            <span>저장된 안내도 쓰기 · {saved.length}개 층</span>
-            <span aria-hidden="true">{showSaved ? "▴" : "›"}</span>
-          </button>
-          {showSaved && <span className="text-[14px] text-muted">다른 사람이 찍어둔 안내도예요. 촬영 없이 바로 쓸 수 있어요.</span>}
-          {showSaved && (
-            <div className="flex flex-wrap gap-2">
-              {saved.map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => actions.loadSavedMap(f)}
-                  className="h-11 rounded-lg bg-ok-tint px-3 text-[14px] font-bold text-ok-ink"
-                >
-                  {floorName(f)} 안내도 사용
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {!open && <SavedMapSelect floors={saved} loading={rows === null} onSelect={async (f) => {
+        if (current) await actions.loadSavedMap(f, current.id);
+      }} />}
+
     </section>
   );
 }
