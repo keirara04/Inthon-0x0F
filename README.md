@@ -133,4 +133,4 @@ Merging to `main` auto-deploys via Dokploy. Only 키미 merges.
 
 ## Demo
 - Live: https://inthon.hakeemiridza.com
-- Video: source in `demo-video/`
+- Video: https://youtu.be/_tmBiVy2yYI
