@@ -20,7 +20,7 @@ const CORNERS = [
  * The real 4F sign from 우정정보관 as the "what to photograph" example, on a loop:
  * camera corners close in, one scan sweep, then the map the AI reads from it fades in.
  */
-function ExampleShot() {
+export function ExampleShot() {
   const [phase, setPhase] = useState<"frame" | "scan" | "map">("frame");
   const [cycle, setCycle] = useState(0);
   useEffect(() => {
@@ -86,7 +86,7 @@ const TIPS: [keyof typeof TIP_ICONS, string][] = [
 
 export function CaptureIntroScreen() {
   const { state: s, actions } = useGilgyeol();
-  const demo = () => actions.go("mapResult", { mapDemo: true });
+  const demo = () => actions.go("mapResult", { mapDemo: true, parsed: null, parsedPhoto: null, startAt: null, start: "here", photoMap: null });
   // The scanner finds the sign in the photo and frames it, like the live camera does.
   const album = useAlbumPick((file) => {
     actions.openScan("map");

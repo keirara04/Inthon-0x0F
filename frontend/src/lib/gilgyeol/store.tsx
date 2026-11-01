@@ -3,9 +3,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiGraph, ApiRoute } from "@/types/api";
 import { API_MODE, ApiError, fetchFloorGraph, fetchPhotoRoute, fetchRoute, photoGraph, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
-import { BUILDING, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
+import { BUILDING, DEMO_1F_GRAPH, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
+import { currentMapFloor, mapKey, mapDeparture, mapSelection, rememberMap, type MapSelection, type ConfirmedMaps } from "./confirmedMaps";
 import { floorName, canUseFloorMap } from "./floorTransition";
 import { useNavigation } from "./useNavigation";
 import type {
@@ -36,6 +37,8 @@ export interface AppState {
   place: Place;
   /** AI draft of the photographed evacuation map. Shown on the map result; routing still uses the verified graph. */
   parsed: ParsedGraph | null;
+  /** User-confirmed maps retained per building and floor throughout the trip. */
+  confirmedMaps: ConfirmedMaps;
   /** The photo `parsed` was read from (object URL + pixel size), drawn under the graph. */
   parsedPhoto: { url: string; w: number; h: number } | null;
   /** A photo picked on another screen, handed to the scanner to find the sign in it before reading. */
@@ -50,7 +53,7 @@ export interface AppState {
    * that floor's map, and picks the destination there. Cleared once that destination is picked.
    */
   rideMode: boolean;
-  /** The photographed map of an unchecked floor reached in ride mode; destinations and the route come from it. */
+  /** Confirmed photographed/saved floor map used for its destination list and local routes. */
   photoMap: ApiGraph | null;
   // search
   query: string;
@@ -109,6 +112,7 @@ const INITIAL: AppState = {
   floorMapTarget: null,
   place: { id: null, name: BUILDING, coords: null },
   parsed: null,
+  confirmedMaps: {},
   parsedPhoto: null,
   pendingPhoto: null,
   start: "here",
@@ -182,8 +186,8 @@ function startFromParsed(g: ParsedGraph): StartNodeId | null {
  * Mock mode has no floor graphs, so it uses the sample's `{floor}-elev-A`.
  * ponytail: takes the floor's first hall; match halls by `ref` once a building has more than one elevator.
  */
-async function elevatorHall(floor: string): Promise<{ id: string; label: string } | null> {
-  const g = await fetchFloorGraph(floor);
+async function elevatorHall(floor: string, building = BUILDING): Promise<{ id: string; label: string } | null> {
+  const g = await fetchFloorGraph(floor, building);
   if (!g) return API_MODE === "live" ? null : { id: `${floor}-elev-A`, label: "엘리베이터 홀" };
   const hall = g.nodes.find((n) => n.type === "elevator_hall");
   return hall ? { id: hall.id, label: hall.label } : null;
@@ -196,6 +200,9 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const timers = useRef<Record<"cue" | "toast" | "scan", ReturnType<typeof setTimeout> | undefined>>({ cue: undefined, toast: undefined, scan: undefined });
   /** In-flight evacuation-map parse; cleared when it finishes or the user cancels. */
   const parseCtl = useRef<AbortController | null>(null);
+  // A second-floor draft must not replace the departure map when the user backs out.
+  const floorOrigin = useRef<MapSelection | null>(null);
+  const scanOrigin = useRef<MapSelection | null>(null);
 
   const update = useCallback((patch: Partial<AppState>) => {
     ref.current = { ...ref.current, ...patch };
@@ -369,7 +376,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       clearTimeout(timers.current.scan);
       const from = ref.current.screen;
       const denied = ref.current.camDenied;
-      if (target === "map" && ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      if (target === "map" && !scanOrigin.current) scanOrigin.current = mapSelection(ref.current);
+      if (target === "map" && ref.current.parsedPhoto && !Object.values(ref.current.confirmedMaps).some((m) => m.photo?.url === ref.current.parsedPhoto?.url)) URL.revokeObjectURL(ref.current.parsedPhoto.url);
       go("scan", {
         scanTarget: target,
         scanFrom: from === "scan" ? ref.current.scanFrom : from,
@@ -468,8 +476,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       const id = buildingId ?? ref.current.place.id;
       if (id === null) return;
       try {
+        if (!scanOrigin.current) scanOrigin.current = mapSelection(ref.current);
+        const origin = scanOrigin.current;
         const g = await fetchSavedMap(id, floor);
-        if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+        if (scanOrigin.current !== origin) return;
+        if (ref.current.parsedPhoto && !Object.values(ref.current.confirmedMaps).some((m) => m.photo?.url === ref.current.parsedPhoto?.url)) URL.revokeObjectURL(ref.current.parsedPhoto.url);
         update({ parsedPhoto: null }); // the photo isn't stored, only the map
         showParsed(g, "저장된 안내도를 불러왔어요. 결과를 확인해 주세요");
       } catch (e) {
@@ -491,13 +502,19 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const readMapPhoto = useCallback(
     async (img: Blob) => {
       if (ref.current.screen !== "scan" || ref.current.scanTarget !== "map") openScan("map");
-      if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      if (ref.current.parsedPhoto && !Object.values(ref.current.confirmedMaps).some((m) => m.photo?.url === ref.current.parsedPhoto?.url)) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      const origin = scanOrigin.current;
       let photo: AppState["parsedPhoto"] = null;
       try {
         const bmp = await createImageBitmap(img);
+        if (scanOrigin.current !== origin || ref.current.screen !== "scan") {
+          bmp.close();
+          return;
+        }
         photo = { url: URL.createObjectURL(img), w: bmp.width, h: bmp.height };
         bmp.close();
       } catch {} // unreadable format: the parse call reports the error
+      if (scanOrigin.current !== origin || ref.current.screen !== "scan") return;
       update({ parsedPhoto: photo });
       await runScan(img);
     },
@@ -543,10 +560,16 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const confirmMap = useCallback(async () => {
     const s = ref.current;
     const g = s.mapDemo ? null : s.parsed;
+    if (s.floorMapTarget && !canUseFloorMap(s.floorMapTarget, g)) {
+      go("wrongFloor");
+      return;
+    }
+    scanOrigin.current = null;
+    if (g) update({ confirmedMaps: rememberMap(s.confirmedMaps, s.place, g, s.parsedPhoto, s.floorMapTarget ?? g.floor) });
     if (s.rideMode && !s.floorMapTarget) {
-      // The photographed map says which floor the user got off on; its rooms come from that floor's checked map.
+      // Continue on the map the user confirmed; use a checked floor only when no map was supplied.
       const floor = g?.floor ?? floorLabel(DEST_FLOOR);
-      const hall = await elevatorHall(floor);
+      const hall = g ? null : await elevatorHall(floor, s.place.name);
       if (!hall) {
         if (!startOnPhoto(g, floor)) return;
         say(`${floorName(floor)} 안내도예요. 검수 전 AI 지도로 안내해요. 목적지를 골라주세요`);
@@ -559,10 +582,6 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       return;
     }
     if (s.floorMapTarget) {
-      if (!canUseFloorMap(s.floorMapTarget, g)) {
-        go("wrongFloor");
-        return;
-      }
       update({ floorMapTarget: null });
       navContinueAfterFloorMap();
       return;
@@ -672,27 +691,33 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   const chooseFloorScope = useCallback(
     async (otherFloor: boolean) => {
       const s = ref.current;
-      const floor = s.startAt?.floor ?? s.parsed?.floor ?? "1F";
-      // Started on a photographed floor with no checked map: its rooms and halls come from that photo.
-      const photo = s.photoMap?.floor === floor ? s.photoMap : null;
+      const floor = currentMapFloor(s);
+      const confirmed = s.confirmedMaps[mapKey(s.place, floor)]?.graph;
+      const graph = s.mapDemo ? (floor === "1F" ? DEMO_1F_GRAPH : null) : confirmed ?? (s.parsed?.floor === floor ? s.parsed : null);
+      const map = graph ? photoGraph(graph) : null;
+      const start = graph ? mapDeparture(graph, s.startAt?.id ?? null, s.start) : null;
+      const from = start ? (start.id.startsWith(`${floor}-`) ? start.id : `${floor}-${start.id}`) : s.startAt?.id ?? START_NODE_IDS[s.start ?? "here"];
+      if (graph && !start) {
+        toast("안내도에서 출발 위치를 다시 선택해 주세요");
+        return;
+      }
       if (!otherFloor) {
-        go("search", { rideMode: false, photoMap: photo, floorPick: floorNumber(floor), query: "", cat: null });
+        go("search", { rideMode: false, photoMap: map, ...(start ? { startAt: { id: from, label: start.label, floor, via: "list" } as AppState["startAt"] } : {}), floorPick: floorNumber(floor), query: "", cat: null });
         return;
       }
       if (s.routeLoading) return;
+      floorOrigin.current = mapSelection(s);
       update({ routeLoading: true });
       try {
-        const photoHall = photo?.nodes.find((n) => n.type === "elevator_hall");
-        const hall = photo ? (photoHall ? { id: photoHall.id, label: photoHall.label } : null) : await elevatorHall(floor);
-        if (!hall) throw new Error(`${floorName(floor)} 엘리베이터 홀을 찾지 못했어요`);
-        const from = s.startAt?.id ?? START_NODE_IDS[s.start ?? "here"];
+        const hall = map ? map.nodes.find((n) => n.type === "elevator_hall") : await elevatorHall(floor, s.place.name);
+        if (!hall) throw new Error(`${floorName(floor)} 안내도에서 엘리베이터를 찾지 못했어요. 안내도를 다시 확인해 주세요`);
         if (from === hall.id) {
           // Already at the hall (the default start; the API rejects a route to itself): straight to the ride.
           update({ routeLoading: false, rideMode: true });
           arrive();
           return;
         }
-        const full = photo ? await fetchPhotoRoute(photo, from, hall.id) : await fetchRoute(from, hall.id);
+        const full = map ? await fetchPhotoRoute(map, from, hall.id) : await fetchRoute(from, hall.id);
         // Only this floor's walk: the mock router (and any multi-floor answer) may append a ride step.
         const cut = full.steps.findIndex((st) => st.kind !== "walk");
         const route = { ...full, steps: cut >= 0 ? full.steps.slice(0, cut) : full.steps, arrived: { ...full.arrived, node: hall.id, label: hall.label, floor } };
@@ -713,6 +738,8 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
   }, []);
 
   const endGuide = useCallback(() => {
+    floorOrigin.current = null;
+    scanOrigin.current = null;
     stopGuidance();
     navLoad(null);
     go("welcome", {
@@ -734,7 +761,9 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
 
   /** Guided trial start: skips the marketing intro and lands on the real capture screen with 하은's photo. */
   const startTrial = useCallback(() => {
-    if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+    floorOrigin.current = null;
+    scanOrigin.current = null;
+    if (ref.current.parsedPhoto && !Object.values(ref.current.confirmedMaps).some((m) => m.photo?.url === ref.current.parsedPhoto?.url)) URL.revokeObjectURL(ref.current.parsedPhoto.url);
     navLoad(null);
     update({
       screen: "captureIntro",
@@ -786,7 +815,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
         toast("3분 체험을 마쳤어요. 실제 앱처럼 이어서 사용할 수 있어요");
         return;
       }
-      if (ref.current.parsedPhoto) URL.revokeObjectURL(ref.current.parsedPhoto.url);
+      if (ref.current.parsedPhoto && !Object.values(ref.current.confirmedMaps).some((m) => m.photo?.url === ref.current.parsedPhoto?.url)) URL.revokeObjectURL(ref.current.parsedPhoto.url);
         navLoad(null);
       update({
         screen: "landing",
@@ -823,17 +852,27 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     if (s.trialOn) update({ trialOn: false });
     if (s.screen === "scan") {
       clearTimeout(timers.current.scan);
-      go(s.scanFrom === "scan" ? "welcome" : s.scanFrom);
+      const ctl = parseCtl.current;
+      parseCtl.current = null;
+      ctl?.abort();
+      const origin = s.scanTarget === "map" ? scanOrigin.current : null;
+      if (s.scanTarget === "map") scanOrigin.current = null;
+      go(s.scanFrom === "scan" ? "welcome" : s.scanFrom, { ...origin, pendingPhoto: null, scanState: "aim" });
       return;
     }
     if ((s.floorMapTarget || s.rideMode) && (s.screen === "mapResult" || s.screen === "invalidMap" || s.screen === "wrongFloor")) {
-      go("floorMap");
+      const origin = scanOrigin.current;
+      scanOrigin.current = null;
+      go("floorMap", { ...origin });
       return;
     }
     if (s.screen === "floorMap" && s.rideMode) {
       // Before the destination is picked, "back" just undoes "예, 이동할게요".
       navLoad(null);
-      go("destFloor", { rideMode: false, route: null, steps: [], step: 0, dest: null }); // keeps photoMap: chooseFloorScope only reuses it on its own floor
+      const origin = floorOrigin.current;
+      floorOrigin.current = null;
+      scanOrigin.current = null;
+      go("destFloor", { ...origin, rideMode: false, route: null, steps: [], step: 0, dest: null });
       return;
     }
     if (s.screen === "floorMap") return; // Keep guidance paused until a new plan is confirmed or the trip ends.

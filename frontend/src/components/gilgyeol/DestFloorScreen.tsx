@@ -1,5 +1,7 @@
 "use client";
 
+import { currentMapFloor } from "@/lib/gilgyeol/confirmedMaps";
+import { floorName } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { BackHeader, Title } from "./ui";
 
@@ -9,8 +11,7 @@ import { BackHeader, Title } from "./ui";
  */
 export function DestFloorScreen() {
   const { state: s, actions } = useGilgyeol();
-  const currentFloor = (s.startAt?.floor ?? s.parsed?.floor ?? "1F").replace(/F$/i, "");
-  const currentLabel = `${currentFloor}층`;
+  const currentLabel = floorName(currentMapFloor(s));
 
   return (
     <div className="flex flex-col gap-4 px-5 pt-1 pb-7">

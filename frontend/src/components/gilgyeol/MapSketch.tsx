@@ -108,6 +108,8 @@ export function MapSketch({
   layers = "both",
   selected = null,
   interactive = false,
+  showCorridors = true,
+  showCurrent = true,
 }: {
   g: ParsedGraph;
   frame: MapFrame;
@@ -118,12 +120,15 @@ export function MapSketch({
   selected?: string | null;
   /** Chips carry `data-node` and take pointer events, so a viewer can hit-test taps. */
   interactive?: boolean;
+  /** Guidance draws its own route and current position. */
+  showCorridors?: boolean;
+  showCurrent?: boolean;
 }) {
   const g = facilityGraph(inputGraph);
   const { k, box } = f;
   const at = new Map(g.nodes.map((n) => [n.id, n]));
   const corridors = corridorSegments(g);
-  const cur = g.current_node_id ? at.get(g.current_node_id) : undefined;
+  const cur = showCurrent && g.current_node_id ? at.get(g.current_node_id) : undefined;
   const line = (a: { x: number; y: number }, b: { x: number; y: number }) => {
     const [p, q] = [f.pt(a), f.pt(b)];
     return `M${p.x} ${p.y}L${q.x} ${q.y}`;
@@ -134,7 +139,7 @@ export function MapSketch({
     return (
       <svg viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
         <Outlines g={g} f={f} stroke={k} />
-        <path d={corridors.map(([a, b]) => line(a, b)).join(" ")} fill="none" pathLength={1} className="gg-draw-in" stroke={C.route} strokeOpacity={0.55} strokeWidth={7 * k} strokeLinecap="round" />
+        {showCorridors && <path d={corridors.map(([a, b]) => line(a, b)).join(" ")} fill="none" pathLength={1} className="gg-draw-in" stroke={C.route} strokeOpacity={0.55} strokeWidth={7 * k} strokeLinecap="round" />}
         {g.nodes
           .filter((n) => n.type !== "junction")
           .map((n) => {
@@ -167,10 +172,10 @@ export function MapSketch({
       {/* Hidden with display (not unmounted) so switching layers doesn't replay the entrance. */}
       <g display={layers === "photo" ? "none" : undefined}>
         <Outlines g={g} f={f} selected={selected} stroke={k} />
-      {corridors.map(([a, b], i) => (
+      {showCorridors && corridors.map(([a, b], i) => (
         <path key={`c-${i}`} d={line(a, b)} stroke="#fff" strokeWidth={9 * k} strokeLinecap="round" />
       ))}
-      {corridors.map(([a, b], i) => (
+      {showCorridors && corridors.map(([a, b], i) => (
         <path key={`r-${i}`} d={line(a, b)} pathLength={1} className="gg-draw-in" stroke={C.route} strokeWidth={5 * k} strokeLinecap="round" style={{ animationDelay: corridorDelay(i) }} />
       ))}
       {g.nodes.filter((n) => n.door?.length === 2).map((n) => {

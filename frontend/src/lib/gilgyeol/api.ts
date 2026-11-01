@@ -113,18 +113,19 @@ export interface Place {
  * Mock mode has no seeded graph to match the mock route's ids, so it returns null (the card hides).
  */
 const floorCache = new Map<string, Promise<ParsedGraph | null>>();
-export function fetchFloorGraph(floor: string): Promise<ParsedGraph | null> {
+export function fetchFloorGraph(floor: string, building = BUILDING): Promise<ParsedGraph | null> {
   if (API_MODE !== "live") return Promise.resolve(null);
-  if (!floorCache.has(floor)) {
-    const p = request<ApiGraph>(`/api/floors/${encodeURIComponent(floor)}/graph?building=${encodeURIComponent(BUILDING)}`)
+  const key = `${building}::${floor}`;
+  if (!floorCache.has(key)) {
+    const p = request<ApiGraph>(`/api/floors/${encodeURIComponent(floor)}/graph?building=${encodeURIComponent(building)}`)
       .then(fromApiGraph)
       .catch(() => {
-        floorCache.delete(floor); // let a later visit retry
+        floorCache.delete(key); // let a later visit retry
         return null;
       });
-    floorCache.set(floor, p);
+    floorCache.set(key, p);
   }
-  return floorCache.get(floor)!;
+  return floorCache.get(key)!;
 }
 
 /**

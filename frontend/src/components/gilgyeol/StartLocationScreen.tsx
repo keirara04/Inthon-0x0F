@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { currentMapFloor } from "@/lib/gilgyeol/confirmedMaps";
 import { startPoints } from "@/lib/gilgyeol/api";
 import { C, DEMO_1F_GRAPH, NODE_TYPES, START_NODES } from "@/lib/gilgyeol/data";
 import type { ApiStartFloor } from "@/types/api";
@@ -66,7 +67,7 @@ export function StartLocationScreen() {
   const summary = s.startAt
     ? `${floorKo(s.startAt.floor)} ${s.startAt.label} · ${s.startAt.via === "scan" ? "표지로 확인" : s.startAt.via === "pin" ? "지도에서 찍음" : "직접 선택"}`
     : startNode
-      ? `1층 ${startNode.label}${s.locEdit ? " · 선택 중" : " · 추정 위치"}`
+      ? `${floorKo(currentMapFloor(s))} ${startNode.label}${s.locEdit ? " · 선택 중" : " · 추정 위치"}`
       : "아직 위치를 고르지 않았어요";
 
   return (

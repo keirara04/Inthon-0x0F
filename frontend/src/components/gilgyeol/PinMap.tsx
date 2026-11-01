@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
-import { fetchFloorGraph, type ParsedGraph } from "@/lib/gilgyeol/api";
+import { useState, type MouseEvent } from "react";
+import { useFloorMap } from "@/lib/gilgyeol/useFloorMap";
 import { C, EDITOR_H, EDITOR_W, FLOORS } from "@/lib/gilgyeol/data";
 import { pinNode } from "@/lib/gilgyeol/geometry";
 import { MapBox, MapSketch, graphFrame } from "./MapSketch";
@@ -16,18 +16,10 @@ export type PinnedSpot = { id: string; label: string; floor: string };
  */
 export function PinMap({ initialFloor, confirmLabel, onConfirm }: { initialFloor: string; confirmLabel: string; onConfirm: (spot: PinnedSpot) => void | Promise<void> }) {
   const [floor, setFloor] = useState(initialFloor);
-  const [loaded, setLoaded] = useState<{ floor: string; g: ParsedGraph | null } | null>(null);
   const [pin, setPin] = useState<{ floor: string; id: string; label: string } | null>(null);
   const [busy, setBusy] = useState(false); // one route request per confirm, even on a double tap
 
-  useEffect(() => {
-    let alive = true;
-    void fetchFloorGraph(floor).then((g) => alive && setLoaded({ floor, g }));
-    return () => {
-      alive = false;
-    };
-  }, [floor]);
-  const g = loaded?.floor === floor ? loaded.g : undefined; // undefined = loading, null = no verified map
+  const g = useFloorMap(floor);
   const frame = g ? graphFrame(g) : null;
   const picked = pin?.floor === floor ? pin : null;
   const pinNodeOnMap = picked && g ? g.nodes.find((n) => n.id === picked.id) : undefined;
