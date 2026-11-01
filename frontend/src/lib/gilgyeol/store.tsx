@@ -101,12 +101,13 @@ export interface AppState {
   sheet: boolean;
   toast: string | null;
   cue: string | null;
-  /** Demo login name; prefilled so the judge just taps 시작하기. Not persisted. */
-  nickname: string;
+  /** Demo login from the landing's 로그인 sheet; null = logged out. Not persisted. */
+  user: { name: string; email: string } | null;
+  loginSheet: boolean;
 }
 
 const INITIAL: AppState = {
-  screen: "login",
+  screen: "landing",
   trialOn: false,
   mapDemo: false,
   floorMapTarget: null,
@@ -155,7 +156,8 @@ const INITIAL: AppState = {
   sheet: false,
   toast: null,
   cue: null,
-  nickname: "김하은",
+  user: null,
+  loginSheet: false,
 };
 
 const BACK: Partial<Record<Screen, Screen>> = {

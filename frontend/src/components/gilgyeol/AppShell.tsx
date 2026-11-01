@@ -16,7 +16,7 @@ import { GraphEditorScreen } from "./GraphEditorScreen";
 import { GuidanceScreen } from "./GuidanceScreen";
 import { InvalidMapScreen } from "./InvalidMapScreen";
 import { LandingScreen } from "./LandingScreen";
-import { LoginScreen } from "./LoginScreen";
+import { LoginSheet } from "./LoginSheet";
 import { MapResultScreen } from "./MapResultScreen";
 import { ModeScreen } from "./ModeScreen";
 import { OffRouteScreen } from "./OffRouteScreen";
@@ -29,7 +29,6 @@ import { WrongFloorScreen } from "./WrongFloorScreen";
 import { WelcomeScreen } from "./WelcomeScreen";
 
 const SCREENS: Record<Screen, () => ReactNode> = {
-  login: LoginScreen,
   landing: LandingScreen,
   trial: TrialScreen,
   welcome: WelcomeScreen,
@@ -117,6 +116,7 @@ function Device() {
           </div>
         )}
         {s.sheet && <SettingsSheet />}
+        {s.loginSheet && <LoginSheet />}
         <div id="gg-overlay" />
         <div aria-hidden="true" className={`gg-home ${dark ? "bg-white/80" : "bg-ink/80"}`} />
       </div>
