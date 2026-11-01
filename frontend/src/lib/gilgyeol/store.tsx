@@ -536,6 +536,27 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     advance();
   }, [advance]);
 
+  /**
+   * No checked map for this floor: route on the photographed one (AI draft). The user is standing at the map they
+   * just photographed, so its 현위치 is the start; else its elevator hall, else stairs. False when nothing usable.
+   */
+  const startOnPhoto = useCallback(
+    (g: ParsedGraph | null, floor: string) => {
+      const map = g ? photoGraph(g) : null;
+      const here = g?.current_node_id ? (g.current_node_id.startsWith(`${floor}-`) ? g.current_node_id : `${floor}-${g.current_node_id}`) : null;
+      const photoHall =
+        map?.nodes.find((n) => n.id === here) ?? map?.nodes.find((n) => n.type === "elevator_hall") ?? map?.nodes.find((n) => n.type === "stairs");
+      if (!map || !photoHall) {
+        toast(map ? "안내도에서 현위치나 엘리베이터를 찾지 못했어요. 다시 찍어주세요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+        say(map ? "안내도에서 현위치를 찾지 못했어요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
+        return false;
+      }
+      update({ startAt: { id: photoHall.id, label: photoHall.label, floor, via: "list" }, start: null, photoMap: map });
+      return true;
+    },
+    [toast, say, update],
+  );
+
   const confirmMap = useCallback(async () => {
     const s = ref.current;
     const g = s.mapDemo ? null : s.parsed;
@@ -550,18 +571,7 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       const floor = g?.floor ?? floorLabel(DEST_FLOOR);
       const hall = g ? null : await elevatorHall(floor, s.place.name);
       if (!hall) {
-        // Route on the confirmed photographed map (AI draft). The user is standing at the
-        // map they just photographed, so its 현위치 is the start; else its elevator hall, else stairs.
-        const map = g ? photoGraph(g) : null;
-        const here = g?.current_node_id ? (g.current_node_id.startsWith(`${floor}-`) ? g.current_node_id : `${floor}-${g.current_node_id}`) : null;
-        const photoHall =
-          map?.nodes.find((n) => n.id === here) ?? map?.nodes.find((n) => n.type === "elevator_hall") ?? map?.nodes.find((n) => n.type === "stairs");
-        if (!map || !photoHall) {
-          toast(map ? "안내도에서 현위치나 엘리베이터를 찾지 못했어요. 다시 찍어주세요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
-          say(map ? "안내도에서 현위치를 찾지 못했어요" : `${floorName(floor)}은 아직 길 안내용 지도가 없어요`);
-          return;
-        }
-        update({ startAt: { id: photoHall.id, label: photoHall.label, floor, via: "list" }, start: null, photoMap: map });
+        if (!startOnPhoto(g, floor)) return;
         say(`${floorName(floor)} 안내도예요. 검수 전 AI 지도로 안내해요. 목적지를 골라주세요`);
         go("search", { floorPick: floorNumber(floor), query: "", cat: null });
         return;
@@ -576,8 +586,15 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
       navContinueAfterFloorMap();
       return;
     }
-    go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !s.start, landmarks: false });
-  }, [go, update, navContinueAfterFloorMap, toast, say]);
+    // A photo of a floor with no checked map (2F, 3F): start on that photo, not on the 1F demo start spots.
+    if (g && g.floorSource === "map" && !(await elevatorHall(g.floor))) {
+      if (!startOnPhoto(g, g.floor)) return;
+      say(`${floorName(g.floor)} 안내도예요. 검수 전 AI 지도로 안내해요`);
+      go("destFloor", { landmarks: false });
+      return;
+    }
+    go("start", { ...(g ? {} : { start: "here" }), locEdit: !!g && !s.start, landmarks: false, photoMap: null });
+  }, [go, update, navContinueAfterFloorMap, say, startOnPhoto]);
 
   const scanNext = useCallback(
     (manual: boolean) => {
@@ -880,6 +897,11 @@ function useGilgyeolController(scrollRef: RefObject<HTMLDivElement | null>) {
     }
     if (s.screen === "elevator") {
       startGuide(Math.max(0, s.step - 1));
+      return;
+    }
+    // Started on a photographed floor: back shows that photo, not the 1F demo start spots.
+    if (s.screen === "destFloor" && s.photoMap) {
+      go("mapResult");
       return;
     }
     go(BACK[s.screen] ?? "welcome");
