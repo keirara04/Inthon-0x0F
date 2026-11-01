@@ -1,44 +1,36 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ParsedGraph } from "@/lib/gilgyeol/api";
-import { C, DEMO_1F_GRAPH, EXAMPLE_4F_GRAPH, START_NODES } from "@/lib/gilgyeol/data";
+import type { ApiRoute } from "@/types/api";
+import { C, START_NODES } from "@/lib/gilgyeol/data";
 import { floorName } from "@/lib/gilgyeol/floorTransition";
 import { routeSummary } from "@/lib/gilgyeol/routeSummary";
-import { shortestPath } from "@/lib/gilgyeol/geometry";
 import { useDestName, useGilgyeol } from "@/lib/gilgyeol/store";
-import type { StartNodeId } from "@/lib/gilgyeol/types";
+import { useFloorMap } from "@/lib/gilgyeol/useFloorMap";
+import { mapForRoute } from "@/lib/gilgyeol/confirmedMaps";
 import { Floor3DLazy } from "./Floor3DLazy";
-import { startNode as nodeFor } from "./MapSketch";
+import { MapBox, MapSketch, graphFrame } from "./MapSketch";
 import { BackHeader, PrimaryButton } from "./ui";
 
-/**
- * 1F and the real 4F (traced from the 우정정보관 sign) stacked in 3D, joined at the elevator, with the
- * route as a tube. Display only: the steps below come from the verified graph via /api/route.
- */
-function StackedRoute({ dest, start, parsed }: { dest: string; start: StartNodeId | null; parsed: ParsedGraph | null }) {
-  const levels = useMemo(() => {
-    const g1 = parsed && (parsed.floor || "1F") === "1F" ? parsed : DEMO_1F_GRAPH;
-    const from = (start && nodeFor(g1, start)) || g1.nodes.find((n) => n.id === g1.current_node_id);
-    const elev1 = g1.nodes.find((n) => n.type === "elevator_hall");
-    const route1 = from && elev1 ? shortestPath(g1.nodes, g1.edges, from.id, elev1.id) : [];
-    const g4 = EXAMPLE_4F_GRAPH;
-    const key = dest.replace(/호.*$/, "");
-    const to = g4.nodes.find((n) => n.type === "room" && n.label.replace(/호.*$/, "") === key);
-    const elev4 = g4.nodes.find((n) => n.type === "elevator_hall");
-    const route4 = elev4 && to ? shortestPath(g4.nodes, g4.edges, elev4.id, to.id) : elev4 ? [elev4.id] : [];
-    return [
-      { label: "1F", g: g1, route: route1.length ? route1 : from && elev1 ? [from.id, elev1.id] : [] },
-      { label: "4F", g: g4, route: route4 },
-    ];
-  }, [dest, start, parsed]);
-  return (
-    <div className="relative h-[360px] overflow-hidden rounded-2xl border border-line bg-[#FAF9F6]">
-      <Floor3DLazy levels={levels} hint={`1층 → 엘리베이터 → 4층 ${dest}`} />
-      {/* The picture is a traced diagram; the steps below come from the verified graph and can differ. */}
-      <span className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-haptic-tint px-2 py-1 text-[11px] font-semibold text-haptic-ink">3D 도식 · 안내 단계는 검수된 지도 기준</span>
-    </div>
-  );
+function RouteFloor({ floor, route, view }: { floor: string; route: ApiRoute; view: "floors" | "3d" }) {
+  const loaded = useFloorMap(floor);
+  const g = useMemo(() => loaded ? mapForRoute(loaded, route.path) : null, [loaded, route.path]);
+  if (!g) return <p className="text-muted">{floorName(floor)} {loaded === undefined ? "지도를 불러오는 중…" : "안내도를 촬영하면 지도를 볼 수 있어요."}</p>;
+  const ids = new Set(g.nodes.map((n) => n.id));
+  const path = route.path.filter((id) => ids.has(id));
+  const frame = graphFrame(g);
+  const points = path.map((id) => frame.pt(g.nodes.find((n) => n.id === id)!));
+  return <div className="rounded-2xl bg-surface p-3">
+    <div className="mb-2 text-[15px] font-bold">{floorName(floor)}</div>
+    {view === "3d" ? <div className="relative h-[320px] overflow-hidden rounded-xl">
+      <Floor3DLazy levels={[{ label: floor, g, route: path }]} />
+    </div> : <MapBox frame={frame} label={`${floorName(floor)} 경로`} maxH={300}>
+      <MapSketch g={g} frame={frame} />
+      {points.length > 1 && <svg viewBox={`${frame.box.x} ${frame.box.y} ${frame.box.w} ${frame.box.h}`} className="pointer-events-none absolute inset-0 size-full" aria-hidden="true">
+        <polyline points={points.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke={C.route} strokeWidth={5 * frame.k} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>}
+    </MapBox>}
+  </div>;
 }
 
 export function RoutePreviewScreen() {
@@ -65,8 +57,8 @@ export function RoutePreviewScreen() {
   const arriveFloor = summary ? floorName(summary.arrivalFloor) : `${s.dest?.floor ?? 1}층`;
   const departFloor = summary ? floorName(summary.departureFloor) : s.steps[0]?.floor ?? arriveFloor;
   const alreadyThere = summary?.alreadyThere ?? false;
-  // The 2D/3D diagrams are drawn for the 1F -> 4F demo route only; hide them for any other route rather than show a wrong map.
-  const showFloorMap = departFloor === "1층" && arriveFloor === "4층";
+  const routeFloors = s.route ? [...new Set([routeSummary(s.route).departureFloor, ...s.route.steps.map((step) => step.floor), s.route.arrived.floor])].filter(Boolean) : [];
+  const showFloorMap = routeFloors.length > 0;
   const badgeCls = { warn: "bg-warn-tint text-warn-ink", cp: "bg-haptic-tint text-haptic-ink", ok: "bg-ok-tint text-ok-ink" };
 
   return (
@@ -107,36 +99,7 @@ export function RoutePreviewScreen() {
           ))}
         </div>
       </div>
-      {view === "3d" && <StackedRoute dest={d} start={s.start} parsed={s.mapDemo ? null : s.parsed} />}
-      <div className={`grid grid-cols-2 gap-2.5 ${view === "3d" ? "hidden" : ""}`}>
-        <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
-          <div className="text-[13px] font-bold">1층</div>
-          <svg viewBox="0 0 150 90" className="h-auto w-full" role="img" aria-label="1층: 현위치에서 엘리베이터 홀까지">
-            <g stroke="#EAE7DF" strokeWidth="10" strokeLinecap="round">
-              <line x1="15" y1="40" x2="135" y2="40" />
-              <line x1="75" y1="40" x2="75" y2="80" />
-              <line x1="15" y1="15" x2="15" y2="75" />
-            </g>
-            <polyline points="15,75 15,40 75,40" fill="none" stroke={C.route} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="15" cy="75" r="6" fill={C.brand} />
-            <rect x="68" y="33" width="14" height="14" rx="3" fill={C.route} />
-          </svg>
-          <div className="text-[13px] text-muted">현위치 → 엘리베이터 홀</div>
-        </div>
-        <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
-          <div className="text-[13px] font-bold">4층</div>
-          <svg viewBox="0 0 150 90" className="h-auto w-full" role="img" aria-label={`4층: 엘리베이터에서 왼쪽 복도로 ${d}까지`}>
-            <g stroke="#EAE7DF" strokeWidth="10" strokeLinecap="round">
-              <line x1="15" y1="45" x2="135" y2="45" />
-            </g>
-            <polyline points="75,45 15,45 15,22" fill="none" stroke={C.route} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-            <rect x="68" y="38" width="14" height="14" rx="3" fill={C.route} />
-            <circle cx="45" cy="45" r="5" fill="#fff" stroke={C.haptic} strokeWidth="2.5" />
-            <circle cx="15" cy="20" r="7" fill={C.brand} />
-          </svg>
-          <div className="text-[13px] text-muted">엘리베이터 → 왼쪽 복도 → {d}</div>
-        </div>
-      </div>
+      {s.route && routeFloors.map((floor) => <RouteFloor key={floor} floor={floor} route={s.route!} view={view} />)}
         </>
       )}
       <div className="rounded-[18px] bg-surface px-[18px] py-1.5">

@@ -17,6 +17,8 @@ export type Floor3DLevel = {
   g: ParsedGraph;
   /** Node ids of the route on this floor, in walking order. Floors are joined at their elevators. */
   route?: string[];
+  /** Hide the evacuation map's original location pin during guidance. */
+  showCurrent?: boolean;
 };
 
 /** A tappable pin on a node (start choices). `id` is reported to onSelect and highlighted when `selected`. */
@@ -394,7 +396,7 @@ export default function Floor3D({
 
       // Keep the circular base just above the visible corridor or route tube.
       const cur = level.g.current_node_id ? at.get(level.g.current_node_id) : undefined;
-      const me = levels.length === 1 ? cur : li === 0 && level.route?.[0] ? at.get(level.route[0]) : undefined;
+      const me = level.showCurrent === false ? undefined : levels.length === 1 ? cur : li === 0 && level.route?.[0] ? at.get(level.route[0]) : undefined;
       if (me) {
         const person = new THREE.Group();
         const markerHeight = levels.reduce((count, l) => count + (l.route?.length ?? 0), 0) >= 2 ? 0.58 : 0.12;
