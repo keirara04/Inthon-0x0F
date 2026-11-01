@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { C, DEMO_1F_GRAPH } from "@/lib/gilgyeol/data";
+import { DEMO_1F_GRAPH } from "@/lib/gilgyeol/api";
+import { C } from "@/lib/gilgyeol/data";
 import { floorName, canUseFloorMap } from "@/lib/gilgyeol/floorTransition";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import { WrongFloorScreen } from "./WrongFloorScreen";

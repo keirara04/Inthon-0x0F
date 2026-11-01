@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { currentMapFloor } from "@/lib/gilgyeol/confirmedMaps";
-import { startPoints } from "@/lib/gilgyeol/api";
-import { C, DEMO_1F_GRAPH, NODE_TYPES, START_NODES } from "@/lib/gilgyeol/data";
+import { DEMO_1F_GRAPH, startPoints } from "@/lib/gilgyeol/api";
+import { C, NODE_TYPES, START_NODES } from "@/lib/gilgyeol/data";
 import type { ApiStartFloor } from "@/types/api";
 import { useGilgyeol } from "@/lib/gilgyeol/store";
 import type { StartNodeId } from "@/lib/gilgyeol/types";

@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { ApiGraph, ApiRoute } from "@/types/api";
-import { API_MODE, ApiError, fetchFloorGraph, fetchPhotoRoute, fetchRoute, photoGraph, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
-import { BUILDING, DEMO_1F_GRAPH, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
+import { API_MODE, ApiError, DEMO_1F_GRAPH, fetchFloorGraph, fetchPhotoRoute, fetchRoute, photoGraph, fetchSavedMap, floorLabel, floorNumber, parseEvacMap, toRouteStep, type ParsedGraph, type Place } from "./api";
+import { BUILDING, DEST_FLOOR, DIRECTION, PATTERNS, ROOMS, START_NODE_IDS, scanMeta } from "./data";
 import { useDemoTools } from "./demo";
 import { beep, beepPan, cancelSpeech, iosHaptic, koreanVoiceReady, speak, stopVibration, supportsVibration, unlockAudio, vibrate } from "./feedback";
 import { currentMapFloor, mapKey, mapDeparture, mapSelection, rememberMap, type MapSelection, type ConfirmedMaps } from "./confirmedMaps";
@@ -106,7 +106,7 @@ export interface AppState {
 }
 
 const INITIAL: AppState = {
-  screen: "landing",
+  screen: "login",
   trialOn: false,
   mapDemo: false,
   floorMapTarget: null,
@@ -159,8 +159,7 @@ const INITIAL: AppState = {
 };
 
 const BACK: Partial<Record<Screen, Screen>> = {
-  login: "landing",
-  trial: "login",
+  trial: "landing",
   building: "welcome",
   captureIntro: "welcome", // building screen is skipped while there is only one building
   invalidMap: "captureIntro",

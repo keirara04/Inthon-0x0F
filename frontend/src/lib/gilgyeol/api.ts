@@ -5,6 +5,7 @@ import type { ApiBuilding, ApiCheckpointResult, ApiGraph, ApiLocateResult, ApiNo
 import { BUILDING, EDITOR_H, EDITOR_W, ROOMS, SAMPLE_AI_GRAPH, parseServedFloors } from "./data";
 import type { FloorGraph, GraphNode, Room, RoomCategory, RouteStep } from "./types";
 import { facilityGraph } from "./facilityGeometry";
+import demo1F from "./demo-1F.json";
 
 export const API_MODE: "live" | "mock" = process.env.NEXT_PUBLIC_GILGYEOL_API === "live" ? "live" : "mock";
 
@@ -507,3 +508,6 @@ const MOCK_ROUTE: ApiRoute = {
   ],
   arrived: { node: "4F-405", label: "405호", floor: "4F" },
 };
+
+/** The 데모 안내도: the 우정정보관 1F photo map saved on prod (GET /api/evac-map/saved?building_id=1&floor=1F), as a fixed copy. */
+export const DEMO_1F_GRAPH = fromApiGraph(demo1F as unknown as ApiGraph);

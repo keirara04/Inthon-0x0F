@@ -3,7 +3,6 @@
 import type {
   DirectionState,
   FloorGraph,
-  GraphEdge,
   GraphNode,
   FloorStatus,
   HapticPattern,
@@ -182,46 +181,6 @@ export function parseServedFloors(text: string): (string | null)[] {
 }
 
 /** Simulated AI draft for the 2F evacuation map — intentionally contains errors to review. */
-/**
- * The 1F demo floor (same layout as FLOOR1 / the start-location pins) as a parsed graph, so the
- * demo and sample paths render with the same map look as a real photo. Plane coords × (340/260, 230/200).
- */
-export const DEMO_1F_GRAPH = (() => {
-  const sx = (px: number) => Math.round(px * (EDITOR_W / 260));
-  const sy = (py: number) => Math.round(py * (EDITOR_H / 200));
-  // `block`: FLOOR1 room rect (x, y, w, h) in plane coords, drawn as the room outline.
-  const n = (id: string, type: NodeType, label: string, px: number, py: number, block?: [number, number, number, number]): GraphNode => ({
-    id, type, label, x: sx(px), y: sy(py), ocr: "", servedFloors: "", src: "ai",
-    ...(block ? { outline: [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => ({ x: sx(block[0] + u * block[2]), y: sy(block[1] + v * block[3]) })) } : {}),
-  });
-  const e = (a: string, b: string): GraphEdge => ({ a, b, src: "ai" });
-  return {
-    building: BUILDING,
-    floor: "1F",
-    current_node_id: "1F-here",
-    elevators: [],
-    nodes: [
-      n("1F-here", "junction", "로비", 35, 148),
-      n("1F-stairs", "stairs", "계단 A", 35, 46),
-      n("1F-elev", "elevator_hall", "엘리베이터 홀", 132, 87),
-      n("1F-main", "entrance", "정문 출입구", 132, 186),
-      n("1F-jw", "junction", "서측 모서리", 35, 87),
-      n("1F-je", "junction", "동측 끝", 240, 87),
-      n("1F-d1", "junction", "101 앞", 84, 87),
-      n("1F-d2", "junction", "102 앞", 198, 87),
-      n("1F-101", "room", "101호", 84, 41, [52, 12, 64, 58]),
-      n("1F-102", "room", "102호", 198, 41, [150, 12, 96, 58]),
-      n("1F-103", "room", "103호", 84, 133, [52, 104, 64, 58]),
-      n("1F-adm", "room", "행정실", 198, 133, [150, 104, 96, 58]),
-    ],
-    edges: [
-      e("1F-stairs", "1F-jw"), e("1F-jw", "1F-here"), e("1F-jw", "1F-d1"), e("1F-d1", "1F-elev"),
-      e("1F-elev", "1F-d2"), e("1F-d2", "1F-je"), e("1F-elev", "1F-main"),
-      e("1F-101", "1F-d1"), e("1F-103", "1F-d1"), e("1F-102", "1F-d2"), e("1F-adm", "1F-d2"),
-    ],
-  };
-})();
-
 /** Example photo on the capture intro, and a hand-made graph of it (pixel coords of the 1000×635 image). */
 export const EXAMPLE_PHOTO = { url: "/examples/evac-map-4f.jpg", w: 1000, h: 635 };
 export const EXAMPLE_4F_GRAPH = (() => {

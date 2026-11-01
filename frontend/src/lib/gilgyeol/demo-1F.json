@@ -1,0 +1,530 @@
+{
+  "edges": [
+    {
+      "to": "1F-j1",
+      "from": "1F-current",
+      "type": "walk",
+      "length_m": 2.5,
+      "heading_deg": 201.5
+    },
+    {
+      "to": "1F-elev-1",
+      "from": "1F-current",
+      "type": "walk",
+      "length_m": 1,
+      "heading_deg": 108.4
+    },
+    {
+      "to": "1F-stairs-1",
+      "from": "1F-j1",
+      "type": "walk",
+      "length_m": 4.5,
+      "heading_deg": 270.9
+    },
+    {
+      "to": "1F-j2",
+      "from": "1F-j1",
+      "type": "walk",
+      "length_m": 3.8,
+      "heading_deg": 180
+    },
+    {
+      "to": "1F-j3",
+      "from": "1F-j2",
+      "type": "walk",
+      "length_m": 14,
+      "heading_deg": 180
+    },
+    {
+      "to": "1F-entrance-1",
+      "from": "1F-j3",
+      "type": "walk",
+      "length_m": 6.5,
+      "heading_deg": 165.5
+    },
+    {
+      "to": "1F-j4",
+      "from": "1F-j2",
+      "type": "walk",
+      "length_m": 6,
+      "heading_deg": 90
+    },
+    {
+      "to": "1F-toilet-1",
+      "from": "1F-j4",
+      "type": "walk",
+      "length_m": 2,
+      "heading_deg": 180
+    },
+    {
+      "to": "1F-j5",
+      "from": "1F-j4",
+      "type": "walk",
+      "length_m": 3.1,
+      "heading_deg": 90
+    },
+    {
+      "to": "1F-toilet-2",
+      "from": "1F-j5",
+      "type": "walk",
+      "length_m": 2,
+      "heading_deg": 182.7
+    },
+    {
+      "to": "1F-j6",
+      "from": "1F-j5",
+      "type": "walk",
+      "length_m": 3.9,
+      "heading_deg": 90
+    },
+    {
+      "to": "1F-105",
+      "from": "1F-j6",
+      "type": "walk",
+      "length_m": 3,
+      "heading_deg": 358.6
+    },
+    {
+      "to": "1F-102",
+      "from": "1F-j6",
+      "type": "walk",
+      "length_m": 2.5,
+      "heading_deg": 180
+    },
+    {
+      "to": "1F-101",
+      "from": "1F-102",
+      "type": "walk",
+      "length_m": 4.5,
+      "heading_deg": 180
+    },
+    {
+      "to": "1F-j7",
+      "from": "1F-j6",
+      "type": "walk",
+      "length_m": 7.3,
+      "heading_deg": 90
+    },
+    {
+      "to": "1F-103",
+      "from": "1F-j7",
+      "type": "walk",
+      "length_m": 3,
+      "heading_deg": 197.7
+    },
+    {
+      "to": "1F-104",
+      "from": "1F-j7",
+      "type": "walk",
+      "length_m": 4.5,
+      "heading_deg": 155.8
+    },
+    {
+      "to": "1F-j8",
+      "from": "1F-j7",
+      "type": "walk",
+      "length_m": 1.7,
+      "heading_deg": 90
+    },
+    {
+      "to": "1F-stairs-2",
+      "from": "1F-j8",
+      "type": "walk",
+      "length_m": 3.2,
+      "heading_deg": 24.3
+    }
+  ],
+  "floor": "1F",
+  "nodes": [
+    {
+      "x": 0.276,
+      "y": 0.403,
+      "id": "1F-current",
+      "type": "junction",
+      "label": "현위치"
+    },
+    {
+      "x": 0.288,
+      "y": 0.407,
+      "id": "1F-elev-1",
+      "ref": "elev-1",
+      "door": [
+        {
+          "x": 0.288,
+          "y": 0.388
+        },
+        {
+          "x": 0.288,
+          "y": 0.418
+        }
+      ],
+      "type": "elevator_hall",
+      "label": "엘리베이터",
+      "outline": [
+        {
+          "x": 0.288,
+          "y": 0.373
+        },
+        {
+          "x": 0.32,
+          "y": 0.373
+        },
+        {
+          "x": 0.32,
+          "y": 0.428
+        },
+        {
+          "x": 0.288,
+          "y": 0.428
+        }
+      ]
+    },
+    {
+      "x": 0.198,
+      "y": 0.435,
+      "id": "1F-stairs-1",
+      "ref": "stairs-1",
+      "door": [
+        {
+          "x": 0.238,
+          "y": 0.45
+        },
+        {
+          "x": 0.238,
+          "y": 0.47
+        }
+      ],
+      "type": "stairs",
+      "label": "계단",
+      "outline": [
+        {
+          "x": 0.152,
+          "y": 0.402
+        },
+        {
+          "x": 0.239,
+          "y": 0.402
+        },
+        {
+          "x": 0.239,
+          "y": 0.472
+        },
+        {
+          "x": 0.152,
+          "y": 0.472
+        }
+      ],
+      "stair_flight": [
+        {
+          "x": 0.185,
+          "y": 0.435
+        },
+        {
+          "x": 0.23,
+          "y": 0.435
+        }
+      ]
+    },
+    {
+      "x": 0.569,
+      "y": 0.434,
+      "id": "1F-stairs-2",
+      "ref": "stairs-2",
+      "door": [
+        {
+          "x": 0.535,
+          "y": 0.463
+        },
+        {
+          "x": 0.558,
+          "y": 0.463
+        }
+      ],
+      "type": "stairs",
+      "label": "계단",
+      "outline": [
+        {
+          "x": 0.525,
+          "y": 0.405
+        },
+        {
+          "x": 0.618,
+          "y": 0.405
+        },
+        {
+          "x": 0.618,
+          "y": 0.463
+        },
+        {
+          "x": 0.525,
+          "y": 0.463
+        }
+      ],
+      "stair_flight": [
+        {
+          "x": 0.55,
+          "y": 0.434
+        },
+        {
+          "x": 0.59,
+          "y": 0.434
+        }
+      ]
+    },
+    {
+      "x": 0.2835,
+      "y": 0.744,
+      "id": "1F-entrance-1",
+      "door": [
+        {
+          "x": 0.252,
+          "y": 0.744
+        },
+        {
+          "x": 0.315,
+          "y": 0.744
+        }
+      ],
+      "type": "entrance",
+      "label": "주출입구"
+    },
+    {
+      "x": 0.428,
+      "y": 0.402,
+      "id": "1F-105",
+      "type": "room",
+      "label": "105호",
+      "outline": [
+        {
+          "x": 0.334,
+          "y": 0.327
+        },
+        {
+          "x": 0.522,
+          "y": 0.327
+        },
+        {
+          "x": 0.522,
+          "y": 0.468
+        },
+        {
+          "x": 0.334,
+          "y": 0.468
+        }
+      ]
+    },
+    {
+      "x": 0.34,
+      "y": 0.59,
+      "id": "1F-toilet-1",
+      "type": "room",
+      "label": "화장실",
+      "outline": [
+        {
+          "x": 0.325,
+          "y": 0.505
+        },
+        {
+          "x": 0.354,
+          "y": 0.505
+        },
+        {
+          "x": 0.354,
+          "y": 0.665
+        },
+        {
+          "x": 0.325,
+          "y": 0.665
+        }
+      ]
+    },
+    {
+      "x": 0.375,
+      "y": 0.59,
+      "id": "1F-toilet-2",
+      "type": "room",
+      "label": "화장실",
+      "outline": [
+        {
+          "x": 0.355,
+          "y": 0.505
+        },
+        {
+          "x": 0.395,
+          "y": 0.505
+        },
+        {
+          "x": 0.395,
+          "y": 0.665
+        },
+        {
+          "x": 0.355,
+          "y": 0.665
+        }
+      ]
+    },
+    {
+      "x": 0.43,
+      "y": 0.545,
+      "id": "1F-102",
+      "type": "room",
+      "label": "102호",
+      "outline": [
+        {
+          "x": 0.395,
+          "y": 0.505
+        },
+        {
+          "x": 0.464,
+          "y": 0.505
+        },
+        {
+          "x": 0.464,
+          "y": 0.584
+        },
+        {
+          "x": 0.395,
+          "y": 0.584
+        }
+      ]
+    },
+    {
+      "x": 0.43,
+      "y": 0.625,
+      "id": "1F-101",
+      "type": "room",
+      "label": "101호",
+      "outline": [
+        {
+          "x": 0.395,
+          "y": 0.584
+        },
+        {
+          "x": 0.464,
+          "y": 0.584
+        },
+        {
+          "x": 0.464,
+          "y": 0.662
+        },
+        {
+          "x": 0.395,
+          "y": 0.662
+        }
+      ]
+    },
+    {
+      "x": 0.492,
+      "y": 0.585,
+      "id": "1F-103",
+      "type": "room",
+      "label": "103호",
+      "outline": [
+        {
+          "x": 0.464,
+          "y": 0.505
+        },
+        {
+          "x": 0.52,
+          "y": 0.505
+        },
+        {
+          "x": 0.52,
+          "y": 0.66
+        },
+        {
+          "x": 0.464,
+          "y": 0.66
+        }
+      ]
+    },
+    {
+      "x": 0.569,
+      "y": 0.585,
+      "id": "1F-104",
+      "type": "room",
+      "label": "104호",
+      "outline": [
+        {
+          "x": 0.52,
+          "y": 0.505
+        },
+        {
+          "x": 0.621,
+          "y": 0.505
+        },
+        {
+          "x": 0.621,
+          "y": 0.66
+        },
+        {
+          "x": 0.52,
+          "y": 0.66
+        }
+      ]
+    },
+    {
+      "x": 0.263,
+      "y": 0.436,
+      "id": "1F-j1",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.263,
+      "y": 0.485,
+      "id": "1F-j2",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.263,
+      "y": 0.665,
+      "id": "1F-j3",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.34,
+      "y": 0.485,
+      "id": "1F-j4",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.38,
+      "y": 0.485,
+      "id": "1F-j5",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.43,
+      "y": 0.485,
+      "id": "1F-j6",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.524,
+      "y": 0.485,
+      "id": "1F-j7",
+      "type": "junction",
+      "label": ""
+    },
+    {
+      "x": 0.546,
+      "y": 0.485,
+      "id": "1F-j8",
+      "type": "junction",
+      "label": ""
+    }
+  ],
+  "status": "draft",
+  "building": "우정정보관",
+  "elevators": [],
+  "building_id": 1,
+  "floor_source": "map",
+  "current_node_id": "1F-current",
+  "saved_at": "2026-11-01 00:54:21"
+}
